@@ -6,6 +6,19 @@
   <meta name="color-scheme" content="dark" />
   <title>Masterlab</title>
   <link rel="stylesheet" href="./src/style.css" />
+  <script>
+  /* Vakt för live-uppdateringar (src/updater.js): startar inte ett nytt webbpaket inom 20 s
+     backar appen till det som fungerade förut och hoppar över paketet nästa gång. */
+  (function(){try{
+    var v=localStorage.getItem('ml-bundle-pending');if(!v)return;
+    window.__mlWatchdog=setTimeout(function(){
+      var prev=localStorage.getItem('ml-bundle-prev');
+      localStorage.setItem('ml-bundle-bad',v);localStorage.removeItem('ml-bundle-pending');localStorage.removeItem('ml-bundle-pending-path');
+      var W=window.Capacitor&&Capacitor.Plugins&&Capacitor.Plugins.WebView;if(!W)return;
+      if(prev)W.setServerBasePath({path:prev});else W.setServerAssetPath({path:'public'});
+    },20000);
+  }catch(e){}})();
+  </script>
 </head>
 <body>
   <div id="app"></div>

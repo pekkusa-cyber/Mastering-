@@ -126,3 +126,27 @@ jobs:
             Ladda ner **masterlab.apk** på telefonen och öppna filen för att installera eller uppdatera.
             Bygge ${{ github.run_number }} från ${{ github.sha }} (gren ${{ github.ref_name }}).
             ${{ steps.keys.outputs.ok != 'true' && 'Obs: debug-bygge (signeringsnyckel saknas i repo-secrets).' || '' }}
+
+      # Live-uppdatering (src/updater.js): appen hämtar latest.json och bundle.zip från releasen "live".
+      # Webbdelen byts automatiskt; ändras nativenivån (native-level) erbjuder appen den nya APK:n.
+      - name: Paketera live-uppdatering
+        run: |
+          (cd dist && zip -qr ../bundle.zip .)
+          echo "{\"version\": ${{ github.run_number }}, \"native\": ${{ steps.native.outputs.level }}, \"sha\": \"${{ github.sha }}\"}" > latest.json
+          cat latest.json
+
+      - name: Publicera live-uppdatering
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: live
+          name: Masterlab – senaste (live-uppdatering)
+          target_commitish: ${{ github.sha }}
+          make_latest: false
+          overwrite_files: true
+          files: |
+            latest.json
+            bundle.zip
+            masterlab.apk
+          body: |
+            Appen hämtar uppdateringar härifrån av sig själv. Senaste bygge: ${{ github.run_number }} (${{ github.sha }}).
+            Vill du installera för hand: ladda ner **masterlab.apk**.

@@ -17,5 +17,7 @@ Varje vy har en förklaring i `src/help.js` (ⓘ i rubriken). Varje ändring av 
 - GitHub Actions kör båda före varje APK – misslyckas de publiceras inget. Nya funktioner och rättade fel får ett test.
 - När den egna DSP:n (fas 3) kommer: enhetstester i Node med syntetiska signaler (tak, bypass, klick, LUFS mot EBU).
 
-## Native-nivå
-Filen `native-level` är mittensiffran i versionen. Höj den när Kotlin-koden eller manifestet ändras.
+## Native-nivå och live-uppdateringar
+Filen `native-level` är mittensiffran i versionen. **Höj den när Kotlin-koden, manifestet eller Capacitor-plugins ändras** –
+annars försöker appen köra en webbdel som kräver inbyggd kod den inte har. Webbändringar (src/) når telefonen
+automatiskt via releasen "live" (`src/updater.js`, `AppUpdatePlugin.kt`); ny nativenivå erbjuds som ny APK.

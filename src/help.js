@@ -44,7 +44,11 @@ export const HELP = {
       <p>Listan visar vilka ljud-sessioner som hittats och om effekten sitter på. <b>Global session (0)</b> tar allt ljud
       och är förvald. Hittas enskilda appar samtidigt får de ingen egen effekt (annars bearbetas ljudet två gånger).
       <b>Kopiera felsökningsrapport</b> och klistra in den i chatten med Claude om något krånglar.</p>
-      <p>Använd inte Wavelet samtidigt – apparna slåss om samma ljud.</p>`,
+      <p>Använd inte Wavelet samtidigt – apparna slåss om samma ljud.</p>
+      <h3>Uppdateringar</h3>
+      <p>Appen söker efter uppdateringar när den öppnas. Ändringar i gränssnitt, presets och hjälptexter kommer
+      av sig själva: skärmen laddas om en gång och live-ljudet påverkas inte. Har appens inbyggda del ändrats
+      visas en banner – tryck <b>Installera</b>. Versionen och <b>Sök uppdatering</b> finns under Felsökning.</p>`,
   },
   perms: {
     title: 'Behörigheter',
@@ -59,6 +63,8 @@ export const HELP = {
         Masterlab under Inställningar → Batteri → Gränser för bakgrundsanvändning →
         <i>Appar som aldrig försätts i viloläge</i>.</li>
         <li><b>Mikrofon</b> – bara för Auto-nivåmatcha (Android kräver den för att mäta ljudnivån). Inget spelas in eller sparas.</li>
+        <li><b>Installera uppdateringar</b> – så att en ny app-version kan installeras med ett tryck
+        (Androids "Installera okända appar" för Masterlab).</li>
         <li><b>Sessionsdetektering (DUMP)</b> – reserv om global session inte fungerar. Kan bara ges med ADB-rättigheter:
         antingen med <b>Shizuku</b> direkt på telefonen eller med en dator.</li>
       </ul>

@@ -170,3 +170,21 @@ test('hjälptexten för Live öppnas och stängs', async ({ page }) => {
   await page.getByRole('button', { name: 'Stäng' }).click();
   await expect(page.locator('#help')).not.toBeVisible();
 });
+
+test('versionen visas och ny app-version erbjuds som banner', async ({ page }) => {
+  await page.goto('/?sim=1&update=apk');
+  await expect(page.locator('#apkBanner')).toContainText('Ny app-version finns');
+  await expect(page.getByRole('button', { name: 'Installera' })).toBeVisible();
+  await page.locator('#debug summary').click();
+  await expect(page.getByTestId('version')).toContainText('webb');
+  await page.goto('/?sim=1');
+  await expect(page.locator('#apkBanner')).toHaveCount(0);
+});
+
+test('behörighet att installera uppdateringar', async ({ page }) => {
+  await page.goto('/?sim=1');
+  await page.getByRole('button', { name: 'Behörigheter' }).click();
+  await expect(page.locator('[data-perm="install"]')).toContainText('saknas');
+  await page.locator('[data-perm="install"]').getByRole('button', { name: 'Tillåt' }).click();
+  await expect(page.locator('[data-perm="install"]')).toContainText('klart');
+});

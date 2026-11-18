@@ -14,7 +14,7 @@ function simulator() {
   const globalWorks = q.get('global') !== '0';
   const perms = {
     notifications: false, microphone: false, battery: false, dump: q.get('dump') === '1',
-    shizukuInstalled: q.get('shizuku') !== '0', shizukuRunning: q.get('shizuku') !== '0', shizukuGranted: false,
+    install: false, shizukuInstalled: q.get('shizuku') !== '0', shizukuRunning: q.get('shizuku') !== '0', shizukuGranted: false,
   };
   const s = {
     running: false, on: false, globalWanted: true, globalActive: false, dumpGranted: perms.dump,

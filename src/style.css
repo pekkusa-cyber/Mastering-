@@ -70,3 +70,4 @@ dialog.ask { max-width: 340px; width: 92vw; }
 dialog.ask h2 { font-size: 17px; margin: 0 0 12px; }
 dialog.ask .btns { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
 .perm .row > span { white-space: nowrap; }
+.banner { border-color: var(--accent); }

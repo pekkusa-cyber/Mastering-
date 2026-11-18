@@ -11,6 +11,7 @@ import se.foric.masterlab.live.LiveDspService
 class MainActivity : BridgeActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         registerPlugin(LiveDspPlugin::class.java)
+        registerPlugin(AppUpdatePlugin::class.java)
         super.onCreate(savedInstanceState)
         handlePanel(intent)
     }

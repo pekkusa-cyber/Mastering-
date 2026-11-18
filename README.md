@@ -24,6 +24,17 @@ Byte från debug-bygge till signerat bygge kräver att appen avinstalleras en g�
 Repo-secrets för signerade byggen: `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`,
 `ANDROID_KEY_PASSWORD` (samma nyckel som familjekalendern går bra).
 
+## Uppdateringar
+
+Varje bygge publicerar `latest.json`, `bundle.zip` (webbdelen) och `masterlab.apk` i releasen **live**.
+Appen söker när den öppnas:
+
+- **Webbdelen** (gränssnitt, presets, hjälptexter) byts automatiskt – ingen installation.
+- **Inbyggd kod** (Kotlin/manifest – då höjs `native-level`): appen visar en banner och installerar ny APK med ett tryck.
+- Startar inte en ny webbdel inom 20 s backar appen till den förra och hoppar över den versionen.
+
+Kräver att repot är **publikt** (telefonen hämtar utan inloggning).
+
 ## Behörigheter
 
 Allt finns under fliken **Behörigheter** i appen, med en knapp per behörighet:
@@ -34,6 +45,7 @@ Allt finns under fliken **Behörigheter** i appen, med en knapp per behörighet:
 | Notiser | Notisen med PÅ/AV | Rekommenderas |
 | Undantag från batterioptimering | Att Android inte stänger motorn | Rekommenderas (Samsung: lägg även till under *Appar som aldrig försätts i viloläge*) |
 | Mikrofon | Auto-nivåmatcha (Visualizer) – inget spelas in | Valfritt |
+| Installera okända appar | Ny APK med ett tryck | Rekommenderas |
 | DUMP (sessionsdetektering) | Reserv om global session slutar fungera | Valfritt |
 
 ## Bevilja sessionsdetektering (DUMP)

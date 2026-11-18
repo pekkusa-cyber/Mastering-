@@ -7,6 +7,7 @@ import {
 } from './chain.js';
 import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
+import * as updater from './updater.js';
 
 const GRANT_CMD = 'adb shell pm grant se.foric.masterlab android.permission.DUMP';
 const app = document.getElementById('app');
@@ -24,6 +25,10 @@ const ui = {
   msg: '',
   levelMsg: '',
   busy: false,
+  update: null,      // { kind: 'apk' } när en ny app-version behövs
+  updateMsg: '',
+  version: '',
+  canInstall: false,
 };
 
 const esc = (t) => String(t ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -199,11 +204,22 @@ function debugCard() {
       <button class="btn small ghost" id="motor">${s?.running ? 'Stoppa motorn helt' : 'Starta motorn'}</button>
     </div>
     <p class="hint" id="copied" hidden>Kopierad – klistra in den i chatten.</p>
+    <p class="hint" data-testid="version">Version ${esc(ui.version)}</p>
+    <button class="btn small" id="checkUpdate">Sök uppdatering</button>
+    ${ui.update?.kind !== 'apk' && ui.updateMsg ? `<p class="hint" id="updateMsg">${esc(ui.updateMsg)}</p>` : ''}
   </details>`;
 }
 
+function apkBanner() {
+  if (ui.update?.kind !== 'apk') return '';
+  return `<section class="card banner" id="apkBanner"><b>Ny app-version finns</b>
+    <p class="hint">Den här uppdateringen ändrar appens inbyggda del och måste installeras (ett tryck).</p>
+    <button class="btn small primary" id="installApk">Installera</button>
+    ${ui.updateMsg ? `<p class="hint" id="apkMsg">${esc(ui.updateMsg)}</p>` : ''}</section>`;
+}
+
 function liveView() {
-  return `
+  return `${apkBanner()}
     <section class="card center" id="statusArea">${onButton()}</section>
     ${levelCard()}
     ${presetBar()}
@@ -238,6 +254,9 @@ function permsView() {
     ${permRow({ id: 'microphone', title: 'Mikrofon (nivåmätning)', ok: p.microphone,
       text: 'Bara för Auto-nivåmatcha. Inget spelas in eller sparas.',
       actions: p.microphone ? '' : '<button class="btn small primary" data-req="microphone">Tillåt</button>' })}
+    ${permRow({ id: 'install', title: 'Installera uppdateringar', ok: ui.canInstall,
+      text: 'Låter Masterlab installera en ny app-version med ett tryck. Vanliga ändringar kommer ändå av sig själva.',
+      actions: ui.canInstall ? '' : '<button class="btn small primary" id="allowInstall">Tillåt</button>' })}
     ${permRow({ id: 'dump', title: 'Sessionsdetektering (DUMP)', ok: p.dump,
       text: p.dump ? 'Beviljad. Används om global session inte fungerar.'
         : `Reserv om global session slutar fungera. Ges med Shizuku direkt på telefonen (se ⓘ för steg) eller med en dator.
@@ -347,6 +366,14 @@ async function exportFile() {
 
 function bindLive() {
   app.querySelector('#onoff').onclick = toggleOn;
+  const ia = app.querySelector('#installApk');
+  if (ia) ia.onclick = async () => {
+    try {
+      const r = await updater.installApk((pct) => { ia.textContent = `Laddar ner… ${pct} %`; });
+      ui.updateMsg = r === 'settings' ? 'Tillåt "Installera okända appar" för Masterlab och tryck Installera igen.' : '';
+    } catch (e) { ui.updateMsg = e.message; }
+    render();
+  };
   bindSliders();
   app.querySelectorAll('[data-mode]').forEach((b) => {
     b.onclick = () => {
@@ -426,6 +453,15 @@ function bindLive() {
 }
 
 function bindDebug() {
+  const cu = app.querySelector('#checkUpdate');
+  if (cu) cu.onclick = async () => {
+    ui.updateMsg = 'Söker…';
+    renderStatus();
+    const r = await updater.check(); // en ny webbdel laddar om skärmen direkt
+    ui.update = r.kind === 'apk' ? r : null;
+    ui.updateMsg = r.error ? `Kunde inte söka: ${r.error}` : r.kind ? '' : 'Du har senaste versionen.';
+    render();
+  };
   const rep = app.querySelector('#report');
   if (!rep) return;
   rep.onclick = async () => { await LiveDsp.copyReport(); app.querySelector('#copied').hidden = false; };
@@ -438,6 +474,7 @@ function bindDebug() {
 async function refreshPerms() {
   if (!LiveDsp) return;
   ui.perms = await LiveDsp.getPermissions();
+  ui.canInstall = isSim ? !!ui.perms.install : await updater.canInstall();
   if (ui.view === 'perms') render();
 }
 
@@ -450,6 +487,11 @@ function bindPerms() {
   });
   app.querySelector('#global').onchange = async (e) => {
     ui.status = await LiveDsp.setGlobal({ on: e.target.checked });
+    await refreshPerms();
+  };
+  const ai = app.querySelector('#allowInstall');
+  if (ai) ai.onclick = async () => {
+    try { await (isSim ? LiveDsp.requestPermission({ name: 'install' }) : updater.openInstallSettings()); } catch (e) { ui.msg = e.message; }
     await refreshPerms();
   };
   const g = app.querySelector('#shizuku-grant');
@@ -475,14 +517,25 @@ async function init() {
   ui.status = await LiveDsp.getStatus();
   await LiveDsp.addListener('status', (x) => { ui.status = x; if (!ui.busy) renderStatus(); });
   changed({ now: true }); // motorn får alltid samma inställning som skärmen visar
+  ui.version = await updater.versionText();
+  if (isSim && new URLSearchParams(location.search).get('update') === 'apk') ui.update = { kind: 'apk' };
   render();
+  updater.markBooted();
+  checkForUpdate();
   // Behörigheter kan ha ändrats i systeminställningarna medan appen låg i bakgrunden
   document.addEventListener('visibilitychange', async () => {
     if (document.hidden) return;
     ui.status = await LiveDsp.getStatus();
     await refreshPerms();
     renderStatus();
+    checkForUpdate();
   });
+}
+
+/** Vid start och när appen öppnas igen. En ny webbdel tas i bruk direkt; en ny APK visas som en banner. */
+async function checkForUpdate() {
+  const r = await updater.check();
+  if (r.kind === 'apk' && ui.update?.kind !== 'apk') { ui.update = r; render(); }
 }
 
 init();
