@@ -192,13 +192,17 @@ object LiveDspEngine {
             true, p.postEq.size,
             true,
         )
-        b.setPreEqAllChannelsTo(DynamicsProcessing.Eq(true, true, p.preEq.size))
-        b.setMbcAllChannelsTo(DynamicsProcessing.Mbc(true, true, p.mbc.size))
-        b.setPostEqAllChannelsTo(DynamicsProcessing.Eq(true, true, p.postEq.size))
+        // Byggaren tar hela steg (Eq/Mbc) – banden sätts på stegen först
+        val pre = DynamicsProcessing.Eq(true, true, p.preEq.size)
+        p.preEq.forEachIndexed { i, e -> pre.setBand(i, eqBand(e)) }
+        val mbc = DynamicsProcessing.Mbc(true, true, p.mbc.size)
+        p.mbc.forEachIndexed { i, m -> mbc.setBand(i, mbcBand(m)) }
+        val post = DynamicsProcessing.Eq(true, true, p.postEq.size)
+        p.postEq.forEachIndexed { i, e -> post.setBand(i, eqBand(e)) }
+        b.setPreEqAllChannelsTo(pre)
+        b.setMbcAllChannelsTo(mbc)
+        b.setPostEqAllChannelsTo(post)
         b.setInputGainAllChannelsTo(p.inputGain)
-        p.preEq.forEachIndexed { i, e -> b.setPreEqBandAllChannelsTo(i, eqBand(e)) }
-        p.mbc.forEachIndexed { i, m -> b.setMbcBandAllChannelsTo(i, mbcBand(m)) }
-        p.postEq.forEachIndexed { i, e -> b.setPostEqBandAllChannelsTo(i, eqBand(e)) }
         b.setLimiterAllChannelsTo(limiter(p))
         return b.build()
     }
