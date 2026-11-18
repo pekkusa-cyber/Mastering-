@@ -7,13 +7,15 @@
     "dev": "vite",
     "build": "vite build",
     "sync": "vite build && cap sync android",
-    "test": "playwright test"
+    "test": "node --test tests/unit/*.test.js && playwright test"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.3",
     "@capacitor/app": "^8.1.2",
     "@capacitor/core": "^8.5.3",
-    "@capacitor/preferences": "^8.0.1"
+    "@capacitor/filesystem": "^8.1.5",
+    "@capacitor/preferences": "^8.0.1",
+    "@capacitor/share": "^8.0.3"
   },
   "devDependencies": {
     "@capacitor/cli": "^8.5.3",

@@ -49,6 +49,14 @@
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="Ljudeffekter (limiter/EQ) på andra appars uppspelning medan användaren lyssnar" />
         </service>
+        <!-- Shizuku: ger appen DUMP-behörigheten direkt på telefonen (se Behörigheter i appen) -->
+        <provider
+            android:name="rikka.shizuku.ShizukuProvider"
+            android:authorities="${applicationId}.shizuku"
+            android:multiprocess="false"
+            android:enabled="true"
+            android:exported="true"
+            android:permission="android.permission.INTERACT_ACROSS_USERS_FULL" />
     </application>
 
     <!-- Permissions -->
@@ -59,6 +67,10 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Automatisk nivåmatchning: Visualizer mäter utgångens nivå (inget spelas in) -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <!-- Undantag från batterioptimering så att Samsung inte stänger live-motorn -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
     <!-- Sessionsdetektering: beviljas bara via ADB (adb shell pm grant se.foric.masterlab android.permission.DUMP), se README -->
     <uses-permission android:name="android.permission.DUMP" tools:ignore="ProtectedPermissions" />
     <!-- Visa vilken app (paketnamn) en hittad ljud-session tillhör -->

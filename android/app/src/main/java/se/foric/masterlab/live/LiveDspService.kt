@@ -93,6 +93,7 @@ class LiveDspService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+        LiveDspEngine.init(this)
         val nm = getSystemService(NotificationManager::class.java)
         nm.createNotificationChannel(NotificationChannel(CHANNEL, "Live-bearbetning", NotificationManager.IMPORTANCE_LOW))
         val type = if (Build.VERSION.SDK_INT >= 34) ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE else 0
@@ -114,7 +115,7 @@ class LiveDspService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
-            ACTION_TOGGLE -> LiveDspEngine.setTestMode(!LiveDspEngine.testOn)
+            ACTION_TOGGLE -> LiveDspEngine.setOn(!LiveDspEngine.on)
             ACTION_STOP -> { stopSelf(); return START_NOT_STICKY }
         }
         updateNotification()
@@ -211,13 +212,14 @@ class LiveDspService : Service() {
     )
 
     private fun buildNotification(): Notification {
-        val on = LiveDspEngine.testOn
-        val n = LiveDspEngine.status(this).getJSONArray("sessions").length()
+        val on = LiveDspEngine.on
+        val how = if (LiveDspEngine.globalActive()) "allt ljud (global session)"
+            else "${LiveDspEngine.status(this).getJSONArray("sessions").length()} ljud-sessioner"
         val open = PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE)
         return NotificationCompat.Builder(this, CHANNEL)
             .setSmallIcon(R.mipmap.ic_launcher)
-            .setContentTitle(if (on) "Testläge PÅ" else "Testläge AV")
-            .setContentText("$n ljud-sessioner · tryck på knappen för att jämföra")
+            .setContentTitle(if (on) "Masterlab PÅ" else "Masterlab AV (förbikopplad)")
+            .setContentText("Bearbetar $how")
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .setContentIntent(open)

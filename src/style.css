@@ -41,3 +41,32 @@ pre { background: #0e0f12; padding: 10px; border-radius: 8px; white-space: pre-w
 dialog { background: var(--card); color: var(--text); border: 1px solid var(--line); border-radius: 14px; max-width: min(560px, 92vw); max-height: 85vh; }
 dialog::backdrop { background: #000a; }
 .help-body h2 { margin-top: 0; } .help-body h3 { font-size: 15px; margin-bottom: 4px; }
+
+/* Fas 2 */
+.top { gap: 8px; }
+.tabs { display: flex; gap: 4px; background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 3px; }
+.tabs button, .seg button { background: none; border: 0; color: var(--dim); font: inherit; font-size: 14px; padding: 6px 10px; border-radius: 8px; }
+.tabs button.sel, .seg button.sel { background: #2f343d; color: var(--text); }
+.seg { display: flex; gap: 4px; background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 3px; margin: 12px 0 0; }
+.seg button { flex: 1; padding: 8px; }
+.row { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.btnrow { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.btn.file { display: inline-flex; align-items: center; }
+.btn:disabled { opacity: .4; }
+select, .ask input { width: 100%; background: #0e0f12; color: var(--text); border: 1px solid var(--line); border-radius: 10px; padding: 10px; font: inherit; }
+.sl { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 2px 8px; margin: 10px 0 2px; }
+.sl .name { font-size: 14px; }
+.sl output { font-size: 13px; color: var(--dim); font-variant-numeric: tabular-nums; text-align: right; min-width: 64px; }
+.sl input { grid-column: 1 / -1; width: 100%; accent-color: var(--accent); height: 28px; }
+.hint.small { font-size: 12px; margin: 0 0 6px; }
+details > summary { cursor: pointer; font-weight: 600; padding: 6px 0; }
+#advanced details { border-top: 1px solid var(--line); }
+#advanced details:first-child { border-top: 0; }
+details.band { margin-left: 8px; }
+details.band > summary { font-weight: 500; font-size: 14px; }
+.status { color: var(--dim); font-size: 14px; }
+.perm h2 { margin: 0; }
+dialog.ask { max-width: 340px; width: 92vw; }
+dialog.ask h2 { font-size: 17px; margin: 0 0 12px; }
+dialog.ask .btns { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
+.perm .row > span { white-space: nowrap; }

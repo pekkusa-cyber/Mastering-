@@ -1,6 +1,7 @@
 package se.foric.masterlab.live
 
 import android.content.Context
+import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.media.audiofx.DynamicsProcessing
 import android.os.Build
@@ -10,16 +11,17 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 /**
- * Håller reda på hittade ljud-sessioner och den DynamicsProcessing-effekt vi lagt på var och en.
+ * Håller reda på ljud-sessioner och den DynamicsProcessing-effekt vi lagt på var och en.
  * Allt tillstånd ändras bara på huvudtråden (main), så inga lås behövs.
  *
- * Fas 1 (go/no-go): ett enda testläge – +6 dB ingångsförstärkning och en limiter med tak −20 dB –
- * så att skillnaden hörs direkt när testläget slås på/av.
+ * Kedjan (fas 2): ingångsförstärkning → pre-EQ (8 band) → multiband-kompressor (4 band) → post-EQ (8 band)
+ * → limiter (med utgångsnivån inräknad). Parametrarna kommer från webben (src/chain.js) och sparas lokalt,
+ * så att tjänsten kan återställa dem om Android startar om den.
+ *
+ * Global session (0) är förvald – den fungerar på Armins telefon och tar allt ljud (app, Chrome, YouTube).
+ * När den är aktiv läggs ingen effekt på enskilda sessioner, annars skulle ljudet bearbetas två gånger.
  */
 object LiveDspEngine {
-    const val TEST_INPUT_GAIN_DB = 6f
-    const val TEST_LIMITER_THRESHOLD_DB = -20f
-
     class Session(
         val id: Int,
         var pkg: String,
@@ -29,15 +31,22 @@ object LiveDspEngine {
         var lastSeen: Long = System.currentTimeMillis(),
         var effect: DynamicsProcessing? = null,
         var error: String? = null,
+        var note: String? = null,
     )
 
     private val main = Handler(Looper.getMainLooper())
     private val sessions = LinkedHashMap<Int, Session>()
     private val listeners = mutableListOf<() -> Unit>()
+    private var prefs: SharedPreferences? = null
 
     var running = false; private set
-    var testOn = false; private set
-    var globalWanted = false; private set
+    /** Bearbetningen på (true) eller förbikopplad (false). */
+    var on = false; private set
+    var globalWanted = true; private set
+    var params: LiveParams = LiveParams.neutral(); private set
+    /** Under automatisk nivåmatchning styr mätningen på/av tillfälligt. */
+    private var measureOverride: Boolean? = null
+
     var broadcastsReceived = 0
     var scans = 0
     var lastScanInfo: String = "Ingen sökning ännu"
@@ -45,31 +54,64 @@ object LiveDspEngine {
     var lastDumpExcerpt: String = ""
     var playbackApiInfo: String = ""
 
+    fun init(ctx: Context) {
+        if (prefs != null) return
+        val p = ctx.applicationContext.getSharedPreferences("live", Context.MODE_PRIVATE)
+        prefs = p
+        on = p.getBoolean("on", false)
+        globalWanted = p.getBoolean("global", true)
+        params = try { LiveParams.fromJson(JSONObject(p.getString("params", "{}") ?: "{}")) } catch (_: Throwable) { LiveParams.neutral() }
+    }
+
+    fun wasRunning(): Boolean = prefs?.getBoolean("running", false) == true
+
+    private fun save() {
+        prefs?.edit()?.putBoolean("on", on)?.putBoolean("global", globalWanted)?.putBoolean("running", running)
+            ?.putString("params", params.toJson().toString())?.apply()
+    }
+
     fun addListener(l: () -> Unit) { listeners += l }
     fun removeListener(l: () -> Unit) { listeners -= l }
     fun changed() { main.post { listeners.toList().forEach { it() } } }
 
-    fun onMain(block: () -> Unit) {
-        if (Looper.myLooper() == Looper.getMainLooper()) block() else main.post(block)
-    }
-
-    fun setRunning(on: Boolean) {
-        running = on
-        if (!on) releaseAll()
+    fun setRunning(isRunning: Boolean) {
+        running = isRunning
+        if (!isRunning) releaseAll()
+        save()
         changed()
     }
 
-    fun setTestMode(on: Boolean) {
-        testOn = on
+    fun setOn(value: Boolean) {
+        on = value
+        save()
         for (s in sessions.values) applyEnabled(s)
         changed()
     }
 
-    fun setGlobal(ctx: Context, on: Boolean) {
-        globalWanted = on
-        if (on && running) attach(ctx, 0, "global (session 0)", "global") else detach(0)
+    fun setMeasureOverride(value: Boolean?) {
+        measureOverride = value
+        for (s in sessions.values) applyEnabled(s)
+    }
+
+    fun setParams(p: LiveParams) {
+        params = p
+        save()
+        for (s in sessions.values) s.effect?.let { dp ->
+            try { applyParams(dp, p) } catch (t: Throwable) { s.error = "parametrar: ${t.javaClass.simpleName}: ${t.message}" }
+        }
         changed()
     }
+
+    fun setGlobal(ctx: Context, value: Boolean) {
+        globalWanted = value
+        save()
+        if (value && running) attach(ctx, 0, "global (session 0)", "global") else detach(0)
+        refreshSessionEffects(ctx)
+        changed()
+    }
+
+    /** Global session kopplad utan fel. */
+    fun globalActive(): Boolean = sessions[0]?.let { it.effect != null && it.error == null } == true
 
     /** Lägger effekten på en session (eller uppdaterar "senast sedd" om den redan finns). */
     fun attach(ctx: Context, id: Int, pkg: String, source: String, state: String? = null, usage: String? = null) {
@@ -80,18 +122,35 @@ object LiveDspEngine {
             existing.state = state ?: existing.state
             existing.usage = usage ?: existing.usage
             if (existing.pkg.startsWith("uid ") && !pkg.startsWith("uid ")) existing.pkg = pkg
-            if (existing.effect == null && existing.error == null) tryCreate(existing)
             return
         }
         val s = Session(id, pkg, source, state, usage)
         sessions[id] = s
-        tryCreate(s)
+        if (id != 0 && globalActive()) s.note = "global session används – ingen egen effekt"
+        else tryCreate(s)
+        if (id == 0) refreshSessionEffects(ctx)
         changed()
+    }
+
+    /** När global session slås på/av: släpp eller skapa effekterna på de enskilda sessionerna. */
+    private fun refreshSessionEffects(@Suppress("UNUSED_PARAMETER") ctx: Context) {
+        val global = globalActive()
+        for (s in sessions.values) {
+            if (s.id == 0) continue
+            if (global) {
+                release(s)
+                s.error = null
+                s.note = "global session används – ingen egen effekt"
+            } else if (s.effect == null) {
+                s.note = null
+                tryCreate(s)
+            }
+        }
     }
 
     private fun tryCreate(s: Session) {
         try {
-            val dp = DynamicsProcessing(Int.MAX_VALUE, s.id, testConfig())
+            val dp = DynamicsProcessing(Int.MAX_VALUE, s.id, buildConfig(params))
             dp.setControlStatusListener { _, _ -> changed() }
             dp.setEnableStatusListener { _, _ -> changed() }
             s.effect = dp
@@ -106,25 +165,50 @@ object LiveDspEngine {
     private fun applyEnabled(s: Session) {
         val dp = s.effect ?: return
         try {
-            dp.setEnabled(testOn)
+            dp.setEnabled(measureOverride ?: on)
         } catch (t: Throwable) {
             s.error = "setEnabled: ${t.javaClass.simpleName}: ${t.message}"
         }
     }
 
-    fun testConfig(): DynamicsProcessing.Config {
+    private fun eqBand(b: EqBandP) = DynamicsProcessing.EqBand(true, b.cutoff, b.gain)
+
+    private fun mbcBand(b: MbcBandP) = DynamicsProcessing.MbcBand(
+        true, b.cutoff, b.attack, b.release, b.ratio, b.threshold, b.knee,
+        -90f, 1f, // ingen noise gate / expander
+        b.preGain, b.postGain,
+    )
+
+    private fun limiter(p: LiveParams) = DynamicsProcessing.Limiter(
+        true, true, 0, p.limiter.attack, p.limiter.release, p.limiter.ratio, p.limiter.threshold, p.finalGain,
+    )
+
+    fun buildConfig(p: LiveParams): DynamicsProcessing.Config {
         val b = DynamicsProcessing.Config.Builder(
             DynamicsProcessing.VARIANT_FAVOR_FREQUENCY_RESOLUTION,
             2,
-            false, 0, // pre-EQ (används i fas 2)
-            false, 0, // multiband-kompressor (fas 2)
-            false, 0, // post-EQ (fas 2)
-            true,     // limiter
+            true, p.preEq.size,
+            true, p.mbc.size,
+            true, p.postEq.size,
+            true,
         )
-        b.setInputGainAllChannelsTo(TEST_INPUT_GAIN_DB)
-        // Limiter(inUse, enabled, linkGroup, attack ms, release ms, ratio, threshold dB, postGain dB)
-        b.setLimiterAllChannelsTo(DynamicsProcessing.Limiter(true, true, 0, 1f, 60f, 10f, TEST_LIMITER_THRESHOLD_DB, 0f))
+        b.setPreEqAllChannelsTo(DynamicsProcessing.Eq(true, true, p.preEq.size))
+        b.setMbcAllChannelsTo(DynamicsProcessing.Mbc(true, true, p.mbc.size))
+        b.setPostEqAllChannelsTo(DynamicsProcessing.Eq(true, true, p.postEq.size))
+        b.setInputGainAllChannelsTo(p.inputGain)
+        p.preEq.forEachIndexed { i, e -> b.setPreEqBandAllChannelsTo(i, eqBand(e)) }
+        p.mbc.forEachIndexed { i, m -> b.setMbcBandAllChannelsTo(i, mbcBand(m)) }
+        p.postEq.forEachIndexed { i, e -> b.setPostEqBandAllChannelsTo(i, eqBand(e)) }
+        b.setLimiterAllChannelsTo(limiter(p))
         return b.build()
+    }
+
+    private fun applyParams(dp: DynamicsProcessing, p: LiveParams) {
+        dp.setInputGainAllChannelsTo(p.inputGain)
+        p.preEq.forEachIndexed { i, e -> dp.setPreEqBandAllChannelsTo(i, eqBand(e)) }
+        p.mbc.forEachIndexed { i, m -> dp.setMbcBandAllChannelsTo(i, mbcBand(m)) }
+        p.postEq.forEachIndexed { i, e -> dp.setPostEqBandAllChannelsTo(i, eqBand(e)) }
+        dp.setLimiterAllChannelsTo(limiter(p))
     }
 
     private val pending = LinkedHashMap<Int, String>()
@@ -192,13 +276,15 @@ object LiveDspEngine {
                 put("enabled", try { dp?.enabled ?: false } catch (_: Throwable) { false })
                 put("hasControl", try { dp?.hasControl() ?: false } catch (_: Throwable) { false })
                 put("error", s.error ?: "")
+                put("note", s.note ?: "")
                 put("lastSeen", s.lastSeen)
             })
         }
         return JSONObject().apply {
             put("running", running)
-            put("testOn", testOn)
+            put("on", on)
             put("globalWanted", globalWanted)
+            put("globalActive", globalActive())
             put("dumpGranted", dumpGranted)
             put("broadcastsReceived", broadcastsReceived)
             put("scans", scans)
@@ -207,6 +293,7 @@ object LiveDspEngine {
             put("android", Build.VERSION.RELEASE)
             put("sdk", Build.VERSION.SDK_INT)
             put("device", "${Build.MANUFACTURER} ${Build.MODEL}")
+            put("params", params.toJson())
             put("sessions", list)
         }
     }
