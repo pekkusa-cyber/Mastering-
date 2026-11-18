@@ -20,6 +20,14 @@ android {
         }
     }
     signingConfigs {
+        // Fast debug-nyckel i repot (inte hemlig – bara för testbyggen) så att varje debug-APK kan installeras
+        // ovanpå den förra. Utan den skapar varje CI-körning en ny nyckel och Android vägrar uppdatera appen.
+        debug {
+            storeFile file("masterlab-debug.keystore")
+            storePassword "android"
+            keyAlias "androiddebugkey"
+            keyPassword "android"
+        }
         release {
             // Keystore comes from repo secrets in CI (see .github/workflows/android.yml); never committed.
             def ks = System.getenv("ANDROID_KEYSTORE_PATH")

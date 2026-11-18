@@ -17,8 +17,9 @@ riktig limiter, kompressor, EQ och presets. Två lägen:
 ## Installera
 
 Varje push bygger en APK i GitHub Actions och lägger den under **Releases**. Ladda ner `masterlab.apk` på
-telefonen och öppna den. Saknas signeringsnyckeln i repo-secrets blir det ett debug-bygge (förhandsversion);
-det måste avinstalleras innan en signerad version kan installeras.
+telefonen och öppna den. Saknas signeringsnyckeln i repo-secrets blir det ett debug-bygge (förhandsversion),
+signerat med en fast debug-nyckel i repot så att varje nytt bygge installeras ovanpå det förra.
+Byte från debug-bygge till signerat bygge kräver att appen avinstalleras en gång.
 
 Repo-secrets för signerade byggen: `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`,
 `ANDROID_KEY_PASSWORD` (samma nyckel som familjekalendern går bra).

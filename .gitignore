@@ -6,3 +6,6 @@ keystore.properties
 .DS_Store
 test-results/
 playwright-report/
+
+# Fast debug-nyckel (inte hemlig, se android/app/build.gradle)
+!android/app/masterlab-debug.keystore
