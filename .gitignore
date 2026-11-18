@@ -1,0 +1,8 @@
+node_modules/
+dist/
+*.keystore
+*.jks
+keystore.properties
+.DS_Store
+test-results/
+playwright-report/

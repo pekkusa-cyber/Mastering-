@@ -1,0 +1,8 @@
+{
+  "appId": "se.foric.masterlab",
+  "appName": "Masterlab",
+  "webDir": "dist",
+  "android": {
+    "backgroundColor": "#14161a"
+  }
+}

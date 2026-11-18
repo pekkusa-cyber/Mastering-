@@ -1,0 +1,128 @@
+name: Android APK
+
+on:
+  push:
+    branches: [main, 'ccr-**']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # Appens automatiska tester: Playwright (UI mot simulatorn) + JVM-tester av Kotlin-koden. Misslyckas de publiceras ingen APK.
+  test:
+    runs-on: ubuntu-24.04 # Playwrights Chromium behöver en Ubuntu den stöder
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: gradle
+      - name: Installera
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+      - name: Testa webbappen
+        run: npm test
+      - name: Testa Kotlin-koden
+        run: |
+          npm run build
+          npx cap sync android
+          cd android && chmod +x gradlew && ./gradlew testDebugUnitTest --no-daemon --stacktrace
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: test-results
+          path: |
+            test-results/
+            android/app/build/reports/tests/
+          retention-days: 7
+
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    env:
+      VERSION_CODE: ${{ github.run_number }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: gradle
+
+      - name: Nativenivå
+        id: native
+        run: echo "level=$(tr -d '[:space:]' < native-level)" >> "$GITHUB_OUTPUT"
+
+      - name: Bygg webbappen
+        run: |
+          npm ci
+          npm run build
+          npx cap sync android
+
+      - name: Kontrollera signeringsnyckel
+        id: keys
+        env:
+          KS: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$KS" ]; then
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+            echo "::warning title=Signeringsnyckel saknas::Lägg till repo-secrets ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS och ANDROID_KEY_PASSWORD. Ett debug-bygge publiceras i stället (förhandsversion)."
+          else
+            echo "$KS" | base64 -d > "$RUNNER_TEMP/release.keystore"
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Bygg signerad release-APK
+        if: steps.keys.outputs.ok == 'true'
+        working-directory: android
+        env:
+          ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/release.keystore
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleRelease --no-daemon --stacktrace
+          cp app/build/outputs/apk/release/app-release.apk "$GITHUB_WORKSPACE/masterlab.apk"
+          "$ANDROID_HOME"/build-tools/$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -1)/apksigner verify --print-certs "$GITHUB_WORKSPACE/masterlab.apk" | head -3
+
+      # Reserv när secrets saknas: debug-bygge (signerat med en tillfällig debug-nyckel). Går att installera för test,
+      # men måste avinstalleras innan en signerad release-APK kan installeras ovanpå.
+      - name: Kontrollbygge utan nyckel
+        if: steps.keys.outputs.ok != 'true'
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon --stacktrace
+          cp app/build/outputs/apk/debug/app-debug.apk "$GITHUB_WORKSPACE/masterlab.apk"
+
+      - name: Publicera Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v0.${{ steps.native.outputs.level }}.${{ github.run_number }}
+          name: Masterlab 0.${{ steps.native.outputs.level }}.${{ github.run_number }}${{ steps.keys.outputs.ok != 'true' && ' (debug)' || '' }}
+          target_commitish: ${{ github.sha }}
+          prerelease: ${{ github.ref != 'refs/heads/main' || steps.keys.outputs.ok != 'true' }}
+          make_latest: ${{ github.ref == 'refs/heads/main' && steps.keys.outputs.ok == 'true' }}
+          files: masterlab.apk
+          body: |
+            Ladda ner **masterlab.apk** på telefonen och öppna filen för att installera eller uppdatera.
+            Bygge ${{ github.run_number }} från ${{ github.sha }} (gren ${{ github.ref_name }}).
+            ${{ steps.keys.outputs.ok != 'true' && 'Obs: debug-bygge (signeringsnyckel saknas i repo-secrets).' || '' }}
