@@ -36,16 +36,26 @@ test('livespektrum, analys, spara referens och omdöme', async ({ page }) => {
   await page.evaluate(() => { window.__simBright = 6; window.__simCrest = 18; });
   await analyze(page);
   await expect(page.getByTestId('verdict')).not.toContainText('Redo');
-  await expect(page.locator('[data-region="luft"]')).toContainText('dB');
+  await expect(page.locator('[data-region="diskant"]')).toContainText('dB');
   await expect(page.locator('#result .tips')).toContainText('Kick mjukare');
 
-  // Matcha EQ live gör en ny preset med sänkt topp
-  await page.getByRole('button', { name: 'Matcha EQ live' }).click();
-  await expect(page.locator('#anmsg')).toContainText('Match: Favoritlåt');
-  const p = await page.evaluate(() => window.__simParams);
-  expect(p.postEq[7].gain).toBeLessThan(-1);
+  // Åtgärda: tre förslag, växla och behåll
+  await page.getByRole('button', { name: 'Åtgärda – 3 förslag' }).click();
+  await expect(page.locator('#fix [data-fix]')).toHaveCount(4);
+  await page.locator('[data-fix="A"]').click();
+  await expect(page.getByTestId('fixchanges')).toContainText('EQ 8k+ Hz');
+  const a8k = (await page.evaluate(() => window.__simParams)).postEq[7].gain;
+  expect(a8k).toBeLessThan(-0.4);
+  await page.locator('[data-fix="C"]').click();
+  await expect.poll(async () => (await page.evaluate(() => window.__simParams)).postEq[7].gain).toBeLessThan(a8k);
+  await expect(page.getByTestId('fixchanges')).toContainText('Kick mjukare'); // toppigare än referensen
+  await page.locator('[data-fix="before"]').click();
+  await expect.poll(async () => (await page.evaluate(() => window.__simParams)).postEq[7].gain).toBe(0);
+  await page.locator('[data-fix="B"]').click();
+  await page.getByRole('button', { name: /Behåll B/ }).click();
+  await expect(page.locator('#anmsg')).toContainText('Åtgärd B: Favoritlåt');
   await page.locator('nav [data-view="live"]').click();
-  await expect(picked(page, 'Preset')).toHaveText('Match: Favoritlåt');
+  await expect(picked(page, 'Preset')).toHaveText('Åtgärd B: Favoritlåt');
 });
 
 test('referenser: döp om, ta bort, exportera och importera', async ({ page }) => {

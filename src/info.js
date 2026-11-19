@@ -81,6 +81,7 @@ export const INFO = {
   level: { title: 'Nivå', text: 'Medelnivån (RMS) under låten, i dB. Jämför inte live mot fil – de mäts olika.' },
   crest: { title: 'Toppighet', text: 'Hur mycket topparna sticker upp över medelnivån (dB). Högt = hårda kickar/transienter och mycket dynamik; lågt = hårt komprimerat. Är din låt mycket toppigare än referensen behövs mjukare kick/mer limiter.' },
   dynamics: { title: 'Dynamik', text: 'Skillnaden mellan låtens tysta och starka partier (dB, ungefär som loudness range). Lågt = jämnt och tätt.' },
+  fix: { title: 'Åtgärda – 3 förslag', text: 'Appen tar fram tre förslag som rättar det som skiljer mot referensen – bara de områden som är markerade (gult/rött), inte det som redan stämmer. A Varsam: halva skillnaden, bara EQ. B Balanserad: tre fjärdedelar + s-ljud, mjuk topp och dynamik där analysen pekar på det. C Kraftig: hela skillnaden. Växla mellan Före, A, B och C medan låten spelar och lyssna – välj med örat, inte med siffrorna. Behåll sparar förslaget som preset. Områden som inte går att jämföra (t.ex. Luft när referensen spelats i låg kvalitet) rörs inte.' },
   matchLive: { title: 'Matcha EQ live', text: 'Gör en ny preset där Post-EQ:n justeras mot referensens klang (70 % av skillnaden, högst ±6 dB). Lyssna och finjustera.' },
 
   // ---- Fil ----

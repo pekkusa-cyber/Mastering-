@@ -28,6 +28,7 @@ export const ui = {
   customHeadphones: [],
   profiles: {},          // per ljudutgång
   report: null,          // senaste bekräftelsen från motorn
+  fix: null,             // Åtgärda – 3 förslag { variants, active, backup }
 };
 
 /** Fylls i av main.js. */

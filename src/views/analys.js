@@ -3,8 +3,8 @@
 import { LiveDsp, isNative } from '../livedsp.js';
 import { ui, app } from '../state.js';
 import { save } from '../store.js';
-import { compareProfiles, finishProfile, matchEqCurve, applyLiveMatch, profileFromChannels } from '../analysis.js';
-import { savePreset, sanitize } from '../chain.js';
+import { compareProfiles, finishProfile, fixVariants, profileFromChannels } from '../analysis.js';
+import { allEnabled, noMacros, savePreset, sanitize } from '../chain.js';
 import { addRef, currentRef, deleteRef, exportRefs, importRefs, renameRef, selectRef } from '../refs.js';
 import { ask, bindPicker, esc, fmtDb, infoBtn, picker, saveFile } from '../ui.js';
 import { spectrumSvg, bindSpectrum } from '../spectrum.js';
@@ -62,7 +62,7 @@ function analysisPart() {
 
 function verdictBlock(own, ref) {
   const c = compareProfiles(own, ref);
-  const icon = { ok: '✓', lite: '!', mycket: '✕' };
+  const icon = { ok: '✓', lite: '!', mycket: '✕', okand: '?' };
   return `<div class="verdict ${c.verdict}" data-testid="verdict"><b>${esc(c.summary)}</b>${infoBtn('verdict')}</div>
     <ul class="regions">${c.regions.map((r) => `<li class="${r.status}" data-region="${r.id}"><span class="ic">${icon[r.status]}</span><b>${esc(r.name)}</b> ${esc(r.text)}</li>`).join('')}</ul>
     <p class="hint small">Toppighet ${fmtDb(c.crestDiff)} dB mot referensen · dynamik ${fmtDb(c.dynDiff)} dB.</p>
@@ -88,10 +88,29 @@ function resultCard() {
     ${ref ? verdictBlock(p, ref.profile) : '<p class="hint">Välj en referens ovan för att se om låten håller.</p>'}
     <div class="btnrow">
       <button class="btn small" id="an-saveref">Spara som referens</button>
-      ${ref ? `<button class="btn small primary" id="an-match">Matcha EQ live</button>${infoBtn('matchLive')}` : ''}
+      ${ref && !ui.fix ? `<button class="btn small primary" id="an-fix">Åtgärda – 3 förslag</button>${infoBtn('fix')}` : ''}
     </div>
+    ${ui.fix ? fixCard() : ''}
     ${ui.analysisMsg ? `<p class="hint" id="anmsg">${esc(ui.analysisMsg)}</p>` : ''}
   </section>`;
+}
+
+/** De tre förslagen: växla Före | A | B | C medan låten spelar, behåll den bästa. */
+function fixCard() {
+  const f = ui.fix;
+  const cur = f.variants.find((v) => v.id === f.active);
+  return `<div class="fixcard" id="fix">
+    <div class="seg fixseg" role="tablist">
+      <button data-fix="before" class="${f.active === 'before' ? 'sel' : ''}">Före</button>
+      ${f.variants.map((v) => `<button data-fix="${v.id}" class="${f.active === v.id ? 'sel' : ''}"><b>${v.id}</b> ${esc(v.name)}</button>`).join('')}
+    </div>
+    ${cur ? `<p class="hint small">${esc(cur.desc)}</p><ul class="tips" data-testid="fixchanges">${cur.changes.map((t) => `<li>${esc(t)}</li>`).join('')}</ul>`
+      : '<p class="hint small">Din inställning som den var. Växla mellan Före, A, B och C medan låten spelar och lyssna.</p>'}
+    <div class="btnrow">
+      ${cur ? `<button class="btn small primary" id="fix-keep">Behåll ${cur.id} ${esc(cur.name)}</button>` : ''}
+      <button class="btn small ghost" id="fix-cancel">Avbryt</button>
+    </div>
+  </div>`;
 }
 
 function refsCard() {
@@ -184,19 +203,48 @@ export function bindAnalys(root) {
     ui.analysisMsg = `Sparad som referens "${name.trim() || 'Referens'}".`;
     app.render();
   };
-  const m = root.querySelector('#an-match');
-  if (m) m.onclick = async () => {
+  const fx = root.querySelector('#an-fix');
+  if (fx) fx.onclick = async () => {
     const ref = currentRef();
-    const curve = matchEqCurve(ui.analysis.profile, ref.profile);
-    const params = sanitize(applyLiveMatch(effective(), curve));
-    const r = savePreset(ui.userPresets, `Match: ${ref.name}`, params);
+    ui.fix = {
+      variants: fixVariants(ui.analysis.profile, ref.profile, effective()),
+      active: 'before',
+      backup: { presetId: ui.presetId, base: structuredClone(ui.base), macros: { ...ui.macros }, enabled: { ...ui.enabled } },
+    };
+    // Förslagen ska höras: Masterlab på och Mastrad
+    if (ui.status?.bypass) ui.status = await LiveDsp.setBypass({ on: false });
+    if (!ui.status?.on) ui.status = await LiveDsp.setOn({ on: true });
+    app.render();
+  };
+  root.querySelectorAll('[data-fix]').forEach((b) => {
+    b.onclick = () => {
+      const f = ui.fix;
+      f.active = b.dataset.fix;
+      if (f.active === 'before') Object.assign(ui, structuredClone(f.backup));
+      else {
+        const v = f.variants.find((x) => x.id === f.active);
+        Object.assign(ui, { base: structuredClone(v.params), macros: noMacros(), enabled: allEnabled(), presetId: '' });
+      }
+      changed({ now: true });
+      app.render();
+    };
+  });
+  const keep = root.querySelector('#fix-keep');
+  if (keep) keep.onclick = async () => {
+    const v = ui.fix.variants.find((x) => x.id === ui.fix.active);
+    const r = savePreset(ui.userPresets, `Åtgärd ${v.id}: ${currentRef().name}`, v.params);
     ui.userPresets = r.presets;
     await save('presets', ui.userPresets);
-    ui.presetId = r.preset.id;
-    ui.base = structuredClone(r.preset.params);
-    ui.macros = { kick: 0, bright: 0, punch: 0, vocal: 0 };
+    Object.assign(ui, { presetId: r.preset.id, base: structuredClone(r.preset.params), macros: noMacros(), enabled: allEnabled(), fix: null });
     changed({ now: true });
-    ui.analysisMsg = `Ny preset "${r.preset.name}" är vald i Live – Post-EQ justerad mot referensen. Lyssna och finjustera.`;
+    ui.analysisMsg = `Sparad och vald i Live: "${r.preset.name}". Analysera låten igen för att se hur nära referensen den kom.`;
+    app.render();
+  };
+  const cancel = root.querySelector('#fix-cancel');
+  if (cancel) cancel.onclick = () => {
+    Object.assign(ui, structuredClone(ui.fix.backup));
+    ui.fix = null;
+    changed({ now: true });
     app.render();
   };
   root.querySelectorAll('[data-ref-use]').forEach((b) => { b.onclick = async () => { await selectRef(b.dataset.refUse); app.render(); }; });

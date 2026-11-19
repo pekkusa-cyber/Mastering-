@@ -66,7 +66,8 @@ export const HELP = {
         till slut, kom tillbaka och tryck <b>Stoppa</b> → <b>Spara som referens</b>. Du kan också importera en ljudfil.</li>
         <li><b>Kolla din låt:</b> välj referensen, analysera din låt i Suno på samma sätt. Du får ett omdöme per
         område (bas, närvaro, luft …) och om toppar/kick sticker ut.</li>
-        <li><b>Rätta:</b> <b>Matcha EQ live</b> gör en preset som drar klangen mot referensen. I <b>Fil</b> kan samma
+        <li><b>Rätta:</b> <b>Åtgärda – 3 förslag</b> tar fram A Varsam, B Balanserad och C Kraftig som bara rättar det som är
+        markerat. Växla mellan Före, A, B och C medan låten spelar och behåll den som låter bäst. I <b>Fil</b> kan samma
         referens användas för att matcha och mastra låten för släpp.</li>
       </ol>
       <h3>Bra att veta</h3>
@@ -74,6 +75,7 @@ export const HELP = {
         <li>Analysen läser ljudet <b>internt</b> från det som spelas (Spotify, YouTube, Suno …). Mikrofonen används aldrig –
         Android kallar bara behörigheten för det "mikrofon".</li>
         <li>Analysen visar ljudet som det spelas – slå AV i Live för att analysera originalet.</li>
+        <li>Saknar referensen toppen (spelad i låg kvalitet) markeras Luft som "kan inte jämföras" och rättas inte.</li>
         <li>Live-analysen är grövre än filanalys (Android ger bara 8-bitars ljud till mätningen, och upplösningen
         under 100 Hz är grov). Referenser från filer är exaktare.</li>
         <li>Analysen fortsätter i bakgrunden medan du lyssnar i en annan app.</li>

@@ -100,3 +100,49 @@ test('monokontroll: mono, brett och fasvänt', async () => {
   assert.ok(inv.corr < -0.99 && inv.warnings.some((w) => /Fasproblem/.test(w)));
   assert.equal(mono.bands.length, 3);
 });
+
+test('referens utan topp (låg ljudkvalitet): Luft jämförs inte och rättas inte', async () => {
+  const { compareProfiles, fixVariants, profileFromChannels } = await import('../../src/analysis.js');
+  const { neutral } = await import('../../src/chain.js');
+  const own = profileFromChannels(noise(6), FS);
+  // Referensen: samma låt men lågpassad vid 15 kHz (som en lågkvalitativ ström)
+  // Branta lågpass (som en kodek): åtta filterpass
+  let lp = noise(6);
+  for (let k = 0; k < 8; k++) lp = filtered(lp, 'lowpass', 15000, 0);
+  const ref = profileFromChannels(lp, FS);
+  const c = compareProfiles(own, ref);
+  const luft = c.regions.find((r) => r.id === 'luft');
+  assert.equal(luft.status, 'okand', luft.text);
+  assert.ok(c.missing.length >= 1);
+  assert.ok(c.tips.some((t) => /låg ljudkvalitet/.test(t)));
+  const fx = fixVariants(own, ref, neutral());
+  assert.ok(fx.every((v) => v.params.postEq[7].gain > -1.5), 'toppen sänks inte för att referensen saknar den');
+});
+
+test('Åtgärda: tre varianter som rättar det som är fel, i rätt riktning och styrka', async () => {
+  const { fixVariants, compareProfiles, profileFromChannels } = await import('../../src/analysis.js');
+  const { neutral } = await import('../../src/chain.js');
+  const ref = profileFromChannels(noise(6), FS);
+  const own = profileFromChannels(filtered(noise(6), 'lowshelf', 200, 6), FS); // för mycket bas
+  assert.ok(compareProfiles(own, ref).regions.find((r) => r.id === 'bas').diff > 3);
+  const [A, B, C] = fixVariants(own, ref, neutral());
+  assert.deepEqual([A.id, B.id, C.id], ['A', 'B', 'C']);
+  for (const v of [A, B, C]) assert.ok(v.params.postEq[1].gain < 0, `${v.name} sänker basen`);
+  assert.ok(A.params.postEq[1].gain > C.params.postEq[1].gain, 'Kraftig sänker mest');
+  assert.ok(A.params.postEq[1].gain >= -3, 'Varsam högst 3 dB');
+  assert.ok(A.changes.some((t) => /EQ 60–120/.test(t)));
+  // Områden som redan stämmer rörs inte
+  assert.ok(Math.abs(B.params.postEq[5].gain) < 0.5, 'mellanregistret orört');
+});
+
+test('Åtgärda: vassare och toppigare än referensen ger s-ljud och kick i B och C', async () => {
+  const { fixVariants, NBANDS } = await import('../../src/analysis.js');
+  const { neutral } = await import('../../src/chain.js');
+  const base = { bands: new Array(NBANDS).fill(-30), level: -14, dynamics: 4, seconds: 120, version: 1 };
+  const own = { ...base, crest: 16, bands: base.bands.map((v, i) => (i >= 19 && i <= 21 ? v + 4 : v)) };
+  const ref = { ...base, crest: 10 };
+  const [A, B, C] = fixVariants(own, ref, neutral());
+  assert.ok(!A.changes.some((t) => /S-ljud|Kick/.test(t)), 'A bara EQ');
+  assert.ok(B.changes.some((t) => /S-ljud/.test(t)) && B.changes.some((t) => /Kick mjukare/.test(t)));
+  assert.ok(C.params.mbc[0].ratio > B.params.mbc[0].ratio, 'C tar i hårdare än B');
+});

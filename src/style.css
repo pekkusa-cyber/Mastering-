@@ -357,3 +357,9 @@ dialog.settingssheet .sheet-body { max-height: none; }
 .card > .row + .seg, .card > .seg + .row { margin-top: 12px; }
 .card > .seg + .row h2 { margin-top: 2px; }
 #simple > :not(:first-child) { margin-top: 8px; }
+.fixcard { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
+.fixseg { display: grid; grid-template-columns: auto 1fr 1fr 1fr; }
+.fixseg button { font-size: 12.5px; padding: 8px 4px; }
+.fixseg button b { color: var(--accent); }
+.regions .okand .ic { color: var(--dim); }
+.regions .okand { color: var(--dim); }
