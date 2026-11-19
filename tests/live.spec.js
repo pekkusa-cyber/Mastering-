@@ -64,15 +64,19 @@ test('ⓘ förklarar ett reglage tydligt', async ({ page }) => {
   await expect(page.locator('dialog.sheet')).toHaveCount(0);
 });
 
-test('avancerat: varje parameter har ⓘ och ↺ (till presetens värde), Platt och Återställ alla', async ({ page }) => {
+test('avancerat: varje parameter är en fader med ⓘ och nollställning (till presetens värde), Platt och Återställ alla', async ({ page }) => {
   await page.goto('/?sim=1');
   await page.getByRole('button', { name: 'Avancerat' }).click();
-  // Alla reglage i avancerat läge har ↺ och ⓘ
+  // Alla reglage i avancerat läge är lodräta fadrar som i Mixern, med ⓘ och dubbeltryck = nollställ
   const sliders = page.locator('#advanced .sl');
   const n = await sliders.count();
   expect(n).toBeGreaterThan(40);
-  await expect(page.locator('#advanced .sl .rst')).toHaveCount(n);
+  await expect(page.locator('#advanced .sl.vf')).toHaveCount(n);
+  await expect(page.locator('#advanced .sl [data-dblreset]')).toHaveCount(n);
   await expect(page.locator('#advanced .sl .i')).toHaveCount(n);
+  // man kan scrolla med fingret på en fader – bara handtaget griper
+  expect(await page.locator('#advanced .vrow').first().evaluate((e) => getComputedStyle(e).touchAction)).toBe('pan-y');
+  expect(await page.locator('#advanced .vthumb').first().evaluate((e) => getComputedStyle(e).touchAction)).toBe('none');
   // Sektionerna har egna ⓘ
   for (const s of ['input', 'preEq', 'mbc', 'postEq', 'limiter', 'output']) await expect(page.locator(`[data-sec="${s}"] > summary .i`)).toHaveCount(1);
 
@@ -80,7 +84,7 @@ test('avancerat: varje parameter har ⓘ och ↺ (till presetens värde), Platt 
   await page.locator('details.band > summary', { hasText: 'Kick' }).click({ position: { x: 70, y: 14 } });
   await setRange(page.locator('#p-mbc-0-ratio'), 8);
   await expect.poll(async () => (await sent(page)).mbc[0].ratio).toBe(8);
-  await page.locator('[data-reset="p-mbc-0-ratio"]').click();
+  await page.locator('[data-dblreset="p-mbc-0-ratio"]').dblclick();
   await expect.poll(async () => (await sent(page)).mbc[0].ratio).toBe(4); // Mjuk kick
   await page.locator('[data-sec=mbc] summary .i').first().click();
   await expect(page.locator('dialog.sheet')).toContainText('fyra frekvensband');

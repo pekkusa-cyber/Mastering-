@@ -45,17 +45,17 @@ export const HELP = {
         Dra uppåt/nedåt, dubbeltryck på namnet = nollställ, svep i sidled = byt sida.</li>
         <li><b>Kurva</b> – dra de fem EQ-punkterna direkt i spektrumet (frekvens och gain), två fingrar = Q. Reglagen under
         finjusterar valt band.</li>
-        <li><b>Avancerat</b> – hela kedjan med alla parametrar:
+        <li><b>Avancerat</b> – hela kedjan med alla parametrar, med samma fadrar som Mixern (en rad per sektion och band):
       Ingång → Pre-EQ → Multiband → Post-EQ → <b>Parametrisk EQ</b> (5 band med frekvens, gain och <b>Q</b> = bredd) → Limiter → Utgång.</li>
       </ul>
       <ul>
         <li><b>På/av</b> på varje reglage, sektion och band: slå bara på det du vill ha (t.ex. bara mjukare kick).
         Av = neutralt, inställningen ligger kvar. <b>Slå på allt</b> tar tillbaka allt.</li>
-        <li><b>− / +</b> för små steg.</li>
+        <li><b>Fadrarna</b>: dra uppåt/nedåt i handtaget. Fingret på resten av fadern scrollar sidan, så inget ändras av misstag.</li>
         <li><b>Kurvor</b>: klangkurvan visar hur EQ:n ändrar klangen; kompressionskurvorna visar hur varje band trycks ihop
         (och ungefär hur mycket). De ritas om medan du drar.</li>
         <li><b>ⓘ</b> vid varje reglage och sektion förklarar vad den gör.</li>
-        <li><b>↺</b> nollställer just det reglaget (till presetens värde; enkla reglage till mitten).</li>
+        <li><b>Dubbeltryck på namnet</b> under en fader nollställer den (till presetens värde; enkla reglage till mitten).</li>
         <li><b>Återställ alla</b> tar tillbaka hela presetten. <b>Platt</b> gör allt neutralt.</li>
       </ul>
       <p>Använd inte Wavelet samtidigt – apparna slåss om samma ljud.</p>`,

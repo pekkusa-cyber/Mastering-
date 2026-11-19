@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { pick } from './helpers.js';
 
+const setRange = (loc, v) => loc.evaluate((el, val) => { el.value = val; el.dispatchEvent(new Event('input', { bubbles: true })); }, String(v));
 const params = (page) => page.evaluate(() => window.__simParams);
 
 test('solo: S på ett multiband hör bara det bandet, Avsluta solo tar tillbaka allt', async ({ page }) => {
@@ -34,11 +35,12 @@ test('parametrisk EQ med Q går till motorn som 31 tersband', async ({ page }) =
   await page.locator('details[data-sec="peq"] > summary').click();
   const mitt = page.locator('details[data-sec="peq"] details.band').nth(2);
   await mitt.locator('summary').click();
-  for (let i = 0; i < 12; i++) await mitt.getByRole('button', { name: 'Öka Gain' }).click();
-  await expect(mitt.locator('output').nth(1)).toHaveText('6.0 dB');
+  await expect(mitt.locator('.sl.vf')).toHaveCount(3); // Frekvens, Gain, Q som fadrar
+  await setRange(page.locator('#p-peq-2-gain'), 6);
+  await expect(mitt.locator('output').nth(1)).toHaveText('6.0');
   await expect.poll(async () => (await params(page)).post31[17]).toBeGreaterThan(5.5); // 1 kHz
   const wide = (await params(page)).post31[20]; // 2 kHz
-  for (let i = 0; i < 30; i++) await mitt.getByRole('button', { name: 'Öka Q (bredd)' }).click();
+  await setRange(page.locator('#p-peq-2-q'), 4);
   await expect.poll(async () => (await params(page)).post31[20]).toBeLessThan(wide - 1); // smalare: grannen påverkas mindre
   await expect(page.getByTestId('affects')).toBeVisible();
 });

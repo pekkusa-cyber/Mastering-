@@ -44,17 +44,17 @@ export function slider({ id, label, value, range, info, resetTo = null, kind, ke
  * Lodrät fader för mixern: värde överst, fader (dra uppåt/nedåt – ett tryck flyttar den inte), M (mute = av) och
  * S (solo) under, namn längst ner. Bygger på samma <input type=range> som slider(), så ↺, Ångra och tester fungerar lika.
  */
-export function vfader({ id, label, short = label, value, range, kind, key, resetTo = 0, enable = null, soloKey = null, soloOn = false, info = null }) {
-  const [min, max, step] = range;
+export function vfader({ id, label, short = label, value, range, kind, key, resetTo = 0, enable = null, soloKey = null, soloOn = false, info = null, buttons = true }) {
+  const [min, max, step, unit = ''] = range;
   const off = enable && !enable.on;
   const p = pct(value, min, max);
   const z = pct(Math.min(max, Math.max(min, resetTo)), min, max);
   return `<div class="sl vf${off ? ' off' : ''}" data-sl="${esc(id)}" style="--p:${p}%;--z:${z}%">
-    <output for="${esc(id)}">${fmt(value, step)}</output>
+    <output for="${esc(id)}">${fmt(value, step)}</output>${unit && !buttons ? `<small class="vu">${esc(unit)}</small>` : ''}
     <div class="vrow" aria-hidden="false"><div class="vtrack"><i class="vfill"></i><i class="vthumb"></i></div>
       <input type="range" id="${esc(id)}" min="${min}" max="${max}" step="${step}" value="${value}" data-kind="${esc(kind)}" data-key="${esc(key)}" data-unit="" aria-label="${esc(label)}" style="--p:${p}%"></div>
-    <div class="vbtns">${enable ? `<label class="mbtn" title="Mute"><input type="checkbox" data-enable="${esc(enable.key)}" ${enable.on ? 'checked' : ''} aria-label="Mute ${esc(label)}"><span>M</span></label>` : '<span class="mbtn ghost"></span>'}
-      ${soloKey ? soloBtn(soloKey, soloOn, label) : '<span class="solo ghost"></span>'}</div>
+    ${buttons ? `<div class="vbtns">${enable ? `<label class="mbtn" title="Mute"><input type="checkbox" data-enable="${esc(enable.key)}" ${enable.on ? 'checked' : ''} aria-label="Mute ${esc(label)}"><span>M</span></label>` : '<span class="mbtn ghost"></span>'}
+      ${soloKey ? soloBtn(soloKey, soloOn, label) : '<span class="solo ghost"></span>'}</div>` : ''}
     <button type="button" class="vname" data-dblreset="${esc(id)}" data-to="${resetTo}" title="Dubbeltryck = nollställ">${esc(short)}</button>
     ${info ? infoBtn(info, `Om ${label}`) : ''}
   </div>`;
@@ -75,7 +75,7 @@ export function bindSliders(root, onChange, onEnable) {
     el.closest('.vf')?.style.setProperty('--p', `${pct(v, Number(el.min), Number(el.max))}%`);
     const out = el.closest('.sl').querySelector('output');
     const unit = el.dataset.unit;
-    out.textContent = `${fmt(v, Number(el.step))}${unit ? ` ${unit}` : ''}`;
+    out.textContent = el.closest('.vf') ? fmt(v, Number(el.step)) : `${fmt(v, Number(el.step))}${unit ? ` ${unit}` : ''}`;
     const r = el.closest('.sl').querySelector('.rst');
     if (r) r.classList.toggle('at', Math.abs(v - Number(r.dataset.to)) < 1e-9);
   };

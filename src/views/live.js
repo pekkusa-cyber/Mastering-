@@ -227,13 +227,20 @@ function presetCard() {
   </section>`;
 }
 
-const path = (key, label, range, info = key, enableKey = null) =>
-  slider({ id: `p-${key.replace(/\./g, '-')}`, label, value: getPath(ui.base, key), range, info, resetTo: getPath(presetBase(), key), kind: 'path', key,
-    enable: enableKey ? { key: enableKey, on: en(enableKey) } : null });
+/**
+ * Ett reglage i Avancerat och Kurva: samma lodräta fader som i Mixern (dra uppåt/nedåt, dubbeltryck på namnet =
+ * presetens värde). short = kort namn under fadern; label = hela namnet (skärmläsare, ⓘ).
+ */
+const path = (key, label, range, info = key, enableKey = null, short = label) =>
+  vfader({ id: `p-${key.replace(/\./g, '-')}`, label, short, value: getPath(ui.base, key), range, info, resetTo: getPath(presetBase(), key), kind: 'path', key,
+    enable: enableKey ? { key: enableKey, on: en(enableKey) } : null, buttons: !!enableKey });
+/** En rad fadrar sida vid sida. */
+const frow = (items) => `<div class="faders adv" style="--n:${items.length}">${items.join('')}</div>`;
+const EQ_SHORT = ['60', '120', '250', '500', '1k', '3k', '8k', '20k'];
 
 function levelBlock() {
   const agcOn = ui.status?.agc?.on;
-  return `${path('outputGain', 'Utgångsnivå', RANGES.outputGain, 'outputGain', 'output')}
+  return `${frow([path('outputGain', 'Utgångsnivå', RANGES.outputGain, 'outputGain', 'output', 'Ut')])}
     ${agcOn || ui.constant ? '<p class="hint small">Nivån hålls automatiskt (Jämn volym / Konstant utnivå). Reglaget finjusterar.</p>'
       : `<div class="btnrow"><button class="btn small" id="autolevel">Auto-nivåmatcha</button>${infoBtn('autolevel')}</div>`}
     ${ui.levelMsg ? `<p class="hint" id="levelmsg">${esc(ui.levelMsg)}</p>` : ''}`;
@@ -297,9 +304,8 @@ function curveCard() {
     <div class="chips" role="tablist">${PEQ_BANDS.map((x, i) => `<button class="chip${i === sel ? ' sel' : ''}${en(`peq${i}`) ? '' : ' off'}" data-band="${i}" role="tab" aria-selected="${i === sel}">${i + 1} ${esc(x.name.replace(/ \(hylla\)/, ''))}</button>`).join('')}</div>
     <div class="row cbhead"><label class="mbtn big" title="Mute"><input type="checkbox" data-enable="peq${sel}" ${en(`peq${sel}`) ? 'checked' : ''} aria-label="Mute ${esc(b.name)}"><span>M</span></label>
       ${solo(`peq${sel}`, b.name)}<b class="grow">${esc(b.name)}</b><small class="dim">${b.type === 'peaking' ? 'klocka' : 'hylla'}</small>${infoBtn('sec_peq')}</div>
-    ${path(`peq.${sel}.freq`, 'Frekvens', b.range, 'peqFreq')}
-    ${path(`peq.${sel}.gain`, 'Gain', RANGES.peqGain, 'peqGain')}
-    ${path(`peq.${sel}.q`, b.type === 'peaking' ? 'Q (bredd)' : 'Q (branthet)', RANGES.peqQ, 'peqQ')}
+    ${frow([path(`peq.${sel}.freq`, 'Frekvens', b.range, 'peqFreq', null, 'Frekv.'), path(`peq.${sel}.gain`, 'Gain', RANGES.peqGain, 'peqGain'),
+      path(`peq.${sel}.q`, b.type === 'peaking' ? 'Q (bredd)' : 'Q (branthet)', RANGES.peqQ, 'peqQ', null, 'Q')])}
     <div class="row bottomrow"><button class="btn small" id="peq-flat">Platta ut kurvan</button><span class="grow"></span><button class="btn small" id="reset-all">Återställ alla</button></div>
   </section>`;
 }
@@ -308,35 +314,30 @@ const section = (id, title, info, body, { open = false, enableKey = null, soloKe
   `<details class="sec${enableKey && !en(enableKey) ? ' off' : ''}" data-sec="${id}" ${open ? 'open' : ''}><summary>${enableKey ? toggle(enableKey, en(enableKey), title) : ''}${esc(title)}${infoBtn(info, `Om ${title}`)}${soloKey ? `<span class="grow"></span>${solo(soloKey, title)}` : ''}</summary><div class="secbody">${body}</div></details>`;
 
 function advancedCard() {
-  const eq = (k) => EQ_CUTOFFS.map((_, i) => path(`${k}.${i}.gain`, bandLabel(EQ_CUTOFFS, i), RANGES.eqGain)).join('');
+  const eq = (k) => frow(EQ_CUTOFFS.map((_, i) => path(`${k}.${i}.gain`, bandLabel(EQ_CUTOFFS, i), RANGES.eqGain, `${k}.${i}.gain`, null, EQ_SHORT[i])));
   const mbc = MBC_CUTOFFS.map((_, i) => `<details class="band${en(`mbc${i}`) ? '' : ' off'}"><summary>${toggle(`mbc${i}`, en(`mbc${i}`), MBC_NAMES[i])}${esc(MBC_NAMES[i])}${infoBtn(`mbcBand${i}`)}<span class="grow"></span>${solo(`mbc${i}`, MBC_NAMES[i])}</summary>
-      ${path(`mbc.${i}.threshold`, 'Tröskel', RANGES.threshold)}
-      ${path(`mbc.${i}.ratio`, 'Ratio', RANGES.ratio)}
-      ${path(`mbc.${i}.attack`, 'Attack', RANGES.attack)}
-      ${path(`mbc.${i}.release`, 'Release', RANGES.release)}
-      ${path(`mbc.${i}.knee`, 'Knä', RANGES.knee)}
-      ${path(`mbc.${i}.preGain`, 'Förstärkning före', RANGES.preGain)}
-      ${path(`mbc.${i}.postGain`, 'Förstärkning efter', RANGES.postGain)}
+      ${frow([path(`mbc.${i}.threshold`, 'Tröskel', RANGES.threshold, `mbc.${i}.threshold`, null, 'Tröskel'),
+        path(`mbc.${i}.ratio`, 'Ratio', RANGES.ratio), path(`mbc.${i}.attack`, 'Attack', RANGES.attack),
+        path(`mbc.${i}.release`, 'Release', RANGES.release), path(`mbc.${i}.knee`, 'Knä', RANGES.knee),
+        path(`mbc.${i}.preGain`, 'Förstärkning före', RANGES.preGain, `mbc.${i}.preGain`, null, 'Före'),
+        path(`mbc.${i}.postGain`, 'Förstärkning efter', RANGES.postGain, `mbc.${i}.postGain`, null, 'Efter')])}
     </details>`).join('');
   const peq = PEQ_BANDS.map((b, i) => `<details class="band${en(`peq${i}`) ? '' : ' off'}"><summary>${toggle(`peq${i}`, en(`peq${i}`), b.name)}${esc(b.name)}
       <small class="dim pqsum">${ui.base.peq[i].gain ? `${fmtDb(ui.base.peq[i].gain)} dB` : 'platt'}</small><span class="grow"></span>${solo(`peq${i}`, b.name)}</summary>
-      ${path(`peq.${i}.freq`, 'Frekvens', b.range, 'peqFreq')}
-      ${path(`peq.${i}.gain`, 'Gain', RANGES.peqGain, 'peqGain')}
-      ${path(`peq.${i}.q`, b.type === 'peaking' ? 'Q (bredd)' : 'Q (branthet)', RANGES.peqQ, 'peqQ')}
+      ${frow([path(`peq.${i}.freq`, 'Frekvens', b.range, 'peqFreq', null, 'Frekv.'), path(`peq.${i}.gain`, 'Gain', RANGES.peqGain, 'peqGain'),
+        path(`peq.${i}.q`, b.type === 'peaking' ? 'Q (bredd)' : 'Q (branthet)', RANGES.peqQ, 'peqQ', null, 'Q')])}
     </details>`).join('');
   return `<section class="card" id="advanced">
     <div class="vizbox" data-vizbox="eq">${vizPart('eq')}</div>
-    ${section('input', 'Ingång', 'sec_input', path('inputGain', 'Ingångsförstärkning', RANGES.inputGain), { open: true, enableKey: 'input' })}
+    ${section('input', 'Ingång', 'sec_input', frow([path('inputGain', 'Ingångsförstärkning', RANGES.inputGain, 'inputGain', null, 'In')]), { open: true, enableKey: 'input' })}
     ${section('preEq', 'Pre-EQ', 'sec_preEq', eq('preEq'), { enableKey: 'preEq' })}
     ${section('mbc', 'Multiband-kompressor', 'sec_mbc', `<div class="vizbox" data-vizbox="comp">${vizPart('comp')}</div>${mbc}`, { soloKey: 'mbc' })}
     ${section('postEq', 'Post-EQ', 'sec_postEq', eq('postEq'), { enableKey: 'postEq' })}
     ${section('peq', 'Parametrisk EQ (Q)', 'sec_peq', peq, { enableKey: 'peq' })}
     ${section('limiter', 'Limiter', 'sec_limiter', `
-      ${path('limiter.threshold', 'Tak', RANGES.limThreshold)}
-      ${path('limiter.ratio', 'Ratio', RANGES.limRatio)}
-      ${path('limiter.attack', 'Attack', RANGES.limAttack)}
-      ${path('limiter.release', 'Release', RANGES.limRelease)}
-      ${path('limiter.postGain', 'Efterförstärkning', RANGES.limPostGain)}`, { enableKey: 'limiter' })}
+      ${frow([path('limiter.threshold', 'Tak', RANGES.limThreshold), path('limiter.ratio', 'Ratio', RANGES.limRatio),
+        path('limiter.attack', 'Attack', RANGES.limAttack), path('limiter.release', 'Release', RANGES.limRelease),
+        path('limiter.postGain', 'Efterförstärkning', RANGES.limPostGain, 'limiter.postGain', null, 'Efter')])}`, { enableKey: 'limiter' })}
     ${section('output', 'Utgång', 'sec_output', levelBlock())}
     <div class="btnrow"><button class="btn small" id="reset-all">Återställ alla</button><button class="btn small" id="flat">Platt</button><button class="btn small" id="all-on">Slå på allt</button></div>
   </section>`;
