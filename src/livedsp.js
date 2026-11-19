@@ -11,6 +11,7 @@ export const isSim = !isNative && new URLSearchParams(location.search).has('sim'
 function simulator() {
   const q = new URLSearchParams(location.search);
   const listeners = new Set();
+  const spectrumListeners = new Set();
   const globalWorks = q.get('global') !== '0';
   const perms = {
     notifications: false, microphone: false, battery: false, dump: q.get('dump') === '1',
@@ -20,7 +21,16 @@ function simulator() {
     running: false, on: false, globalWanted: true, globalActive: false, dumpGranted: perms.dump,
     broadcastsReceived: 0, scans: 0, lastScanInfo: 'Ingen sökning ännu', playbackApiInfo: '',
     android: '17', sdk: 37, device: 'Simulator', params: {}, sessions: [],
+    agc: { on: false, target: -14, gain: 0, closedLoop: 'true', postVolume: true, probing: false },
+    analyzer: { running: false, error: '' },
+    analysis: { running: false, seconds: 0 },
   };
+  const micMsg = 'Mikrofonbehörighet krävs för analysen (Mer → Behörigheter). Inget spelas in.';
+  if (q.get('mic') === '1') perms.microphone = true;
+  // Ett rosa-aktigt spektrum med lite rörelse, och en "låt" som kan analyseras
+  const centers = [24.5, 77.5, 122.5, 173.2, 223.6, 280.6, 355, 447.2, 561.2, 709.9, 894.4, 1118, 1414, 1789, 2236, 2806, 3550, 4472, 5612, 7099, 8944, 11180, 14140, 17890];
+  const fakeBands = (t = 0) => centers.map((f, i) => -18 - 3 * Math.log2(f / 1000) + Math.sin(t / 300 + i) * 1.5 + (f > 2500 && f < 6300 ? 3 : 0));
+  let monitor = 0, analysisStart = 0;
   window.__simParams = null;
   const sessionList = () => {
     const out = [];
@@ -56,12 +66,50 @@ function simulator() {
       perms.shizukuGranted = true; perms.dump = true; refresh(); return { ok: true };
     },
     async autoLevel() {
+      if (s.agc.on) return { ok: false, deltaDb: 0, message: 'Jämn volym är på – PÅ och AV nivåmatchas redan automatiskt.' };
       if (!perms.microphone) throw new Error('Mikrofonbehörighet krävs för nivåmätningen (se Behörigheter).');
       if (!s.running) throw new Error('Starta Masterlab och spela en låt först.');
       return q.get('level') === '0' ? { ok: false, deltaDb: 0, message: 'Inget ljud uppmättes. Spela en låt och försök igen.' }
         : { ok: true, deltaDb: -2.5, message: 'Utgången justerad -2.5 dB' };
     },
-    async addListener(ev, fn) { if (ev === 'status') listeners.add(fn); return { remove: async () => listeners.delete(fn) }; },
+    async setAgc({ on }) {
+      if (on && !perms.microphone) throw new Error(micMsg);
+      s.agc = { ...s.agc, on: !!on, gain: on ? -3.5 : 0 };
+      if (on) s.running = true;
+      return refresh();
+    },
+    async startMonitor() {
+      if (!perms.microphone) throw new Error(micMsg);
+      clearInterval(monitor);
+      monitor = setInterval(() => {
+        const sec = s.analysis.running ? (Date.now() - analysisStart) / 1000 * (window.__simSpeed || 1) : 0;
+        spectrumListeners.forEach((l) => l({ bands: fakeBands(Date.now()), rms: -16, peak: -3, agcGain: s.agc.gain, analysisSeconds: sec }));
+      }, 150);
+    },
+    async stopMonitor() { clearInterval(monitor); },
+    async startAnalysis() {
+      if (!perms.microphone) throw new Error(micMsg);
+      s.running = true; s.analysis = { running: true, seconds: 0 }; analysisStart = Date.now();
+      return refresh();
+    },
+    async stopAnalysis() {
+      if (!s.analysis.running) throw new Error('Ingen analys pågick.');
+      s.analysis = { running: false, seconds: 0 };
+      refresh();
+      const fps = 20, n = 20 * 120; // två minuter
+      const pow = fakeBands(0).map((d) => 10 ** (d / 10));
+      return { raw: {
+        bandPow: pow.map((p, i) => (i >= 19 ? p * (window.__simBright || 1) : p)),
+        rmsPow: Array.from({ length: n }, (_, i) => 10 ** ((-16 + 4 * Math.sin(i / 200)) / 10)),
+        crest: Array.from({ length: n }, () => window.__simCrest || 12),
+        framesPerSecond: fps, seconds: n / fps, source: 'live',
+      } };
+    },
+    async addListener(ev, fn) {
+      if (ev === 'status') listeners.add(fn);
+      if (ev === 'spectrum') spectrumListeners.add(fn);
+      return { remove: async () => { listeners.delete(fn); spectrumListeners.delete(fn); } };
+    },
   };
 }
 

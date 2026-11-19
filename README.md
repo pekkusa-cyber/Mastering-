@@ -11,8 +11,29 @@ riktig limiter, kompressor, EQ och presets. Två lägen:
 | Fas | Innehåll | Läge |
 |---|---|---|
 | 1 | Prototyp: går det att bearbeta Sunos ljud live? (go/no-go) | **Godkänd** – global session (0) fungerar på Samsung S25 / Android 17 med Suno-appen, Suno i Chrome och YouTube |
-| 2 | Hela live-kedjan (EQ, multiband, limiter, presets, Enkelt/Avancerat) | **Byggd – väntar på test med örat** |
-| 3 | Filmastring i Web Audio (LUFS, true peak, export) | Ej påbörjad |
+| 2 | Hela live-kedjan (EQ, multiband, limiter, presets, Enkelt/Avancerat) | **Klar** – testad på telefonen |
+| 3 | Filmastring, plus analys/referenslyssning, jämn volym, ⓘ och ↺ på allt, 17 presets, nytt gränssnitt | **Byggd – väntar på test med örat** |
+
+## Gränssnittet
+
+Fyra flikar längst ner:
+
+- **Live** – PÅ/AV, **Jämn volym** (samma nivå mellan appar och låtar, och mellan PÅ och AV), presets, Enkelt/Avancerat.
+  Varje reglage och sektion har **ⓘ** (förklaring) och **↺** (nollställ till presetens värde). **Återställ alla** och **Platt**.
+- **Analys** – livespektrum, analys av en hel låt i bakgrunden (t.ex. medan du lyssnar i Suno eller på YouTube),
+  referenser, omdöme "håller låten?" per frekvensområde, **Matcha EQ live**.
+- **Fil** – mastring för släpp: välj låt, mål (Streaming −14 / Hög −10 LUFS, −1 dBTP), preset, matcha klang mot
+  referens, A/B nivåmatchat, mätare (LUFS, short-term, true peak, LRA, GR), export WAV 24/16 bit, 44,1/48 kHz med dither.
+- **Mer** – behörigheter, felsökning, version och uppdatering.
+
+## Filmastringens kedja (fas 3)
+
+Trim → Pre-EQ → Match-EQ → Multiband (Linkwitz-Riley 4 band, transient shaper på kickbandet) → Post-EQ →
+Stereobredd → Lim (buss-kompressor) → Drive (automatiskt mot mål-LUFS) → Soft clipper → True-peak-limiter
+(lookahead, 4x översampling) → Utgång. Egen DSP i ren JavaScript (`src/dsp/`) som körs i en Web Worker – snabbare än
+realtid och samma kod som testerna kör. Avkodning och omsampling görs med `OfflineAudioContext`.
+
+Live (Androids DSP) och fil (egen DSP) låter inte exakt lika – det står även i appens hjälptext.
 
 ## Installera
 
@@ -44,7 +65,7 @@ Allt finns under fliken **Behörigheter** i appen, med en knapp per behörighet:
 | Global session (0) | Effekten på allt ljud | Ja (förvald, fungerar på Armins telefon) |
 | Notiser | Notisen med PÅ/AV | Rekommenderas |
 | Undantag från batterioptimering | Att Android inte stänger motorn | Rekommenderas (Samsung: lägg även till under *Appar som aldrig försätts i viloläge*) |
-| Mikrofon | Auto-nivåmatcha (Visualizer) – inget spelas in | Valfritt |
+| Mikrofon | Jämn volym, spektrum, analys, auto-nivåmatcha (Visualizer) – inget spelas in | Rekommenderas |
 | Installera okända appar | Ny APK med ett tryck | Rekommenderas |
 | DUMP (sessionsdetektering) | Reserv om global session slutar fungera | Valfritt |
 

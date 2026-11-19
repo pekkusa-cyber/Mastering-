@@ -72,6 +72,11 @@ class LiveDspService : Service() {
         }
     }
 
+    /** Volymknapparna: jämn volym kontrollerar om mätningen följer volymen (se AgcController). */
+    private val volumeReceiver = object : BroadcastReceiver() {
+        override fun onReceive(c: Context, i: Intent) = AgcController.onVolumeChanged()
+    }
+
     private val playbackCallback = object : AudioManager.AudioPlaybackCallback() {
         override fun onPlaybackConfigChanged(configs: MutableList<AudioPlaybackConfiguration>) {
             describePlaybackApi(configs)
@@ -110,6 +115,8 @@ class LiveDspService : Service() {
         LiveDspEngine.addListener(engineListener)
         if (LiveDspEngine.globalWanted) LiveDspEngine.setGlobal(this, true)
         LiveDspEngine.attachPending(this)
+        AgcController.attach(this)
+        ContextCompat.registerReceiver(this, volumeReceiver, IntentFilter("android.media.VOLUME_CHANGED_ACTION"), ContextCompat.RECEIVER_EXPORTED)
         main.post(scanTick)
     }
 
@@ -125,6 +132,8 @@ class LiveDspService : Service() {
     override fun onDestroy() {
         main.removeCallbacks(scanTick)
         try { unregisterReceiver(effectReceiver) } catch (_: Throwable) {}
+        try { unregisterReceiver(volumeReceiver) } catch (_: Throwable) {}
+        if (AgcController.on) { LiveAnalyzer.release("agc") }
         try { getSystemService(AudioManager::class.java).unregisterAudioPlaybackCallback(playbackCallback) } catch (_: Throwable) {}
         LiveDspEngine.removeListener(engineListener)
         LiveDspEngine.setRunning(false)

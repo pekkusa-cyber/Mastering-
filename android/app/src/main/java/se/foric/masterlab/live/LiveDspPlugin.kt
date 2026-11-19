@@ -189,14 +189,90 @@ class LiveDspPlugin : Plugin() {
         }
     }
 
+    // ---- Jämn volym, spektrum och live-analys ----
+
+    private fun needMic(call: PluginCall): Boolean {
+        if (granted(Manifest.permission.RECORD_AUDIO)) return true
+        call.reject("Mikrofonbehörighet krävs för analysen (Mer → Behörigheter). Inget spelas in.")
+        return false
+    }
+
+    /** { on, target? } – jämn volym mellan appar och låtar. */
+    @PluginMethod
+    fun setAgc(call: PluginCall) {
+        val value = call.getBoolean("on", false) == true
+        if (value && !needMic(call)) return
+        if (value && !LiveDspEngine.running) LiveDspService.start(context)
+        val err = AgcController.setOn(context, value, call.getDouble("target"))
+        if (err != null) { AgcController.setOn(context, false); call.reject(err); return }
+        LiveDspEngine.changed()
+        call.resolve(statusObj())
+    }
+
+    private var monitoring = false
+    private var lastSpectrum = 0L
+    private var smooth: DoubleArray? = null
+    private val spectrumListener: (LiveAnalyzer.Frame) -> Unit = { f ->
+        val bands = DoubleArray(f.bandsNorm.size) { f.bandsNorm[it] * f.scale }
+        val sm = smooth ?: bands.copyOf().also { smooth = it }
+        for (i in bands.indices) sm[i] = 0.6 * sm[i] + 0.4 * bands[i]
+        val now = System.currentTimeMillis()
+        if (now - lastSpectrum >= 120) {
+            lastSpectrum = now
+            notifyListeners("spectrum", JSObject().apply {
+                put("bands", org.json.JSONArray(sm.map { AnalyzerMath.db(it) }))
+                put("rms", f.rmsDb); put("peak", f.peakDb)
+                put("agcGain", LiveDspEngine.agcGain.toDouble())
+                put("analysisSeconds", LiveAnalysis.seconds)
+            })
+        }
+    }
+
+    /** Spektrumvisningen i Analys-vyn (bara medan vyn är öppen). */
+    @PluginMethod
+    fun startMonitor(call: PluginCall) {
+        if (!needMic(call)) return
+        if (!LiveAnalyzer.retain(context, "monitor")) { call.reject(LiveAnalyzer.error ?: "Analysen kunde inte starta."); return }
+        if (!monitoring) { LiveAnalyzer.addListener(spectrumListener); monitoring = true }
+        call.resolve()
+    }
+
+    @PluginMethod
+    fun stopMonitor(call: PluginCall) {
+        if (monitoring) { LiveAnalyzer.removeListener(spectrumListener); monitoring = false; smooth = null }
+        LiveAnalyzer.release("monitor")
+        call.resolve()
+    }
+
+    /** Börjar samla en låts profil (fortsätter i bakgrunden medan du lyssnar i en annan app). */
+    @PluginMethod
+    fun startAnalysis(call: PluginCall) {
+        if (!needMic(call)) return
+        if (!LiveDspEngine.running) LiveDspService.start(context)
+        LiveAnalysis.stop()
+        if (!LiveAnalysis.start(context)) { call.reject(LiveAnalyzer.error ?: "Analysen kunde inte starta."); return }
+        LiveDspEngine.changed()
+        call.resolve(statusObj())
+    }
+
+    /** Svarar { raw } – rådata som webben gör om till en profil (src/analysis.js finishProfile). */
+    @PluginMethod
+    fun stopAnalysis(call: PluginCall) {
+        val raw = LiveAnalysis.stop()
+        LiveDspEngine.changed()
+        if (raw == null) { call.reject("Ingen analys pågick."); return }
+        call.resolve(JSObject().put("raw", JSObject.fromJSONObject(raw)))
+    }
+
     /** Mäter nivån med och utan bearbetning och svarar med hur mycket utgången ska ändras (dB). */
     @PluginMethod
     fun autoLevel(call: PluginCall) {
         if (!granted(Manifest.permission.RECORD_AUDIO)) { call.reject("Mikrofonbehörighet krävs för nivåmätningen (se Behörigheter)."); return }
         if (!LiveDspEngine.running) { call.reject("Starta Masterlab och spela en låt först."); return }
         if (matching) { call.reject("Mätning pågår redan."); return }
+        if (AgcController.on) { call.resolve(JSObject().put("ok", false).put("deltaDb", 0.0).put("message", "Jämn volym är på – PÅ och AV nivåmatchas redan automatiskt.")); return }
         matching = true
-        LevelMatcher { ok, delta, msg ->
+        LevelMatcher(context) { ok, delta, msg ->
             matching = false
             call.resolve(JSObject().put("ok", ok).put("deltaDb", delta.toDouble()).put("message", msg))
         }.start()

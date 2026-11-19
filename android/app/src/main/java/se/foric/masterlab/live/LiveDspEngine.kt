@@ -46,6 +46,23 @@ object LiveDspEngine {
     var params: LiveParams = LiveParams.neutral(); private set
     /** Under automatisk nivåmatchning styr mätningen på/av tillfälligt. */
     private var measureOverride: Boolean? = null
+    /** Förstärkning från "Jämn volym" (AgcController), läggs på kedjans ingång i både PÅ och AV. */
+    var agcGain = 0f; private set
+    private val NEUTRAL = LiveParams.neutral()
+
+    /** PÅ (mastrat) eller AV (original) just nu – mätningen kan tillfälligt styra det. */
+    private fun mastered() = measureOverride ?: on
+
+    /**
+     * Parametrarna som ligger på effekten: PÅ = kedjan, AV med jämn volym = neutral kedja (bara nivån),
+     * plus förstärkningen från jämn volym. Utan jämn volym är effekten helt avstängd i AV.
+     */
+    fun applied(): LiveParams {
+        val base = if (mastered()) params else NEUTRAL
+        return if (agcGain == 0f) base else base.copy(inputGain = base.inputGain + agcGain)
+    }
+
+    private fun effectEnabled() = mastered() || AgcController.on
 
     var broadcastsReceived = 0
     var scans = 0
@@ -56,6 +73,7 @@ object LiveDspEngine {
 
     fun init(ctx: Context) {
         if (prefs != null) return
+        AgcController.init(ctx)
         val p = ctx.applicationContext.getSharedPreferences("live", Context.MODE_PRIVATE)
         prefs = p
         on = p.getBoolean("on", false)
@@ -84,22 +102,37 @@ object LiveDspEngine {
     fun setOn(value: Boolean) {
         on = value
         save()
-        for (s in sessions.values) applyEnabled(s)
+        refreshEffects()
         changed()
     }
 
     fun setMeasureOverride(value: Boolean?) {
         measureOverride = value
-        for (s in sessions.values) applyEnabled(s)
+        refreshEffects()
     }
 
     fun setParams(p: LiveParams) {
         params = p
         save()
-        for (s in sessions.values) s.effect?.let { dp ->
-            try { applyParams(dp, p) } catch (t: Throwable) { s.error = "parametrar: ${t.javaClass.simpleName}: ${t.message}" }
-        }
+        refreshEffects()
         changed()
+    }
+
+    /** Lägger aktuella parametrar och på/av på alla effekter. */
+    fun refreshEffects() {
+        val a = applied()
+        for (s in sessions.values) s.effect?.let { dp ->
+            try { applyParams(dp, a) } catch (t: Throwable) { s.error = "parametrar: ${t.javaClass.simpleName}: ${t.message}" }
+            applyEnabled(s)
+        }
+    }
+
+    /** Ny förstärkning från jämn volym – bara ingångsförstärkningen uppdateras (små steg, inga klick). */
+    fun setAgcGain(g: Float) {
+        if (kotlin.math.abs(g - agcGain) < 0.1f && !(g == 0f && agcGain != 0f)) return
+        agcGain = g
+        val gain = applied().inputGain
+        for (s in sessions.values) s.effect?.let { dp -> try { dp.setInputGainAllChannelsTo(gain) } catch (_: Throwable) {} }
     }
 
     fun setGlobal(ctx: Context, value: Boolean) {
@@ -150,7 +183,7 @@ object LiveDspEngine {
 
     private fun tryCreate(s: Session) {
         try {
-            val dp = DynamicsProcessing(Int.MAX_VALUE, s.id, buildConfig(params))
+            val dp = DynamicsProcessing(Int.MAX_VALUE, s.id, buildConfig(applied()))
             dp.setControlStatusListener { _, _ -> changed() }
             dp.setEnableStatusListener { _, _ -> changed() }
             s.effect = dp
@@ -165,7 +198,7 @@ object LiveDspEngine {
     private fun applyEnabled(s: Session) {
         val dp = s.effect ?: return
         try {
-            dp.setEnabled(measureOverride ?: on)
+            dp.setEnabled(effectEnabled())
         } catch (t: Throwable) {
             s.error = "setEnabled: ${t.javaClass.simpleName}: ${t.message}"
         }
@@ -298,6 +331,9 @@ object LiveDspEngine {
             put("sdk", Build.VERSION.SDK_INT)
             put("device", "${Build.MANUFACTURER} ${Build.MODEL}")
             put("params", params.toJson())
+            put("agc", AgcController.status())
+            put("analyzer", LiveAnalyzer.status())
+            put("analysis", JSONObject().put("running", LiveAnalysis.running).put("seconds", LiveAnalysis.seconds))
             put("sessions", list)
         }
     }

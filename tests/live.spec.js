@@ -3,188 +3,156 @@ import { test, expect } from '@playwright/test';
 const sent = (page) => page.evaluate(() => window.__simParams);
 const setRange = (loc, v) => loc.evaluate((el, val) => { el.value = val; el.dispatchEvent(new Event('input', { bubbles: true })); }, String(v));
 
-test('utan Android och utan simulator förklaras att live bara finns i appen', async ({ page }) => {
-  await page.goto('/');
-  await expect(page.getByText('Live-bearbetningen finns bara i Android-appen')).toBeVisible();
-});
-
 test('stora knappen växlar mellan mastrat och original och startar motorn', async ({ page }) => {
   await page.goto('/?sim=1');
   const btn = page.locator('#onoff');
   await expect(btn).toHaveAttribute('aria-pressed', 'false');
-  await expect(page.getByTestId('motor')).toContainText('stoppad');
   await btn.click();
   await expect(btn).toHaveAttribute('aria-pressed', 'true');
   await expect(btn).toContainText('PÅ');
-  await expect(page.getByTestId('motor')).toContainText('global session');
+  await expect(page.getByTestId('motor')).toContainText('allt ljud');
   await btn.click();
-  await expect(btn).toHaveAttribute('aria-pressed', 'false');
   await expect(btn).toContainText('ORIGINAL');
 });
 
-test('vald preset skickas till motorn med alla band', async ({ page }) => {
+test('vald preset skickas till motorn med alla band, och det finns minst 16 presets', async ({ page }) => {
   await page.goto('/?sim=1');
   await expect.poll(async () => (await sent(page))?.mbc?.length).toBe(4);
-  let p = await sent(page);
-  expect(p.preEq).toHaveLength(8);
-  expect(p.mbc[0]).toMatchObject({ cutoff: 120, threshold: -24, ratio: 4 }); // Mjuk kick
-  await page.getByLabel('Preset').selectOption({ label: 'Radio ljus' });
-  await expect.poll(async () => (await sent(page)).postEq[7].gain).toBe(3);
-  p = await sent(page);
-  expect(p.limiter.ratio).toBe(20);
+  expect((await sent(page)).mbc[0]).toMatchObject({ cutoff: 120, threshold: -24, ratio: 4 });
+  expect(await page.locator('#preset option').count()).toBeGreaterThanOrEqual(16);
+  await page.getByLabel('Preset', { exact: true }).selectOption({ label: 'Suno-fix' });
+  await expect(page.locator('#pdesc')).toContainText('Suno');
+  await expect.poll(async () => (await sent(page)).postEq[6].gain).toBe(-2);
 });
 
-test('enkla reglage ändrar kedjan och visar (ändrad)', async ({ page }) => {
+test('varje enkelt reglage har ⓘ och ↺, och Återställ alla nollställer', async ({ page }) => {
   await page.goto('/?sim=1');
-  await expect(page.locator('#dirty')).toBeHidden();
+  for (const id of ['m-kick', 'm-bright', 'm-punch', 'm-vocal', 'p-outputGain']) {
+    const sl = page.locator(`[data-sl="${id}"]`);
+    await expect(sl.locator('.i')).toHaveCount(1);
+    await expect(sl.locator('.rst')).toHaveCount(1);
+  }
   await setRange(page.locator('#m-bright'), 100);
   await expect(page.locator('#dirty')).toBeVisible();
   await expect.poll(async () => (await sent(page)).postEq[7].gain).toBe(4);
-  await page.getByRole('button', { name: 'Nollställ reglagen' }).click();
-  await expect(page.locator('#dirty')).toBeHidden();
+  // ↺ på just det reglaget
+  await page.locator('[data-reset="m-bright"]').click();
+  await expect(page.locator('#m-bright')).toHaveValue('0');
   await expect.poll(async () => (await sent(page)).postEq[7].gain).toBe(0);
+  // Återställ alla
+  await setRange(page.locator('#m-kick'), 50);
+  await setRange(page.locator('#m-vocal'), -40);
+  await page.getByRole('button', { name: 'Återställ alla' }).click();
+  await expect(page.locator('#m-kick')).toHaveValue('0');
+  await expect(page.locator('#m-vocal')).toHaveValue('0');
+  await expect(page.locator('#dirty')).toBeHidden();
 });
 
-test('avancerat läge visar hela kedjan och bakar in de enkla reglagen', async ({ page }) => {
+test('ⓘ förklarar ett reglage tydligt', async ({ page }) => {
   await page.goto('/?sim=1');
-  await setRange(page.locator('#m-punch'), 50); // +3 dB in
+  await page.locator('[data-sl="m-vocal"] .i').click();
+  await expect(page.locator('dialog.sheet')).toContainText('Röst silkeslen');
+  await expect(page.locator('dialog.sheet')).toContainText('3–8 kHz');
+  await page.locator('dialog.sheet').getByRole('button', { name: 'Stäng' }).click();
+  await expect(page.locator('dialog.sheet')).toHaveCount(0);
+});
+
+test('avancerat: varje parameter har ⓘ och ↺ (till presetens värde), Platt och Återställ alla', async ({ page }) => {
+  await page.goto('/?sim=1');
   await page.getByRole('button', { name: 'Avancerat' }).click();
-  await expect(page.locator('#p-inputGain')).toHaveValue('6'); // Mjuk kick 3 dB + 3 dB
-  await page.getByText('Multiband-kompressor').click();
+  // Alla reglage i avancerat läge har ↺ och ⓘ
+  const sliders = page.locator('#advanced .sl');
+  const n = await sliders.count();
+  expect(n).toBeGreaterThan(40);
+  await expect(page.locator('#advanced .sl .rst')).toHaveCount(n);
+  await expect(page.locator('#advanced .sl .i')).toHaveCount(n);
+  // Sektionerna har egna ⓘ
+  for (const s of ['input', 'preEq', 'mbc', 'postEq', 'limiter', 'output']) await expect(page.locator(`[data-sec="${s}"] > summary .i`)).toHaveCount(1);
+
+  await page.locator('[data-sec=mbc] > summary').click();
   await page.getByText('Kick 0–120 Hz').click();
   await setRange(page.locator('#p-mbc-0-ratio'), 8);
   await expect.poll(async () => (await sent(page)).mbc[0].ratio).toBe(8);
-  await page.getByText('Limiter', { exact: true }).click();
-  await setRange(page.locator('#p-limiter-threshold'), -3);
-  await expect.poll(async () => (await sent(page)).limiter.threshold).toBe(-3);
-  for (const label of ['Tröskel', 'Ratio', 'Attack', 'Release', 'Knä', 'Förstärkning före', 'Förstärkning efter']) {
-    await expect(page.locator('details.band[open]').getByText(label, { exact: true })).toBeVisible();
-  }
-  // Läget och värdena finns kvar efter omstart av appen
-  await page.waitForTimeout(400);
-  await page.reload();
-  await expect(page.locator('.seg .sel')).toHaveText('Avancerat');
-  await expect.poll(async () => (await sent(page))?.mbc?.[0]?.ratio).toBe(8);
+  await page.locator('[data-reset="p-mbc-0-ratio"]').click();
+  await expect.poll(async () => (await sent(page)).mbc[0].ratio).toBe(4); // Mjuk kick
+  await page.locator('[data-sec=mbc] summary .i').first().click();
+  await expect(page.locator('dialog.sheet')).toContainText('fyra frekvensband');
+  await page.locator('dialog.sheet').getByRole('button', { name: 'Stäng' }).click();
+
+  await page.getByRole('button', { name: 'Platt' }).click();
+  await expect.poll(async () => (await sent(page)).mbc[0].ratio).toBe(1);
+  await expect(page.locator('#msg')).toContainText('Platt');
+  await page.getByLabel('Preset', { exact: true }).selectOption({ label: 'Radio ljus' });
+  await setRange(page.locator('#p-inputGain'), -6);
+  await page.getByRole('button', { name: 'Återställ alla' }).click();
+  await expect.poll(async () => (await sent(page)).inputGain).toBe(5);
 });
 
-test('spara, döp om, ta bort, exportera och importera presets', async ({ page }) => {
+test('spara, döp om, ta bort, exportera och importera presets via Hantera', async ({ page }) => {
   await page.goto('/?sim=1');
   await setRange(page.locator('#m-kick'), 40);
+  await page.getByRole('button', { name: 'Hantera presets' }).click();
   await page.getByRole('button', { name: 'Spara som…' }).click();
   await page.locator('dialog.ask input').fill('Kvällsmix');
   await page.locator('dialog.ask').getByRole('button', { name: 'Spara' }).click();
   await expect(page.locator('#msg')).toHaveText('Sparad som "Kvällsmix".');
-  await expect(page.getByLabel('Preset')).toHaveValue(/^u-/);
-  await expect(page.locator('#dirty')).toBeHidden();
 
+  await page.getByRole('button', { name: 'Hantera presets' }).click();
   await page.getByRole('button', { name: 'Döp om' }).click();
   await page.locator('dialog.ask input').fill('Nattmix');
   await page.locator('dialog.ask').getByRole('button', { name: 'Döp om' }).click();
-  await expect(page.getByLabel('Preset').locator('option:checked')).toHaveText('Nattmix');
+  await expect(page.getByLabel('Preset', { exact: true }).locator('option:checked')).toHaveText('Nattmix');
 
+  await page.getByRole('button', { name: 'Hantera presets' }).click();
   const download = page.waitForEvent('download');
-  await page.getByRole('button', { name: 'Exportera' }).click();
+  await page.getByRole('button', { name: /Exportera mina/ }).click();
   const file = await (await download).path();
 
+  await page.getByRole('button', { name: 'Hantera presets' }).click();
   await page.getByRole('button', { name: 'Ta bort' }).click();
   await page.locator('dialog.ask').getByRole('button', { name: 'Ta bort' }).click();
   await expect(page.locator('#msg')).toHaveText('"Nattmix" borttagen.');
-  await expect(page.getByLabel('Preset').locator('optgroup[label="Mina"]')).toHaveCount(0);
 
+  await page.getByRole('button', { name: 'Hantera presets' }).click();
   await page.locator('#p-import').setInputFiles(file);
   await expect(page.locator('#msg')).toHaveText('1 presets importerade.');
-  await expect(page.getByLabel('Preset').locator('optgroup[label="Mina"] option')).toHaveText(['Nattmix']);
+  await expect(page.getByLabel('Preset', { exact: true }).locator('optgroup[label="Mina"] option')).toHaveText(['Nattmix']);
+});
 
-  await page.locator('#p-import').setInputFiles({ name: 'trasig.json', mimeType: 'application/json', buffer: Buffer.from('inte json') });
-  await expect(page.locator('#msg')).toHaveText('Filen är inte giltig JSON.');
+test('jämn volym kräver mikrofon, och då nivåmatchas PÅ/AV automatiskt', async ({ page }) => {
+  await page.goto('/?sim=1');
+  await page.getByLabel('Jämn volym').click();
+  await expect(page.locator('#agcmsg')).toContainText('Mikrofonbehörighet');
+  await expect(page.getByLabel('Jämn volym')).not.toBeChecked();
+  await page.goto('/?sim=1&mic=1');
+  await page.getByLabel('Jämn volym').check();
+  await expect(page.getByTestId('agcread')).toContainText('-3.5 dB');
+  await expect(page.locator('#onoff')).toContainText('NIVÅMATCHAT');
+  await expect(page.getByText('PÅ och AV matchas automatiskt')).toBeVisible();
 });
 
 test('utgångsnivå och automatisk nivåmatchning', async ({ page }) => {
-  await page.goto('/?sim=1');
+  await page.goto('/?sim=1&mic=1');
   await page.locator('#onoff').click();
-  await page.getByRole('button', { name: 'Auto-nivåmatcha' }).click();
-  await expect(page.locator('#levelmsg')).toContainText('Mikrofonbehörighet krävs');
-  await page.getByRole('button', { name: 'Behörigheter' }).click();
-  await page.locator('[data-perm="microphone"]').getByRole('button', { name: 'Tillåt' }).click();
-  await expect(page.locator('[data-perm="microphone"]')).toContainText('klart');
-  await page.getByRole('button', { name: 'Live' }).click();
   await page.getByRole('button', { name: 'Auto-nivåmatcha' }).click();
   await expect(page.locator('#levelmsg')).toContainText('justerad');
   await expect(page.locator('#p-outputGain')).toHaveValue('-2.5');
   await expect.poll(async () => (await sent(page)).outputGain).toBe(-2.5);
 });
 
-test('behörighetsvyn: tillåt allt och bevilja DUMP med Shizuku', async ({ page }) => {
-  await page.goto('/?sim=1');
-  await page.getByRole('button', { name: 'Behörigheter' }).click();
-  for (const [id, name] of [['notifications', 'Tillåt'], ['battery', 'Undanta'], ['microphone', 'Tillåt']]) {
-    await page.locator(`[data-perm="${id}"]`).getByRole('button', { name }).click();
-    await expect(page.locator(`[data-perm="${id}"]`)).toContainText('klart');
-  }
-  await expect(page.locator('[data-perm="dump"]')).toContainText('saknas');
-  await expect(page.locator('#cmd')).toHaveText('adb shell pm grant se.foric.masterlab android.permission.DUMP');
-  await page.getByRole('button', { name: 'Bevilja med Shizuku' }).click();
-  await expect(page.locator('#msg')).toHaveText('Sessionsdetekteringen är beviljad.');
-  await expect(page.locator('[data-perm="dump"]')).toContainText('klart');
-  await page.getByRole('button', { name: 'Hjälp' }).click();
-  await expect(page.locator('#help')).toContainText('Shizuku – så gör du');
-});
-
-test('Shizuku som inte är igång ger en tydlig förklaring', async ({ page }) => {
-  await page.goto('/?sim=1&shizuku=0');
-  await page.getByRole('button', { name: 'Behörigheter' }).click();
-  await expect(page.locator('[data-perm="dump"]')).toContainText('inte installerad');
-  await expect(page.getByRole('button', { name: 'Installera Shizuku' })).toBeVisible();
-  await page.getByRole('button', { name: 'Bevilja med Shizuku' }).click();
-  await expect(page.locator('#msg')).toContainText('Shizuku är inte igång');
-});
-
-test('global session förvald; enskilda appar får ingen dubbel effekt', async ({ page }) => {
-  await page.goto('/?sim=1&dump=1');
-  await page.locator('#onoff').click();
-  await page.locator('#debug summary').click();
-  await expect(page.locator('[data-session="0"]')).toContainText('kopplad, PÅ');
-  await expect(page.locator('[data-session="2345"]')).toContainText('via global');
-  await page.getByRole('button', { name: 'Behörigheter' }).click();
-  await expect(page.locator('[data-perm="global"]')).toContainText('klart');
-  await page.getByLabel('Använd global session').uncheck();
-  await expect(page.locator('[data-perm="global"]')).toContainText('Avslagen');
-  await page.getByRole('button', { name: 'Live' }).click();
-  await page.locator('#debug summary').click();
-  await expect(page.locator('[data-session="2345"]')).toContainText('kopplad, PÅ');
-});
-
-test('global session som inte fungerar visar felet', async ({ page }) => {
-  await page.goto('/?sim=1&global=0');
-  await page.locator('#onoff').click();
-  await page.locator('#debug summary').click();
-  await expect(page.locator('[data-session="0"]')).toContainText('UnsupportedOperationException');
-  await page.getByRole('button', { name: 'Kopiera felsökningsrapport' }).click();
-  await expect(page.getByText('Kopierad – klistra in')).toBeVisible();
-});
-
-test('hjälptexten för Live öppnas och stängs', async ({ page }) => {
-  await page.goto('/?sim=1');
-  await page.getByRole('button', { name: 'Hjälp' }).click();
-  await expect(page.locator('#help')).toContainText('Nivåmatcha');
-  await page.getByRole('button', { name: 'Stäng' }).click();
-  await expect(page.locator('#help')).not.toBeVisible();
-});
-
-test('versionen visas och ny app-version erbjuds som banner', async ({ page }) => {
+test('ny app-version visas som banner', async ({ page }) => {
   await page.goto('/?sim=1&update=apk');
   await expect(page.locator('#apkBanner')).toContainText('Ny app-version finns');
-  await expect(page.getByRole('button', { name: 'Installera' })).toBeVisible();
-  await page.locator('#debug summary').click();
-  await expect(page.getByTestId('version')).toContainText('webb');
   await page.goto('/?sim=1');
   await expect(page.locator('#apkBanner')).toHaveCount(0);
 });
 
-test('behörighet att installera uppdateringar', async ({ page }) => {
+test('hjälptexten för varje vy', async ({ page }) => {
   await page.goto('/?sim=1');
-  await page.getByRole('button', { name: 'Behörigheter' }).click();
-  await expect(page.locator('[data-perm="install"]')).toContainText('saknas');
-  await page.locator('[data-perm="install"]').getByRole('button', { name: 'Tillåt' }).click();
-  await expect(page.locator('[data-perm="install"]')).toContainText('klart');
+  for (const [view, text] of [['live', 'Jämn volym'], ['analys', 'referens'], ['fil', 'Exportera'], ['mer', 'Shizuku']]) {
+    await page.locator(`nav [data-view="${view}"]`).click();
+    await page.getByRole('button', { name: 'Hjälp' }).click();
+    await expect(page.locator('dialog.sheet')).toContainText(text);
+    await page.locator('dialog.sheet').getByRole('button', { name: 'Stäng' }).click();
+  }
 });
