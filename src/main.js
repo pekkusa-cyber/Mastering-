@@ -5,7 +5,7 @@ import { ui, app } from './state.js';
 import { esc, showInfo, sheet } from './ui.js';
 import * as updater from './updater.js';
 import { loadRefs } from './refs.js';
-import { liveView, bindLive, initLive, changed, onButton, toggleOn, agcRow, bindAgc, bindStatus, renderViz, syncProfileFromStatus } from './views/live.js';
+import { liveView, bindLive, initLive, changed, onButton, bindStatus, renderViz, renderSettings, openSettings, syncProfileFromStatus } from './views/live.js';
 import { analysView, bindAnalys, renderSpectrum, setMonitor } from './views/analys.js';
 import { filView, bindFil, renderFilePart, stopFilePlayback } from './views/fil.js';
 import { merView, bindMer, refreshPerms, debugCard, bindDebug } from './views/mer.js';
@@ -22,7 +22,7 @@ function header() {
   const v = VIEWS.find((x) => x.id === ui.view);
   return `<header class="top">
     <h1>${ui.view === 'live' ? 'Masterlab' : esc(v.label)}</h1>
-    <button class="info" data-help="${ui.view}" aria-label="Hjälp">ⓘ</button>
+    <span class="hbtns">${ui.view === 'live' && LiveDsp ? '<button class="info" id="settings" aria-label="Inställningar">⚙</button>' : ''}<button class="info" data-help="${ui.view}" aria-label="Hjälp">ⓘ</button></span>
   </header>`;
 }
 
@@ -107,6 +107,8 @@ function bind() {
       render();
     };
   });
+  const gear = root.querySelector('#settings');
+  if (gear) gear.onclick = openSettings;
   const ia = root.querySelector('#installApk');
   if (ia) ia.onclick = async () => {
     try {
@@ -125,8 +127,7 @@ function renderPart(part) {
     if (ui.view === 'live') {
       const area = root.querySelector('#statusArea');
       if (area) { area.innerHTML = onButton(); bindStatus(area); }
-      const agc = root.querySelector('#agcArea');
-      if (agc && !agc.contains(document.activeElement)) { agc.innerHTML = agcRow(); bindAgc(agc); }
+      renderSettings();
     }
     if (ui.view === 'mer') {
       const dbg = root.querySelector('#debug');

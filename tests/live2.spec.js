@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { pick, picked } from './helpers.js';
+import { pick, picked, openGroup, openSettings } from './helpers.js';
 
 const sent = (page) => page.evaluate(() => window.__simParams);
 const setRange = (loc, v) => loc.evaluate((el, val) => { el.value = val; el.dispatchEvent(new Event('input', { bubbles: true })); }, String(v));
@@ -65,6 +65,7 @@ test('på/av per del: bara kicken mjukas upp, EQ och resten av', async ({ page }
 
 test('på/av och −/+ på enkla reglage', async ({ page }) => {
   await page.goto('/?sim=1');
+  await openGroup(page, 'ton');
   await page.getByRole('button', { name: 'Öka Ljusare' }).click();
   await expect(page.locator('#m-bright')).toHaveValue('5');
   await page.getByRole('button', { name: 'Minska Ljusare' }).click();
@@ -84,28 +85,41 @@ test('konstant utnivå: mer ingång → lägre utgång, och kurvorna följer med
   const before = (await sent(page)).outputGain;
   await setRange(page.locator('#m-punch'), 100);
   await expect.poll(async () => (await sent(page)).outputGain).toBeLessThan(before - 1);
+  await openSettings(page);
   await expect(page.getByTestId('compread')).toContainText('dB');
-  await page.getByText('Visa kurvor').click();
+  await page.locator('dialog.settingssheet').getByRole('button', { name: 'Stäng' }).click();
+  await page.locator('[data-sec="viz-simple"] summary').click();
   await expect(page.locator('[data-viz=eq] svg')).toBeVisible();
   await expect(page.locator('[data-viz=comp] .mini')).toHaveCount(5);
   const curve = await page.locator('[data-viz=eq] polyline').first().getAttribute('points');
   await setRange(page.locator('#m-bright'), 100);
   await expect.poll(() => page.locator('[data-viz=eq] polyline').first().getAttribute('points')).not.toBe(curve);
+  await openSettings(page);
   await page.getByLabel('Konstant utnivå').uncheck();
   await expect.poll(async () => (await sent(page)).outputGain).toBe(0);
 });
 
-test('hörlurskorrigering: Liberty 4 Pro inbyggd, import från AutoEq', async ({ page }) => {
+test('hörlurskorrigering: Liberty 4 Pro inbyggd, samma volym, graf och import från AutoEq', async ({ page }) => {
   await page.goto('/?sim=1');
   await page.getByLabel('Hörlurskorrigering').check();
   await expect.poll(() => page.evaluate(() => window.__simCorrection?.gains?.length)).toBe(31);
-  expect(await page.evaluate(() => window.__simCorrection.name)).toBe('Soundcore Liberty 4 Pro');
-  await page.getByRole('button', { name: /Soundcore Liberty 4 Pro/ }).first().click();
+  const c = await page.evaluate(() => window.__simCorrection);
+  expect(c.name).toBe('Soundcore Liberty 4 Pro');
+  expect(c.preamp).toBeGreaterThan(-2); // nivåkompenserad: preamp −5,8 höjs så att det låter lika högt
+  expect(c.levelComp).toBeGreaterThan(3);
+  await openSettings(page);
+  await expect(page.locator('[data-viz=corr] svg')).toBeVisible();
+  await expect(page.getByTestId('corr-acc')).toContainText('i snitt');
+  // Utan samma volym: originalets preamp
+  await page.getByLabel('Samma volym som utan korrigering').uncheck();
+  await expect.poll(() => page.evaluate(() => window.__simCorrection.preamp)).toBe(-5.8);
+  await page.getByRole('button', { name: 'Välj hörlurar' }).click();
   await page.locator('#hp-name').fill('Testlurar');
   await page.locator('#hp-text').fill('Preamp: -3 dB\nFilter 1: ON PK Fc 1000 Hz Gain 3.0 dB Q 1.0');
   await page.getByRole('button', { name: 'Lägg till' }).click();
   await expect(page.locator('#corrmsg')).toContainText('Testlurar');
   expect(await page.evaluate(() => window.__simCorrection.preamp)).toBe(-3);
+  await page.locator('dialog.settingssheet').getByRole('button', { name: 'Stäng' }).click();
   await page.getByText('Avancerat').click();
   await expect(page.locator('[data-viz=eq]')).toContainText('Hörlurskorrigering');
 });
@@ -113,8 +127,10 @@ test('hörlurskorrigering: Liberty 4 Pro inbyggd, import från AutoEq', async ({
 test('profil per enhet: sparas och används när enheten ansluts', async ({ page }) => {
   await page.goto('/?sim=1');
   await pick(page, 'Preset', 'Bas varm');
+  await openSettings(page);
   await page.getByRole('button', { name: 'Spara nuvarande' }).click();
   await expect(page.getByTestId('profile')).toContainText('Bas varm');
+  await page.locator('dialog.settingssheet').getByRole('button', { name: 'Stäng' }).click();
   const key = await page.evaluate(() => Object.keys(window.__simProfiles)[0]);
   expect(key).toContain('Liberty 4 Pro');
   // Byt preset, koppla bort och anslut hörlurarna igen → profilen tas tillbaka
@@ -122,23 +138,31 @@ test('profil per enhet: sparas och används när enheten ansluts', async ({ page
   await page.evaluate(() => window.__sim.simOutput('speaker', 'Telefonens högtalare'));
   await page.evaluate((k) => window.__sim.simOutput(k, 'Soundcore Liberty 4 Pro'), key);
   await expect(picked(page, 'Preset')).toHaveText('Bas varm');
+  await openSettings(page);
   await expect(page.locator('#profmsg')).toContainText('Soundcore Liberty 4 Pro');
 });
 
-test('design A: presetkort med "Påverkar", grupper med gruppknapp', async ({ page }) => {
+test('design A: bara vald preset syns, "Påverkar", fällbara grupper med gruppknapp', async ({ page }) => {
   await page.goto('/?sim=1');
-  await expect(page.locator('.pc.sel')).toContainText('Mjuk kick');
+  await expect(picked(page, 'Preset')).toHaveText('Mjuk kick');
+  await expect(page.locator('.pc')).toHaveCount(0); // ingen karusell
   await expect(page.getByTestId('affects')).toContainText('Kick 4:1 (snabb)');
   await expect(page.getByTestId('affects')).not.toContainText('EQ');
-  await page.locator('[data-preset="radio-ljus"]').click();
-  await expect(page.locator('.pc.sel')).toContainText('Radio ljus');
+  await pick(page, 'Preset', 'Radio ljus');
+  await expect(picked(page, 'Preset')).toHaveText('Radio ljus');
   await expect(page.getByTestId('affects')).toContainText('Post-EQ');
-  for (const g of ['ton', 'vokal', 'bas', 'dynamik']) await expect(page.locator(`[data-group="${g}"]`)).toBeVisible();
+  for (const g of ['ton', 'vokal', 'bas', 'dynamik']) await expect(page.locator(`[data-group="${g}"] summary`)).toBeVisible();
+  await expect(page.locator('#m-bright')).toBeHidden(); // grupperna är stängda tills man öppnar dem
+  await openGroup(page, 'ton');
   await expect(page.locator('[data-group="ton"] .affects').first()).toContainText('Post-EQ');
+  // Bara en grupp öppen i taget
+  await openGroup(page, 'vokal');
+  await expect(page.locator('#m-bright')).toBeHidden();
   // Gruppknappen slår av båda reglagen i Vokal
   await page.getByLabel('Vokal på/av').uncheck();
   await expect(page.getByLabel('Röst silkeslen på/av')).not.toBeChecked();
   await expect(page.getByLabel('S-ljud på/av')).not.toBeChecked();
+  await expect(page.locator('[data-gsum="vokal"]')).toContainText('S-ljud av');
 });
 
 test('Orörd preset och inga telefonmenyer (allt är appens eget)', async ({ page }) => {

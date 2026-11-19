@@ -20,8 +20,9 @@ export const HELP = {
       <h3>Hörlurskorrigering</h3>
       <p>Gör dina hörlurar neutrala (AutoEq). Soundcore Liberty 4 Pro finns inbyggd; fler kan importeras under 🎧-knappen.
       Ställ Soundcore-appens EQ på platt. Korrigeringen ligger efter mastringen, precis före slutlimitern (Androids effekt har alltid limitern sist), och sänker totalt så att den aldrig skapar nya toppar.</p>
-      <h3>Smart (chipen)</h3>
-      <p>Tryck på ett chip för att slå på/av. Där sparar du också en profil för enheten.</p>
+      <h3>Inställningar (⚙)</h3>
+      <p>Det man sällan ändrar ligger under kugghjulet: val av hörlurar och en graf över vad som kompenseras, <b>Samma volym</b>
+      för korrigeringen, Jämn volym, Konstant utnivå, Volymoberoende kompression och profil för enheten.</p>
       <ul>
         <li><b>Jämn volym</b> – samma nivå mellan appar och låtar (YouTube → Suno utan att röra volymen), och mellan PÅ och AV.
         Kräver mikrofonbehörighet (inget spelas in).</li>
@@ -32,13 +33,13 @@ export const HELP = {
         byter appen själv.</li>
       </ul>
       <h3>Presets</h3>
-      <p>30 startpunkter som kort du sveper mellan (eller väljer i listan) – <b>Orörd</b> (ingen bearbetning alls, en ren grund
+      <p>Bara vald preset syns – tryck <b>Byt</b> för att välja bland 30 – <b>Orörd</b> (ingen bearbetning alls, en ren grund
       att bygga från), Mjuk kick, Suno-fix, Radio ljus, Silkeslen röst, R&amp;B silke, Trap 808, Schlager, Bilstereo, Telefonhögtalare m.fl.
       Raden <b>Påverkar</b> visar exakt vad presetten gör, t.ex. att Mjuk kick bara arbetar med kompression av kickbandet och
       limitern – inte med EQ. Spara din egen under <b>⋯ Hantera</b> (spara, döp om, ta bort, exportera, importera).</p>
       <h3>Enkelt och Avancerat</h3>
-      <p><b>Enkelt</b>: sex reglage i grupperna Ton, Vokal, Bas och Dynamik, ovanpå presetten. Under varje reglage står vad det påverkar,
-      och gruppens knapp slår av/på hela gruppen (mitten = presetten som den är). <b>Avancerat</b>: hela kedjan –
+      <p><b>Enkelt</b>: sex reglage i grupperna Ton, Vokal, Bas och Dynamik, ovanpå presetten. Tryck på en grupp för att öppna den
+      (en i taget, så att sidan håller sig kort). Under varje reglage står vad det påverkar, och gruppens knapp slår av/på hela gruppen (mitten = presetten som den är). <b>Avancerat</b>: hela kedjan –
       Ingång → Pre-EQ → Multiband → Post-EQ → Limiter → Utgång.</p>
       <ul>
         <li><b>På/av</b> på varje reglage, sektion och band: slå bara på det du vill ha (t.ex. bara mjukare kick).

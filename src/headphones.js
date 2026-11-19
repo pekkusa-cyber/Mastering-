@@ -55,3 +55,48 @@ export function toThirdOctave({ preamp, filters }) {
 export function correctionFor(profile) {
   return { ...toThirdOctave(parseParametric(profile.text)), name: profile.name };
 }
+
+// ---- Samma volym med korrigering, och kurvor för grafen ----
+import { kWeightCoeffs } from './dsp/loudness.js';
+
+const K = kWeightCoeffs(48000);
+// Typisk musik per tersband (rosa, −3 dB/oktav men tersband har lika energi ⇒ platt) K-vägt som LUFS
+const W = THIRD_OCTAVE.map((f) => 10 ** ((responseDb(K[0], 48000, f) + responseDb(K[1], 48000, f)) / 10) * (f < 30 ? 0.5 : 1));
+const WSUM = W.reduce((a, b) => a + b, 0);
+
+/** Hur mycket korrigeringen (inkl. preamp) ändrar den upplevda nivån (dB). */
+export function loudnessDelta({ gains, preamp }) {
+  const p = gains.reduce((a, g, i) => a + W[i] * 10 ** ((g + preamp) / 10), 0);
+  return 10 * Math.log10(p / WSUM);
+}
+
+/**
+ * Korrigering som låter lika högt som utan: preamp höjs så att nivån blir oförändrad. Det som då skulle gå över
+ * 0 dBFS tar säkerhetslimitern i live-motorn (den är alltid på när korrigeringen är på).
+ */
+export function withLevelComp(corr) {
+  const d = loudnessDelta(corr);
+  return { ...corr, preamp: Math.round(Math.min(6, corr.preamp - d) * 100) / 100, levelComp: Math.round(-d * 10) / 10 };
+}
+
+/** AutoEq-kurvans exakta svar (dB) vid frekvenserna – utan preamp. */
+export function exactCurve(profile, freqs) {
+  const { filters } = parseParametric(profile.text);
+  return freqs.map((f) => filters.reduce((a, fl) => a + responseDb(coeffs(fl.type, 48000, fl.f, fl.q, fl.gain), 48000, f), 0));
+}
+
+/** Det appen lägger på: tersbandens trappsteg (dB) vid frekvenserna – utan preamp. */
+export function appliedCurve(corr, freqs) {
+  const cut = THIRD_OCTAVE.map((f, i) => (i === THIRD_OCTAVE.length - 1 ? 22000 : f * 2 ** (1 / 6)));
+  return freqs.map((f) => { const k = cut.findIndex((x) => f < x); return corr.gains[k < 0 ? corr.gains.length - 1 : k]; });
+}
+
+/** Hur väl appen följer AutoEq-kurvan (40 Hz–16 kHz): { mean, max, at } i dB. */
+export function accuracy(profile) {
+  const freqs = Array.from({ length: 300 }, (_, i) => 40 * 400 ** (i / 299));
+  const c = correctionFor(profile);
+  const e = exactCurve(profile, freqs), a = appliedCurve(c, freqs);
+  let max = 0, at = 0, sum = 0;
+  e.forEach((v, i) => { const d = Math.abs(v - a[i]); sum += d; if (d > max) { max = d; at = freqs[i]; } });
+  return { mean: +(sum / freqs.length).toFixed(2), max: +max.toFixed(2), at: Math.round(at) };
+}

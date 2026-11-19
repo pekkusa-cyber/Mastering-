@@ -42,7 +42,7 @@ export function eqCurveSvg({ pre, post, corr = null, title = 'Klangkurva', range
   const ticks = [100, 1000, 10000].map((f) => `<text x="${x(f)}" y="${H - 5}" class="ax" text-anchor="middle">${f >= 1000 ? `${f / 1000} k` : f}</text>`).join('');
   const area = `<polygon fill="${C.main}" fill-opacity=".18" points="${x(FMIN)},${y(0)} ${pts(main)} ${x(FMAX)},${y(0)}"/>`;
   return `<div class="viz" data-viz="eq">
-    <div class="legend"><span class="lg"><i class="sw main" style="--c:${C.main}"></i>Din EQ</span>${corr ? `<span class="lg"><i class="sw orig" style="--c:${C.corr}"></i>Hörlurskorrigering</span>` : ''}</div>
+    <div class="legend"><span class="lg"><i class="sw sw-main" style="--c:${C.main}"></i>Din EQ</span>${corr ? `<span class="lg"><i class="sw sw-orig" style="--c:${C.corr}"></i>Hörlurskorrigering</span>` : ''}</div>
     <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(title)}">${grid}${ticks}${area}<polyline fill="none" stroke="${C.main}" stroke-width="2" points="${pts(main)}"/>${corrLine}</svg>
   </div>`;
 }
@@ -71,4 +71,25 @@ export function compCurvesSvg({ mbc, limiter = null, glue = null, gr = [], limGr
   if (glue) minis.push(compMini({ name: 'Lim', threshold: glue.threshold, ratio: glue.ratio, knee: 6, postGain: glue.makeup }));
   if (limiter) minis.push(compMini({ name: 'Limiter', threshold: limiter.threshold, ratio: limiter.ratio, knee: 0, gr: limGr, off: enabled.limiter === false }));
   return `<div class="viz minis" data-viz="comp">${minis.join('')}</div>`;
+}
+
+/**
+ * Graf för hörlurskorrigeringen: AutoEq-kurvan (det som kompenseras), appens tersband (det som läggs på) och
+ * lurarnas egen avvikelse från neutralt (spegelbilden). Preamp/nivåkompensation visas i texten, inte i grafen.
+ */
+export function correctionGraphSvg({ freqs, exact, applied, title = 'Hörlurskorrigering', range = 12 }) {
+  const W = 340, H = 150, L = 26, R = 6, T = 6, B = 18;
+  const x = (f) => L + (Math.log(f / FMIN) / Math.log(FMAX / FMIN)) * (W - L - R);
+  const y = (v) => T + ((range - Math.max(-range, Math.min(range, v))) / (2 * range)) * (H - T - B);
+  const pts = (vals) => vals.map((v, i) => `${x(freqs[i]).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
+  const grid = [range, range / 2, 0, -range / 2, -range].map((v) => `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" stroke="${v === 0 ? C.zero : C.grid}"/>${v % 6 === 0 ? `<text x="${L - 3}" y="${y(v) + 3}" class="ax" text-anchor="end">${v > 0 ? '+' : ''}${v}</text>` : ''}`).join('');
+  const ticks = [100, 1000, 10000].map((f) => `<text x="${x(f)}" y="${H - 5}" class="ax" text-anchor="middle">${f >= 1000 ? `${f / 1000} k` : f}</text>`).join('');
+  return `<div class="viz" data-viz="corr">
+    <div class="legend"><span class="lg"><i class="sw sw-main" style="--c:${C.corr}"></i>Korrigering (AutoEq)</span><span class="lg"><i class="sw sw-ref" style="--c:#d95926"></i>Appens 31 band</span><span class="lg"><i class="sw sw-orig" style="--c:#9aa1ad"></i>Lurarnas avvikelse</span></div>
+    <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(title)}">${grid}${ticks}
+      <polyline fill="none" stroke="#9aa1ad" stroke-width="1.5" stroke-dasharray="3 3" points="${pts(exact.map((v) => -v))}"/>
+      <polyline fill="none" stroke="#d95926" stroke-width="1.5" points="${pts(applied)}"/>
+      <polyline fill="none" stroke="${C.corr}" stroke-width="2.5" points="${pts(exact)}"/></svg>
+    <p class="hint small">Över linjen = appen höjer där (lurarna är svaga), under = sänker (lurarna är starka). Den streckade grå kurvan är hur lurarna låter utan korrigering jämfört med neutralt.</p>
+  </div>`;
 }

@@ -53,6 +53,8 @@ object LiveDspEngine {
     private val NEUTRAL = LiveParams.neutral()
     /** Helt neutral – även limitern av – när Masterlab är avstängt. */
     private val NEUTRAL_OFF = NEUTRAL.copy(limiter = NEUTRAL.limiter.copy(ratio = 1f, threshold = 0f))
+    /** Säkerhetslimiter när hörlurskorrigeringen är på: snabb, nästan oåterkallelig (20:1) vid −0,5 dB. */
+    private val SAFETY_LIMITER = LimiterP(attack = 0.5f, release = 60f, ratio = 20f, threshold = -0.5f, postGain = 0f)
 
     /** PÅ (mastrat) eller AV (original) just nu – mätningen kan tillfälligt styra det. */
     private fun mastered() = measureOverride ?: on
@@ -62,12 +64,19 @@ object LiveDspEngine {
      * plus förstärkningen från jämn volym. Utan jämn volym är effekten helt avstängd i AV.
      */
     fun applied(): LiveParams {
-        if (bypass) return NEUTRAL_OFF // bara hörlurskorrigeringen (läggs på i post-EQ) – inget annat
+        if (bypass) return safe(NEUTRAL_OFF) // bara hörlurskorrigeringen (läggs på i post-EQ) – inget annat
         val base = if (mastered()) params else NEUTRAL
         val off = if (mastered()) thresholdOffset() else 0f
         val mbc = if (off == 0f) base.mbc else base.mbc.map { it.copy(threshold = (it.threshold + off).coerceIn(-90f, 0f)) }
-        return base.copy(inputGain = base.inputGain + agcGain, mbc = mbc)
+        return safe(base.copy(inputGain = base.inputGain + agcGain, mbc = mbc))
     }
+
+    /**
+     * Hörlurskorrigeringen är nivåkompenserad (samma volym som utan) och höjer därför vissa band över 0 dB.
+     * Är den på ser vi till att en limiter alltid finns sist, så att inget kan klippa.
+     */
+    private fun safe(p: LiveParams): LiveParams =
+        if (correctionActive() && p.limiter.ratio < 4f) p.copy(limiter = SAFETY_LIMITER) else p
 
     /**
      * Masterlab av (bypass): resten av kedjan – mastring, jämn volym, volymkompensation – gör ingenting.

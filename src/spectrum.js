@@ -42,7 +42,7 @@ export function spectrumSvg(series, { id = 'spec', title = 'Spektrum' } = {}) {
   }).join('') : '';
   const line = (k, dash) => (norm[k] ? `<polyline fill="none" stroke="${SERIES_COLORS[k]}" stroke-width="2" ${dash ? 'stroke-dasharray="4 3"' : ''} points="${norm[k].map((v, i) => `${x(i) + bw / 2},${y(v)}`).join(' ')}"/>` : '');
   const hits = Array.from({ length: n }, (_, i) => `<rect class="hit" data-band="${i}" x="${x(i)}" y="${PAD_T}" width="${bw}" height="${H - PAD_T - PAD_B}"/>`).join('');
-  const legend = ['main', 'ref', 'orig'].filter((k) => series[k]).map((k) => `<span class="lg"><i class="sw ${k}" style="--c:${SERIES_COLORS[k]}"></i>${esc(series[k].label)}</span>`).join('');
+  const legend = ['main', 'ref', 'orig'].filter((k) => series[k]).map((k) => `<span class="lg"><i class="sw sw-${k}" style="--c:${SERIES_COLORS[k]}"></i>${esc(series[k].label)}</span>`).join('');
   return `<div class="spec" data-spec="${esc(id)}">
     <div class="legend">${legend}</div>
     <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(title)}">${grid}${ticks}${bars}${line('orig', true)}${line('ref', false)}${hits}</svg>

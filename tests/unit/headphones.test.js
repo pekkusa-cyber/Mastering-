@@ -19,3 +19,15 @@ test('Liberty 4 Pro: 10 filter, preamp −5,8 dB, 31 tersband', () => {
 test('trasig text ger begripligt fel', () => {
   assert.throws(() => parseParametric('hej'), /Hittade inga filter/);
 });
+
+test('samma volym: korrigeringen nivåkompenseras till ±0,1 dB', async () => {
+  const { BUILTIN_HEADPHONES, correctionFor, loudnessDelta, withLevelComp, accuracy } = await import('../../src/headphones.js');
+  const c = correctionFor(BUILTIN_HEADPHONES[0]);
+  const before = loudnessDelta(c);
+  assert.ok(before < -3, `utan kompensation blir det tystare: ${before.toFixed(1)} dB`);
+  const comp = withLevelComp(c);
+  assert.ok(Math.abs(loudnessDelta(comp)) < 0.1, `med kompensation: ${loudnessDelta(comp).toFixed(2)}`);
+  assert.ok(comp.levelComp > 3);
+  const acc = accuracy(BUILTIN_HEADPHONES[0]);
+  assert.ok(acc.mean < 0.3 && acc.max < 2, JSON.stringify(acc));
+});

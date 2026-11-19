@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { pick, picked } from './helpers.js';
+import { pick, picked, openGroup, openSettings } from './helpers.js';
 
 const sent = (page) => page.evaluate(() => window.__simParams);
 const setRange = (loc, v) => loc.evaluate((el, val) => { el.value = val; el.dispatchEvent(new Event('input', { bubbles: true })); }, String(v));
@@ -20,7 +20,6 @@ test('vald preset skickas till motorn med alla band, och det finns minst 16 pres
   await page.goto('/?sim=1');
   await expect.poll(async () => (await sent(page))?.mbc?.length).toBe(4);
   expect((await sent(page)).mbc[0]).toMatchObject({ cutoff: 120, threshold: -24, ratio: 4 });
-  expect(await page.locator('.pc').count()).toBeGreaterThanOrEqual(30);
   await page.getByRole('button', { name: 'Preset', exact: true }).click();
   expect(await page.locator('dialog.sheet [role=option]').count()).toBeGreaterThanOrEqual(30);
   await expect(page.locator('dialog.sheet [role=option][aria-selected=true]')).toContainText('Mjuk kick');
@@ -32,6 +31,7 @@ test('vald preset skickas till motorn med alla band, och det finns minst 16 pres
 
 test('varje enkelt reglage har ⓘ och ↺, och Återställ alla nollställer', async ({ page }) => {
   await page.goto('/?sim=1');
+  await openGroup(page, 'ton');
   for (const id of ['m-kick', 'm-bright', 'm-punch', 'm-vocal', 'p-outputGain']) {
     const sl = page.locator(`[data-sl="${id}"]`);
     await expect(sl.locator('.i')).toHaveCount(1);
@@ -55,6 +55,7 @@ test('varje enkelt reglage har ⓘ och ↺, och Återställ alla nollställer', 
 
 test('ⓘ förklarar ett reglage tydligt', async ({ page }) => {
   await page.goto('/?sim=1');
+  await openGroup(page, 'vokal');
   await page.locator('[data-sl="m-vocal"] .i').click();
   await expect(page.locator('dialog.sheet')).toContainText('Röst silkeslen');
   await expect(page.locator('dialog.sheet')).toContainText('3–8 kHz');
@@ -129,20 +130,27 @@ test('spara, döp om, ta bort, exportera och importera presets via Hantera', asy
 
 test('jämn volym kräver mikrofon, och då nivåmatchas PÅ/AV automatiskt', async ({ page }) => {
   await page.goto('/?sim=1');
+  await openSettings(page);
   await page.getByLabel('Jämn volym').click();
   await expect(page.locator('#agcmsg')).toContainText('Mikrofonbehörighet');
   await expect(page.getByLabel('Jämn volym')).not.toBeChecked();
   await page.goto('/?sim=1&mic=1');
+  await openSettings(page);
   await page.getByLabel('Jämn volym').check();
   await expect(page.getByTestId('agcread')).toContainText('-3.5 dB');
   await expect(page.getByTestId('mode')).toContainText('NIVÅMATCHAT');
+  await page.locator('dialog.settingssheet').getByRole('button', { name: 'Stäng' }).click();
+  await openGroup(page, 'dynamik');
   await expect(page.getByText('Nivån hålls automatiskt')).toBeVisible();
 });
 
 test('utgångsnivå och automatisk nivåmatchning (när Konstant utnivå är av)', async ({ page }) => {
   await page.goto('/?sim=1&mic=1');
   await page.locator('#onoff').click();
+  await openSettings(page);
   await page.getByLabel('Konstant utnivå').uncheck();
+  await page.locator('dialog.settingssheet').getByRole('button', { name: 'Stäng' }).click();
+  await openGroup(page, 'dynamik');
   await page.getByRole('button', { name: 'Auto-nivåmatcha' }).click();
   await expect(page.locator('#levelmsg')).toContainText('justerad');
   await expect(page.locator('#p-outputGain')).toHaveValue('-2.5');
