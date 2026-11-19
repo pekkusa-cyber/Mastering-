@@ -19,7 +19,7 @@ export const HELP = {
       av eller om en annan app (t.ex. Wavelet) har tagit kontrollen – tryck då <b>Ta tillbaka</b>.</p>
       <h3>Hörlurskorrigering</h3>
       <p>Gör dina hörlurar neutrala (AutoEq). Soundcore Liberty 4 Pro finns inbyggd; fler kan importeras under 🎧-knappen.
-      Ställ Soundcore-appens EQ på platt. Korrigeringen ligger sist i kedjan, närmast lurarna.</p>
+      Ställ Soundcore-appens EQ på platt. Korrigeringen ligger efter mastringen, precis före slutlimitern (Androids effekt har alltid limitern sist), och sänker totalt så att den aldrig skapar nya toppar.</p>
       <h3>Smart (chipen)</h3>
       <p>Tryck på ett chip för att slå på/av. Där sparar du också en profil för enheten.</p>
       <ul>

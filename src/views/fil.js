@@ -1,6 +1,6 @@
 // Fil-vyn: välj låt → mål och preset → (matcha klang mot referens) → lyssna direkt medan du justerar →
 // jämför versioner → exportera WAV. Album: mastra flera låtar med samma inställning och nivå.
-import { isNative } from '../livedsp.js';
+import { isNative, LiveDsp } from '../livedsp.js';
 import { ui, app } from '../state.js';
 import { save, load } from '../store.js';
 import { BUILTIN_PRESETS, EQ_CUTOFFS, MBC_CUTOFFS, MBC_NAMES, RANGES, bandLabel } from '../chain.js';
@@ -192,6 +192,7 @@ function playerCard() {
       <span class="dim small" id="f-time">${mmss(pos)} / ${mmss(dur)}</span>
     </div>
     <label class="switch"><input type="checkbox" id="f-matched" ${F.matched ? 'checked' : ''}> Nivåmatchad A/B</label>
+    ${LiveDsp ? '<p class="hint small">Medan låten spelar här pausas live-mastringen, så att du inte hör den dubbelt. Hörlurskorrigeringen ligger kvar.</p>' : ''}
   </section>`;
 }
 
@@ -299,7 +300,22 @@ export function renderFilePart(root, part) {
 const bindRender = (el) => { const b = el.querySelector('#f-render'); if (b) b.onclick = () => paramsChanged({ now: true }); };
 
 let ticker = 0;
-export function stopFilePlayback() { player.pause(); clearInterval(ticker); }
+/**
+ * Fil-uppspelningen går ut genom telefonen – då skulle live-motorn mastra den en gång till. Medan Fil spelar
+ * pausas därför live-mastringen (Masterlab av); hörlurskorrigeringen ligger kvar. Återställs vid paus/byte av vy.
+ */
+let livePaused = false;
+async function pauseLive() {
+  if (!LiveDsp || livePaused || !ui.status?.running || ui.status?.bypass) return;
+  livePaused = true;
+  ui.status = await LiveDsp.setBypass({ on: true });
+}
+async function resumeLive() {
+  if (!LiveDsp || !livePaused) return;
+  livePaused = false;
+  ui.status = await LiveDsp.setBypass({ on: false });
+}
+export function stopFilePlayback() { player.pause(); clearInterval(ticker); resumeLive(); }
 
 async function exportWav(channels, fs, baseName) {
   let ch = await resample(channels, fs, F.rate);
@@ -387,14 +403,15 @@ export function bindFil(root) {
   });
   const play = root.querySelector('#f-play');
   if (play) play.onclick = async () => {
-    if (player.playing) { player.pause(); clearInterval(ticker); }
+    if (player.playing) { player.pause(); clearInterval(ticker); resumeLive(); }
     else {
+      await pauseLive();
       if (realtime) player.setParams(effective(), F.result?.drive ?? 0);
       player.setAb(F.ab, matchGain());
       await player.play();
       clearInterval(ticker);
       ticker = setInterval(() => app.renderPart('fileTime'), 250);
-      player.onEnd = () => { clearInterval(ticker); app.render(); };
+      player.onEnd = () => { clearInterval(ticker); resumeLive(); app.render(); };
     }
     play.textContent = player.playing ? '❚❚' : '▶';
     play.setAttribute('aria-label', player.playing ? 'Paus' : 'Spela');

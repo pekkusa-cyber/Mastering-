@@ -69,3 +69,16 @@ test('album: två låtar mastras till samma nivå och exporteras', async ({ page
   expect(spread).toBeLessThan(1);
   await expect.poll(() => downloads.length).toBe(2);
 });
+
+test('live-mastringen pausas medan Fil spelar (ingen dubbelmastring)', async ({ page }) => {
+  test.setTimeout(120000);
+  await page.goto('/?sim=1');
+  await page.locator('#onoff').click(); // live-motorn igång, mastrat
+  await page.locator('nav [data-view="fil"]').click();
+  await page.locator('#f-file').setInputFiles({ name: 'a.wav', mimeType: 'audio/wav', buffer: wav(3) });
+  await expect(page.getByTestId('meters')).toBeVisible({ timeout: 60000 });
+  await page.getByRole('button', { name: 'Spela' }).click();
+  await expect.poll(() => page.evaluate(async () => (await window.__sim.getStatus()).bypass)).toBe(true);
+  await page.getByRole('button', { name: 'Paus' }).click();
+  await expect.poll(() => page.evaluate(async () => (await window.__sim.getStatus()).bypass)).toBe(false);
+});
