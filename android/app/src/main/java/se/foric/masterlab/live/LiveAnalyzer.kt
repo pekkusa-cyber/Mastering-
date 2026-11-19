@@ -57,8 +57,10 @@ object LiveAnalyzer {
             val rate = Visualizer.getMaxCaptureRate()
             framesPerSecond = rate / 1000.0
             v.setDataCaptureListener(object : Visualizer.OnDataCaptureListener {
-                override fun onWaveformDataCapture(visualizer: Visualizer, waveform: ByteArray, samplingRate: Int) = onWave(visualizer, waveform, samplingRate)
-                override fun onFftDataCapture(visualizer: Visualizer, fft: ByteArray, samplingRate: Int) {}
+                override fun onWaveformDataCapture(visualizer: Visualizer?, waveform: ByteArray?, samplingRate: Int) {
+                    if (visualizer != null && waveform != null) onWave(visualizer, waveform, samplingRate)
+                }
+                override fun onFftDataCapture(visualizer: Visualizer?, fft: ByteArray?, samplingRate: Int) {}
             }, rate, true, false)
             v.enabled = true
             vis = v
