@@ -6,23 +6,28 @@ export const HELP = {
     html: `
       <p>Live lägger Androids ljudeffekt <b>DynamicsProcessing</b> på allt ljud telefonen spelar – Suno-appen, Suno i
       Chrome, YouTube – medan du lyssnar.</p>
+      <h3>Två huvudbrytare</h3>
+      <ul>
+        <li><b>🎧 Hörlurar</b> – bara hörlurskorrigeringen (neutrala lurar). Fungerar helt för sig.</li>
+        <li><b>Masterlab</b> – allt annat: mastring, jämn volym, konstant nivå.</li>
+      </ul>
+      <p>Hörlurar på + Masterlab av = vanlig musik, bara neutral. Båda av = helt originalljud. Knapparna finns också i notisen.</p>
       <h3>Original / Mastrad</h3>
-      <p>Växeln högst upp jämför originalet med det mastrade ljudet. Samma knapp finns i notisen, så du kan
-      jämföra utan att byta app.</p>
-      <p><b>Bypass</b> = helt originalljud: appen gör ingenting (inte heller jämn volym eller hörlurskorrigering).</p>
+      <p>Med Masterlab på jämför växeln originalet med det mastrade ljudet (nivåmatchat med Jämn volym).</p>
       <h3>Bekräftelse</h3>
       <p>När du ändrar något visas en rad längst ner: <b>✓ Ändringen ligger på ljudet</b>, eller en varning om motorn är
       av eller om en annan app (t.ex. Wavelet) har tagit kontrollen – tryck då <b>Ta tillbaka</b>.</p>
-      <h3>Smart (chipen under växeln)</h3>
-      <p>Tryck på ett chip för att slå på/av. Under chipen väljer du hörlurar och sparar en profil för enheten.</p>
+      <h3>Hörlurskorrigering</h3>
+      <p>Gör dina hörlurar neutrala (AutoEq). Soundcore Liberty 4 Pro finns inbyggd; fler kan importeras under 🎧-knappen.
+      Ställ Soundcore-appens EQ på platt. Korrigeringen ligger sist i kedjan, närmast lurarna.</p>
+      <h3>Smart (chipen)</h3>
+      <p>Tryck på ett chip för att slå på/av. Där sparar du också en profil för enheten.</p>
       <ul>
         <li><b>Jämn volym</b> – samma nivå mellan appar och låtar (YouTube → Suno utan att röra volymen), och mellan PÅ och AV.
         Kräver mikrofonbehörighet (inget spelas in).</li>
         <li><b>Konstant utnivå</b> – varje ändring kompenseras direkt så att PÅ låter lika högt som originalet. Då hör du om
         ändringen gör det bättre, inte bara högre. Siffran visar hur mycket som kompenseras just nu.</li>
         <li><b>Volymoberoende kompression</b> – låter likadant vid låg och hög volym.</li>
-        <li><b>Hörlurskorrigering</b> – gör dina hörlurar neutrala (AutoEq). Liberty 4 Pro finns inbyggd; fler kan
-        importeras. Ställ Soundcore-appens EQ på platt.</li>
         <li><b>Profil för enheten</b> – spara nuvarande inställning för hörlurarna/högtalaren/bilen. När enheten ansluts
         byter appen själv.</li>
       </ul>

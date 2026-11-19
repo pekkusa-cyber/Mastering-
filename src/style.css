@@ -287,3 +287,20 @@ input[type=range]::-moz-range-track { height: 4px; border-radius: 2px; backgroun
 input[type=range]::-moz-range-progress { height: 4px; border-radius: 2px; background: var(--accent); }
 input[type=range]::-moz-range-thumb { width: 20px; height: 20px; border: 0; border-radius: 50%; background: #e9fffa; box-shadow: 0 0 0 5px rgba(63,211,176,.22); }
 .sl.off input[type=range]::-webkit-slider-runnable-track { background: #26353a; }
+/* Huvudbrytare: Hörlurar och Masterlab */
+.mains { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
+.main { min-width: 0; }
+.main { position: relative; display: flex; align-items: center; gap: 8px; padding: 12px; border-radius: 18px; background: var(--card); border: 1px solid var(--line); cursor: pointer; }
+.main input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; z-index: 1; }
+.main .mi { font-size: 22px; }
+.main .mt { flex: 1; min-width: 0; }
+.main .mt b { display: block; font-size: 15px; }
+.main .mt small { display: block; color: var(--dim); font-size: 11.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.main .mtog { width: 34px; height: 20px; border-radius: 10px; background: #3a4448; position: relative; flex: 0 0 auto; }
+.main .mtog::after { content: ''; position: absolute; left: 2px; top: 2px; width: 16px; height: 16px; border-radius: 50%; background: #d6e3e6; transition: transform .15s; }
+.main.on { border-color: var(--accent-line); background: linear-gradient(180deg, #17352f, #10221f); }
+.main.on small { color: #8fe0cc; }
+.main.on .mtog { background: var(--accent); }
+.main.on .mtog::after { transform: translateX(14px); background: var(--accent-ink); }
+.hero .pick { display: block; margin: 8px 0 10px; }
+.card.dimmed { opacity: .45; }

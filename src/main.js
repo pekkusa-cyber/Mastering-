@@ -124,7 +124,7 @@ function renderPart(part) {
   if (part === 'status') {
     if (ui.view === 'live') {
       const area = root.querySelector('#statusArea');
-      if (area) { area.innerHTML = onButton(); area.querySelector('#onoff').onclick = toggleOn; bindStatus(area); }
+      if (area) { area.innerHTML = onButton(); bindStatus(area); }
       const agc = root.querySelector('#agcArea');
       if (agc && !agc.contains(document.activeElement)) { agc.innerHTML = agcRow(); bindAgc(agc); }
     }

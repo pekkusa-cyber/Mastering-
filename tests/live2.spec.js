@@ -26,13 +26,23 @@ test('en annan app (Wavelet) har kontrollen: varning och Ta tillbaka', async ({ 
   await expect(page.locator('#confirm')).toContainText('hörs nu');
 });
 
-test('bypass = helt original', async ({ page }) => {
+test('huvudbrytare: Hörlurar och Masterlab var för sig', async ({ page }) => {
   await page.goto('/?sim=1');
   await page.locator('#onoff').click();
-  await page.getByLabel('Bypass – helt original').check();
-  await expect(page.getByTestId('mode')).toContainText('BYPASS');
-  await page.getByLabel('Bypass – helt original').uncheck();
   await expect(page.getByTestId('mode')).toHaveText('MASTRAT');
+  // Masterlab av: växeln Original/Mastrad försvinner, inget bearbetas
+  await page.getByLabel('Masterlab (bearbetning)').uncheck();
+  await expect(page.getByTestId('mode')).toHaveText('HELT ORIGINAL');
+  await expect(page.locator('#onoff')).toHaveCount(0);
+  // Bara hörlurskorrigering
+  await page.getByLabel('Hörlurskorrigering').check();
+  await expect(page.getByTestId('mode')).toHaveText('BARA HÖRLURSKORRIGERING');
+  await expect.poll(() => page.evaluate(() => window.__simCorrection?.gains?.length)).toBe(31);
+  // Masterlab på igen
+  await page.getByLabel('Masterlab (bearbetning)').check();
+  await expect(page.getByTestId('mode')).toHaveText('MASTRAT');
+  await page.locator('[data-info="mains"]').click();
+  await expect(page.locator('dialog.sheet')).toContainText('Hörlurar på + Masterlab av');
 });
 
 test('på/av per del: bara kicken mjukas upp, EQ och resten av', async ({ page }) => {
@@ -142,4 +152,16 @@ test('Orörd preset och inga telefonmenyer (allt är appens eget)', async ({ pag
     await page.locator(`nav [data-view="${view}"]`).click();
     await expect(page.locator('select')).toHaveCount(0);
   }
+});
+
+test('ingen vy är bredare än telefonen (inget sidledes scroll)', async ({ page }) => {
+  await page.goto('/?sim=1&mic=1');
+  for (const view of ['live', 'analys', 'fil', 'mer']) {
+    await page.locator(`nav [data-view="${view}"]`).click();
+    const over = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    expect(over, `${view} sticker ut ${over}px`).toBeLessThanOrEqual(0);
+  }
+  await page.locator('nav [data-view="live"]').click();
+  await page.getByRole('button', { name: 'Avancerat' }).click();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
 });

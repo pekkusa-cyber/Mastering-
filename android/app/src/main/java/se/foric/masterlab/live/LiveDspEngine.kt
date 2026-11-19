@@ -51,6 +51,8 @@ object LiveDspEngine {
     /** Förstärkning från "Jämn volym" (AgcController), läggs på kedjans ingång i både PÅ och AV. */
     var agcGain = 0f; private set
     private val NEUTRAL = LiveParams.neutral()
+    /** Helt neutral – även limitern av – när Masterlab är avstängt. */
+    private val NEUTRAL_OFF = NEUTRAL.copy(limiter = NEUTRAL.limiter.copy(ratio = 1f, threshold = 0f))
 
     /** PÅ (mastrat) eller AV (original) just nu – mätningen kan tillfälligt styra det. */
     private fun mastered() = measureOverride ?: on
@@ -60,17 +62,21 @@ object LiveDspEngine {
      * plus förstärkningen från jämn volym. Utan jämn volym är effekten helt avstängd i AV.
      */
     fun applied(): LiveParams {
+        if (bypass) return NEUTRAL_OFF // bara hörlurskorrigeringen (läggs på i post-EQ) – inget annat
         val base = if (mastered()) params else NEUTRAL
         val off = if (mastered()) thresholdOffset() else 0f
         val mbc = if (off == 0f) base.mbc else base.mbc.map { it.copy(threshold = (it.threshold + off).coerceIn(-90f, 0f)) }
         return base.copy(inputGain = base.inputGain + agcGain, mbc = mbc)
     }
 
-    /** Bypass: helt originalljud – effekten är avstängd oavsett allt annat. */
+    /**
+     * Masterlab av (bypass): resten av kedjan – mastring, jämn volym, volymkompensation – gör ingenting.
+     * Hörlurskorrigeringen är en egen huvudbrytare och fungerar oberoende av den här.
+     */
     var bypass = false; private set
-    private fun effectEnabled() = !bypass && (mastered() || AgcController.on || correctionActive())
+    private fun effectEnabled() = correctionActive() || (!bypass && (mastered() || AgcController.on))
 
-    fun setBypass(value: Boolean): JSONObject { bypass = value; val r = refreshEffects(); changed(); return r }
+    fun setBypass(value: Boolean): JSONObject { bypass = value; save(); val r = refreshEffects(); changed(); return r }
 
     // ---- Hörlurskorrigering, volymoberoende kompression och profiler per ljudutgång ----
     var correction: PostEq.Correction? = null; private set
@@ -106,6 +112,7 @@ object LiveDspEngine {
         correctionOn = p.getBoolean("corrOn", false)
         correction = try { parseCorrection(JSONObject(p.getString("corr", "{}") ?: "{}")) } catch (_: Throwable) { null }
         volComp = p.getBoolean("volComp", true)
+        bypass = p.getBoolean("bypass", false)
         profiles = try { JSONObject(p.getString("profiles", "{}") ?: "{}") } catch (_: Throwable) { JSONObject() }
     }
 
@@ -115,7 +122,7 @@ object LiveDspEngine {
         prefs?.edit()?.putBoolean("on", on)?.putBoolean("global", globalWanted)?.putBoolean("running", running)
             ?.putString("params", params.toJson().toString())
             ?.putBoolean("corrOn", correctionOn)?.putString("corr", correction?.let { correctionJson(it) }?.toString() ?: "{}")
-            ?.putBoolean("volComp", volComp)?.putString("profiles", profiles.toString())?.apply()
+            ?.putBoolean("volComp", volComp)?.putBoolean("bypass", bypass)?.putString("profiles", profiles.toString())?.apply()
     }
 
     fun parseCorrection(o: JSONObject): PostEq.Correction? {
@@ -254,6 +261,7 @@ object LiveDspEngine {
     fun setAgcGain(g: Float) {
         if (kotlin.math.abs(g - agcGain) < 0.1f && !(g == 0f && agcGain != 0f)) return
         agcGain = g
+        if (bypass) return
         val gain = applied().inputGain
         for (s in sessions.values) s.effect?.let { dp -> try { dp.setInputGainAllChannelsTo(gain) } catch (_: Throwable) {} }
     }

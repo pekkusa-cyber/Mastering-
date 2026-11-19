@@ -39,6 +39,8 @@ class LiveDspService : Service() {
         const val ACTION_START = "se.foric.masterlab.START"
         const val ACTION_STOP = "se.foric.masterlab.STOP"
         const val ACTION_TOGGLE = "se.foric.masterlab.TOGGLE"
+        const val ACTION_HEADPHONES = "se.foric.masterlab.HEADPHONES"
+        const val ACTION_MASTERLAB = "se.foric.masterlab.MASTERLAB"
         private const val CHANNEL = "live"
         private const val NOTIF_ID = 1
         private const val SCAN_INTERVAL_MS = 4000L
@@ -135,6 +137,8 @@ class LiveDspService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             ACTION_TOGGLE -> LiveDspEngine.setOn(!LiveDspEngine.on)
+            ACTION_HEADPHONES -> LiveDspEngine.setCorrection(!LiveDspEngine.correctionOn, null)
+            ACTION_MASTERLAB -> LiveDspEngine.setBypass(!LiveDspEngine.bypass)
             ACTION_STOP -> { stopSelf(); return START_NOT_STICKY }
         }
         updateNotification()
@@ -242,12 +246,17 @@ class LiveDspService : Service() {
         val open = PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE)
         return NotificationCompat.Builder(this, CHANNEL)
             .setSmallIcon(R.mipmap.ic_launcher)
-            .setContentTitle(if (on) "Masterlab PÅ" else "Masterlab AV (förbikopplad)")
+            .setContentTitle(when {
+                LiveDspEngine.bypass -> if (LiveDspEngine.correctionOn) "Bara hörlurskorrigering" else "Masterlab av – helt original"
+                on -> "Mastrad" + if (LiveDspEngine.correctionOn) " · 🎧" else ""
+                else -> "Original" + if (LiveDspEngine.correctionOn) " · 🎧" else ""
+            })
             .setContentText("Bearbetar $how")
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .setContentIntent(open)
-            .addAction(0, if (on) "Slå av" else "Slå på", pending(ACTION_TOGGLE, 1))
+            .addAction(0, if (LiveDspEngine.correctionOn) "🎧 Hörlurar av" else "🎧 Hörlurar på", pending(ACTION_HEADPHONES, 3))
+            .addAction(0, if (LiveDspEngine.bypass) "Masterlab på" else if (on) "Original" else "Mastrad", pending(if (LiveDspEngine.bypass) ACTION_MASTERLAB else ACTION_TOGGLE, 1))
             .addAction(0, "Stoppa", pending(ACTION_STOP, 2))
             .build()
     }

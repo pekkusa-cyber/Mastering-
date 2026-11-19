@@ -72,16 +72,28 @@ const PRESET_ICONS = { 'mjuk-kick': '🥁', 'radio-ljus': '📻', 'silkeslen-ros
   'bas-varm': '🔊', 'tat-pop': '✨', 'hiphop-punch': '👊', 'edm-hogt': '⚡', akustisk: '🎸', ballad: '🎙️', rock: '🤘', lofi: '📼', natt: '🌙', horlurar: '🎧', test: '🧪',
   flat: '⚪', 'rnb-silke': '🌙', 'trap-808': '🔈', schlager: '💃', indie: '🌿', metal: '🔥', jazz: '🎷', film: '🎬', reggaeton: '🌴', bil: '🚗', telefon: '📱', gym: '🏋️', 'demo-check': '🔍' };
 
-/** Original | Mastrad – stora växeln högst upp (design A). */
+/**
+ * Två huvudbrytare högst upp: 🎧 Hörlurar (bara korrigeringen) och Masterlab (allt annat). Med Masterlab på finns
+ * växeln Original | Mastrad för att jämföra.
+ */
 export function onButton() {
   const s = ui.status || {};
   const agc = s.agc?.on;
-  const mode = s.bypass ? 'BYPASS · HELT ORIGINAL' : s.on ? 'MASTRAT' : agc ? 'ORIGINAL · NIVÅMATCHAT' : 'ORIGINAL';
-  return `<button class="abswitch ${s.on ? 'on' : ''} ${s.bypass ? 'bypassed' : ''}" id="onoff" aria-pressed="${!!s.on}" aria-label="Mastrad på/av">
-      <span class="o">Original</span><span class="m">Mastrad</span></button>
+  const hpOn = !!s.correction?.on, appOn = !s.bypass;
+  const hp = headphones().find((h) => h.id === ui.corr?.id);
+  const mode = !appOn ? (hpOn ? 'BARA HÖRLURSKORRIGERING' : 'HELT ORIGINAL') : s.on ? 'MASTRAT' : agc ? 'ORIGINAL · NIVÅMATCHAT' : 'ORIGINAL';
+  return `<div class="mains">
+      <label class="main ${hpOn ? 'on' : ''}"><input type="checkbox" id="corr" ${hpOn ? 'checked' : ''} aria-label="Hörlurskorrigering">
+        <span class="mi">🎧</span><span class="mt"><b>Hörlurar</b><small>${hpOn ? 'neutralt i lurarna' : 'av'}</small></span><i class="mtog"></i></label>
+      <label class="main ${appOn ? 'on' : ''}"><input type="checkbox" id="masterlab" ${appOn ? 'checked' : ''} aria-label="Masterlab (bearbetning)">
+        <span class="mi">🎚️</span><span class="mt"><b>Masterlab</b><small>${appOn ? 'mastring och smart' : 'av – gör inget'}</small></span><i class="mtog"></i></label>
+    </div>
+    <button class="btn small ghost pick" id="corr-pick">🎧 ${esc(hp?.name || 'Välj hörlurar')} ›</button>
+    ${appOn ? `<button class="abswitch ${s.on ? 'on' : ''}" id="onoff" aria-pressed="${!!s.on}" aria-label="Mastrad på/av">
+      <span class="o">Original</span><span class="m">Mastrad</span></button>` : ''}
     <p class="status"><b data-testid="mode">${mode}</b> · <span data-testid="motor">${s.running
       ? (s.globalActive ? 'Bearbetar allt ljud' : `Bearbetar ${s.sessions.filter((x) => x.attached).length} spelande appar`)
-      : 'Motorn startar när du väljer Mastrad'}</span>${s.output?.name ? ` · ${esc(s.output.name)}` : ''}${infoBtn('onoff')}</p>`;
+      : 'Motorn startar när du slår på något'}</span>${s.output?.name ? ` · ${esc(s.output.name)}` : ''}${infoBtn('mains', 'Om huvudbrytarna')}</p>`;
 }
 
 /** Smarta funktioner som chips (design A) + val av hörlurar och profil för enheten. */
@@ -96,14 +108,9 @@ export function agcRow() {
   return `<div class="pills">
       ${pill('agc', a.on, 'Jämn volym', 'Jämn volym', a.on ? `<small data-testid="agcread"> ${fmtDb(a.gain)} dB${a.probing ? ' · mäter' : ''}</small>` : '')}
       ${pill('constant', ui.constant, 'Konstant nivå', 'Konstant utnivå', ui.constant ? `<small data-testid="compread"> ${fmtDb(comp)} dB</small>` : '')}
-      ${pill('corr', s.correction?.on, 'Hörlurar', 'Hörlurskorrigering')}
       ${pill('volcomp', s.volComp !== false, 'Volymoberoende', 'Volymoberoende kompression')}
-      ${pill('bypass', s.bypass, 'Bypass', 'Bypass – helt original')}
     </div>
-    <div class="row smallrow">
-      <button class="btn small ghost pick" id="corr-pick">🎧 ${esc(hp?.name || 'Välj hörlurar')} ›</button>
-      <span class="grow"></span>${infoBtn('smart', 'Om smarta funktioner')}
-    </div>
+    <div class="row smallrow"><span class="grow"></span>${infoBtn('smart', 'Om smarta funktioner')}</div>
     ${ui.agcMsg ? `<p class="hint small" id="agcmsg">${esc(ui.agcMsg)}</p>` : ''}
     ${ui.corrMsg ? `<p class="hint small" id="corrmsg">${esc(ui.corrMsg)}</p>` : ''}
     <div class="row profile"><span class="small">Profil för <b>${esc(out.name || 'utgången')}</b>${infoBtn('deviceProfile')}</span><span class="grow"></span>
@@ -212,7 +219,7 @@ function advancedCard() {
 export function liveView() {
   return `
     <section class="hero" id="statusArea">${onButton()}</section>
-    <section class="card smart" id="agcArea">${agcRow()}</section>
+    <section class="card smart ${ui.status?.bypass ? 'dimmed' : ''}" id="agcArea">${agcRow()}</section>
     ${presetCard()}
     <div class="seg" role="tablist">
       <button data-mode="simple" class="${ui.mode === 'simple' ? 'sel' : ''}">Enkelt</button>
@@ -376,7 +383,6 @@ export function syncProfileFromStatus(prevKey) {
 }
 
 export function bindLive(root) {
-  root.querySelector('#onoff').onclick = toggleOn;
   bindStatus(root);
   bindAgc(root);
   bindSliders(root, (kind, key, v) => {
@@ -437,12 +443,17 @@ export function bindLive(root) {
 }
 
 export function bindStatus(root) {
-  const b = root.querySelector('#bypass');
-  if (b) b.onchange = async () => { ui.status = await LiveDsp.setBypass({ on: b.checked }); app.renderPart('status'); };
+  const m = root.querySelector('#masterlab');
+  if (m) m.onchange = async () => { ui.status = await LiveDsp.setBypass({ on: !m.checked }); app.render(); };
+  const c = root.querySelector('#corr');
+  if (c) c.onchange = async () => { await sendCorrection(c.checked); app.render(); };
+  const pickBtn = root.querySelector('#corr-pick');
+  if (pickBtn) pickBtn.onclick = pickHeadphones;
+  const o = root.querySelector('#onoff');
+  if (o) o.onclick = toggleOn;
 }
 
 export function bindAgc(root) {
-  bindStatus(root);
   const a = root.querySelector('#agc');
   if (!a) return;
   a.onchange = async () => {
@@ -452,8 +463,6 @@ export function bindAgc(root) {
   };
   root.querySelector('#constant').onchange = (e) => { ui.constant = e.target.checked; changed({ now: true }); app.render(); };
   root.querySelector('#volcomp').onchange = async (e) => { ui.status = await LiveDsp.setVolComp({ on: e.target.checked }); app.render(); };
-  root.querySelector('#corr').onchange = async (e) => { await sendCorrection(e.target.checked); app.render(); };
-  root.querySelector('#corr-pick').onclick = pickHeadphones;
   const ps = root.querySelector('#prof-save');
   if (ps) ps.onclick = async () => {
     const out = ui.status.output;
