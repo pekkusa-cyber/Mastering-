@@ -1,0 +1,35 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Förslag B</title><link rel="stylesheet" href="s-base.css"><style>
+.top{display:flex;flex-direction:column}
+.cmp{flex:1;display:grid;grid-template-columns:repeat(4,1fr) 1.3fr;gap:10px;padding:34px 14px 10px}
+.grb{display:flex;flex-direction:column;align-items:center;gap:6px;font-size:11px;color:var(--dim)}.grb b{color:#ffcf8a;font-size:13px}
+.grt{flex:1;width:22px;border-radius:6px;background:#1a2027;position:relative;overflow:hidden}.grt em{position:absolute;left:0;right:0;top:0;background:linear-gradient(#e0a03c,#a0601c)}
+.tf{display:flex;flex-direction:column;align-items:center;gap:6px;font-size:11px;color:var(--dim)}
+.chain{display:flex;align-items:stretch;gap:4px;margin:10px 14px 0}
+.blk{flex:1;padding:8px 6px;border-radius:13px;background:var(--card);border:1px solid var(--line);text-align:center;font-size:13px;font-weight:600;color:#cfd5dc;position:relative}
+.blk small{display:block;font-size:10.5px;font-weight:500;color:var(--dim);margin-top:2px}
+.blk.on{border-color:var(--ac);background:#123a33;color:#eafff9}.blk.off{opacity:.45}
+.blk::before{content:'';position:absolute;right:7px;top:7px;width:7px;height:7px;border-radius:50%;background:var(--ac)}.blk.off::before{background:#555}
+.ar{align-self:center;color:#4c5664;font-size:12px}
+.panel{flex:1;margin:8px 14px 10px;padding:10px 12px;border-radius:16px;background:var(--card);border:1px solid var(--line);display:flex;flex-direction:column}
+.ph1{display:flex;align-items:center;gap:8px;font-size:13px}.ph1 b{font-size:15px}.ph1 .gr{flex:1}
+.pick{color:var(--ac);font-size:12.5px;border:1px solid #2c6e64;border-radius:10px;padding:4px 8px}
+.bands{display:flex;gap:5px;margin:10px 0 2px}.bands span{flex:1;text-align:center;padding:6px 0;border-radius:9px;border:1px solid var(--line);font-size:11.5px;color:var(--dim)}.bands .on{border-color:var(--ac);color:#dffdf6;background:#123a33}
+.row4{flex:1;align-content:end;display:grid;grid-template-columns:repeat(4,1fr);align-items:end;padding-top:6px}
+.hint{font-size:11px;color:var(--dim);text-align:center;margin-top:4px}
+</style></head><body><div class="ph"><div class="sb"><span>00:40</span><span>●●● 73</span></div>
+<div class="hd"><b>Masterlab</b><span class="rb on" title="Hörlurar">🎧</span><span class="rb on" title="Masterlab">🎚️</span><span class="rb sm">⚙</span><span class="rb sm">ⓘ</span></div><div class="bar"><div class="pp">🥁 <b>Mjuk kick</b><small>ändrad</small> ▾</div><div class="ab"><span>Före</span><span class="on">Efter</span></div><span class="rb sm" title="Ångra">↶</span></div>
+<div class="top" style="height:270px"><span class="lbl">Kompressor · nedtryckning just nu</span>
+  <div class="cmp"><div class="grb"><div class="grt"><em style="height:38%"></em></div><b>−4.2</b><span>Kick</span></div><div class="grb"><div class="grt"><em style="height:12%"></em></div><b>−1.1</b><span>Mellan</span></div><div class="grb"><div class="grt"><em style="height:5%"></em></div><b>−0.4</b><span>Närvaro</span></div><div class="grb"><div class="grt"><em style="height:0%"></em></div><b>0.0</b><span>Luft</span></div>
+  <div class="tf"><svg width="96" height="150" viewBox="0 0 96 150"><rect x="2" y="2" width="92" height="146" rx="8" fill="none" stroke="#262b33"/><line x1="6" y1="144" x2="90" y2="8" stroke="#3a424d" stroke-dasharray="3 4"/><polyline fill="none" stroke="#3fd3b0" stroke-width="2.5" points="6,144 52,70 90,52"/><circle cx="52" cy="70" r="4" fill="#e0a03c"/></svg>Kick: in → ut</div></div></div>
+<div class="chain"><div class="blk">EQ<small>klang</small></div><span class="ar">→</span><div class="blk on">Kompressor<small>tryck</small></div><span class="ar">→</span><div class="blk">Limiter<small>volym</small></div><span class="ar">→</span><div class="blk">Ut<small>nivå</small></div></div>
+<div class="panel">
+  <div class="ph1"><b>Kompressor</b><span class="ms"><span>M</span><span>S</span></span><span class="gr"></span><span class="pick">Preset: Mjuk kick ▾</span></div>
+  <div class="bands"><span class="on">Kick</span><span>Mellan</span><span>Närvaro</span><span>Luft</span><span class="ms" style="flex:0 0 auto;border:0;padding:0;align-items:center"><span>M</span><span class="so">S</span></span></div>
+  <div class="row4">
+    <div class="fd"><b>4.0</b><small style="margin-top:-4px">:1</small><div class="tr" style="height:150px"><em style="bottom:0%;top:55%"></em><i style="bottom:calc(45% - 8px)"></i></div>Styrka</div>
+    <div class="fd"><b>−24</b><small style="margin-top:-4px">dB</small><div class="tr" style="height:150px"><em style="bottom:60%;top:0%"></em><i style="bottom:calc(60% - 8px)"></i></div>Startar vid</div>
+    <div class="fd"><b>3</b><small style="margin-top:-4px">ms</small><div class="tr" style="height:150px"><em style="bottom:0%;top:82%"></em><i style="bottom:calc(18% - 8px)"></i></div>Reaktion</div>
+    <div class="fd"><b>100</b><small style="margin-top:-4px">ms</small><div class="tr" style="height:150px"><em style="bottom:0%;top:70%"></em><i style="bottom:calc(30% - 8px)"></i></div>Släpper</div>
+  </div>
+  <div class="hint">Tryck på ett block i flödet ovan – grafen visar alltid det du ändrar</div>
+</div><div class="nav"><span class="s">◉<br>Live</span><span>▤<br>Analys</span><span>♫<br>Fil</span><span>⋯<br>Mer</span></div></div></body></html>
