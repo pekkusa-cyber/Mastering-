@@ -3,6 +3,11 @@
   "appName": "Masterlab",
   "webDir": "dist",
   "android": {
-    "backgroundColor": "#14161a"
+    "backgroundColor": "#0b1114"
+  },
+  "plugins": {
+    "SystemBars": {
+      "insetsHandling": "css"
+    }
   }
 }

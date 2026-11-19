@@ -1,11 +1,14 @@
 :root {
+  /* Telefonens systemfält (statusrad och navigeringsfält): Capacitor SystemBars sätter --safe-area-inset-* */
+  --sat: var(--safe-area-inset-top, env(safe-area-inset-top, 0px));
+  --sab: var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px));
   --bg: #14161a; --card: #1e2127; --line: #2c3038; --text: #eceef2; --dim: #9aa1ad;
   --accent: #f0a63a; --ok: #5cc78a; --bad: #ef6b6b;
   color-scheme: dark;
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.45 system-ui, sans-serif; }
-.top { display: flex; align-items: center; justify-content: space-between; padding: calc(env(safe-area-inset-top) + 12px) 16px 8px; }
+.top { display: flex; align-items: center; justify-content: space-between; padding: calc(var(--sat) + 12px) 16px 8px; }
 .top h1 { font-size: 22px; margin: 0; letter-spacing: .3px; }
 .info { background: none; border: 1px solid var(--line); color: var(--dim); border-radius: 50%; width: 36px; height: 36px; font-size: 18px; }
 main { padding: 0 16px 32px; max-width: 560px; margin: 0 auto; }
@@ -73,10 +76,10 @@ dialog.ask .btns { display: flex; justify-content: flex-end; gap: 8px; margin-to
 .banner { border-color: var(--accent); }
 
 /* ---- Fas 3: nytt gränssnitt ---- */
-main { padding-bottom: calc(env(safe-area-inset-bottom) + 84px); }
+main { padding-bottom: calc(var(--sab) + 84px); }
 .vh { font-size: 13px; text-transform: uppercase; letter-spacing: 1px; color: var(--dim); margin: 20px 4px 4px; }
 nav.bottom { position: fixed; left: 0; right: 0; bottom: 0; display: flex; background: #181a1f; border-top: 1px solid var(--line);
-  padding: 6px 4px calc(env(safe-area-inset-bottom) + 6px); z-index: 5; }
+  padding: 6px 4px calc(var(--sab) + 6px); z-index: 5; }
 nav.bottom button { flex: 1; background: none; border: 0; color: var(--dim); font: inherit; font-size: 12px; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 4px 0; }
 nav.bottom .ic { font-size: 20px; line-height: 1; }
 nav.bottom button.sel { color: var(--accent); }
@@ -99,7 +102,7 @@ details.sec > summary, details.band > summary { display: flex; align-items: cent
 .secbody { padding-bottom: 8px; }
 .row.agc { gap: 4px; }
 .seg .i { flex: 0 0 auto; }
-dialog.sheet { margin: auto auto 0; width: 100%; max-width: 560px; border-radius: 16px 16px 0 0; max-height: 85vh; padding: 16px 16px calc(env(safe-area-inset-bottom) + 16px); }
+dialog.sheet { margin: auto auto 0; width: 100%; max-width: 560px; border-radius: 16px 16px 0 0; max-height: 85vh; padding: 16px 16px calc(var(--sab) + 16px); }
 dialog.sheet .menu { display: flex; flex-direction: column; gap: 0; }
 dialog.sheet h2 { margin: 0 0 8px; font-size: 18px; }
 dialog.sheet p { line-height: 1.5; }
@@ -140,7 +143,7 @@ table.meters thead th { border-top: 0; color: var(--dim); font-weight: 400; font
 select { margin-top: 4px; }
 .row h2 { display: flex; align-items: center; gap: 2px; }
 #refsel { width: auto; max-width: 55%; padding: 6px 8px; font-size: 14px; }
-.confirm { position: fixed; left: 8px; right: 8px; bottom: calc(env(safe-area-inset-bottom) + 64px); z-index: 6; background: #262a31;
+.confirm { position: fixed; left: 8px; right: 8px; bottom: calc(var(--sab) + 64px); z-index: 6; background: #262a31;
   border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; font-size: 14px; display: flex; align-items: center; gap: 8px; box-shadow: 0 6px 20px #0008; }
 .confirm span { flex: 1; }
 .confirm.ok { border-color: #2e6b46; color: #bfe9cf; }
@@ -328,3 +331,29 @@ details.grp > .secbody { padding: 0 14px 10px; }
 details.grp[open] > summary { border-bottom: 1px solid var(--line); }
 .bottomrow { align-items: flex-start; gap: 8px; margin-top: 4px; }
 .bottomrow details.sec { border: 0; }
+
+/* ---- Layoutfinputs: lika avstånd, klarar större systemtext ---- */
+main > :not(:first-child) { margin-top: 12px; }
+main > .vh:not(:first-child) { margin-top: 22px; }
+main > .card, main > section, main > details, main > .seg { margin-bottom: 0; }
+.card { margin: 0; }
+.hero { display: flex; flex-direction: column; gap: 10px; margin: 0; }
+.hero .status { margin: 0; }
+/* Brytarkorten: ikon och knapp överst, text under – texten får hela bredden */
+.main { display: grid; grid-template-columns: auto 1fr auto; grid-template-rows: auto auto; align-items: center; column-gap: 8px; row-gap: 4px; padding: 12px; }
+.main .mi { grid-column: 1; grid-row: 1; font-size: 22px; }
+.main .mtog { grid-column: 3; grid-row: 1; }
+.main .mt { grid-column: 1 / -1; grid-row: 2; }
+.main .mt b, .main .mt small { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.presetcard .row, #simple .row { flex-wrap: nowrap; }
+#simple > * + * { margin-top: 8px; }
+details.grp { margin: 0; }
+.seg { margin: 0; }
+dialog.sheet { max-height: calc(88vh - var(--sat)); padding-bottom: calc(var(--sab) + 16px); display: flex; flex-direction: column; }
+dialog.sheet .sheet-body { overflow-y: auto; min-height: 0; flex: 1 1 auto; }
+dialog.sheet form { flex: 0 0 auto; padding-top: 8px; }
+dialog.settingssheet .sheet-body { max-height: none; }
+.confirm { bottom: calc(var(--sab) + 70px); }
+.card > .row + .seg, .card > .seg + .row { margin-top: 12px; }
+.card > .seg + .row h2 { margin-top: 2px; }
+#simple > :not(:first-child) { margin-top: 8px; }

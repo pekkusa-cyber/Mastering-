@@ -50,8 +50,11 @@ class LiveDspPlugin : Plugin() {
         LiveDspEngine.dumpGranted = LiveDspService.hasDump(context)
         LiveDspEngine.addListener(listener)
         try { Shizuku.addRequestPermissionResultListener(shizukuResult) } catch (_: Throwable) {}
-        // Motorn var igång när appen/telefonen stängdes: starta den igen
-        if (LiveDspEngine.wasRunning() && !LiveDspEngine.running) LiveDspService.start(context)
+        // Något är påslaget (Mastrad, hörlurar eller jämn volym) men motorn går inte: starta den,
+        // så att det brytarna visar också är det som hörs
+        if (!LiveDspEngine.running && (LiveDspEngine.wasRunning() || LiveDspEngine.on || LiveDspEngine.correctionOn || AgcController.on)) {
+            LiveDspService.start(context)
+        }
     }
 
     override fun handleOnDestroy() {
@@ -73,8 +76,10 @@ class LiveDspPlugin : Plugin() {
         call.resolve(statusObj())
     }
 
+    /** Stoppa allt: av för Mastrad och hörlurar, sedan stängs motorn. */
     @PluginMethod
     fun stop(call: PluginCall) {
+        LiveDspEngine.stopAll()
         LiveDspService.stop(context)
         LiveDspEngine.setRunning(false)
         call.resolve(statusObj())
@@ -99,7 +104,9 @@ class LiveDspPlugin : Plugin() {
     /** Bypass: helt originalljud (appen gör ingenting). */
     @PluginMethod
     fun setBypass(call: PluginCall) {
-        LiveDspEngine.setBypass(call.getBoolean("on", false) == true)
+        val value = call.getBoolean("on", false) == true
+        LiveDspEngine.setBypass(value)
+        if (!value && !LiveDspEngine.running) LiveDspService.start(context)
         call.resolve(statusObj())
     }
 

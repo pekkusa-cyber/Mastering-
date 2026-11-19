@@ -139,7 +139,7 @@ class LiveDspService : Service() {
             ACTION_TOGGLE -> LiveDspEngine.setOn(!LiveDspEngine.on)
             ACTION_HEADPHONES -> LiveDspEngine.setCorrection(!LiveDspEngine.correctionOn, null)
             ACTION_MASTERLAB -> LiveDspEngine.setBypass(!LiveDspEngine.bypass)
-            ACTION_STOP -> { stopSelf(); return START_NOT_STICKY }
+            ACTION_STOP -> { LiveDspEngine.stopAll(); stopSelf(); return START_NOT_STICKY }
         }
         updateNotification()
         return START_STICKY

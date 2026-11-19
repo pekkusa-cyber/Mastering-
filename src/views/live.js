@@ -81,7 +81,7 @@ export function onButton() {
   const s = ui.status || {};
   const agc = s.agc?.on;
   const hpOn = !!s.correction?.on, appOn = !s.bypass;
-  const mode = !appOn ? (hpOn ? 'BARA HÖRLURSKORRIGERING' : 'HELT ORIGINAL') : s.on ? 'MASTRAT' : agc ? 'ORIGINAL · NIVÅMATCHAT' : 'ORIGINAL';
+  const mode = !s.running && (s.on || hpOn) ? 'STARTAR…' : !appOn ? (hpOn ? 'BARA HÖRLURSKORRIGERING' : 'HELT ORIGINAL') : s.on ? 'MASTRAT' : agc ? 'ORIGINAL · NIVÅMATCHAT' : 'ORIGINAL';
   return `<div class="mains">
       <label class="main ${hpOn ? 'on' : ''}"><input type="checkbox" id="corr" ${hpOn ? 'checked' : ''} aria-label="Hörlurskorrigering">
         <span class="mi">🎧</span><span class="mt"><b>Hörlurar</b><small>${hpOn ? esc(headphones().find((h) => h.id === ui.corr?.id)?.name || 'neutralt') : 'av'}</small></span><i class="mtog"></i></label>
@@ -92,7 +92,7 @@ export function onButton() {
       <span class="o">Original</span><span class="m">Mastrad</span></button>` : ''}
     <p class="status"><b data-testid="mode">${mode}</b> · <span data-testid="motor">${s.running
       ? (s.globalActive ? 'Bearbetar allt ljud' : `Bearbetar ${s.sessions.filter((x) => x.attached).length} spelande appar`)
-      : 'Motorn startar när du slår på något'}</span>${s.output?.name ? ` · ${esc(s.output.name)}` : ''}${infoBtn('mains', 'Om huvudbrytarna')}</p>`;
+      : 'Motorn står still – slå på Mastrad eller Hörlurar'}</span>${s.output?.name ? ` · ${esc(s.output.name)}` : ''}${infoBtn('mains', 'Om huvudbrytarna')}</p>`;
 }
 
 /** Korrigeringen som skickas till motorn: nivåkompenserad (samma volym) om det är valt. */

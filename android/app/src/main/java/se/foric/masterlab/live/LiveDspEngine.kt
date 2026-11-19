@@ -85,6 +85,14 @@ object LiveDspEngine {
     var bypass = false; private set
     private fun effectEnabled() = correctionActive() || (!bypass && (mastered() || AgcController.on))
 
+    /** Stoppa i notisen/appen: allt av, så att inget ser påslaget ut när motorn står still. */
+    fun stopAll() {
+        on = false
+        correctionOn = false
+        save()
+        changed()
+    }
+
     fun setBypass(value: Boolean): JSONObject { bypass = value; save(); val r = refreshEffects(); changed(); return r }
 
     // ---- Hörlurskorrigering, volymoberoende kompression och profiler per ljudutgång ----

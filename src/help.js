@@ -71,6 +71,8 @@ export const HELP = {
       </ol>
       <h3>Bra att veta</h3>
       <ul>
+        <li>Analysen läser ljudet <b>internt</b> från det som spelas (Spotify, YouTube, Suno …). Mikrofonen används aldrig –
+        Android kallar bara behörigheten för det "mikrofon".</li>
         <li>Analysen visar ljudet som det spelas – slå AV i Live för att analysera originalet.</li>
         <li>Live-analysen är grövre än filanalys (Android ger bara 8-bitars ljud till mätningen, och upplösningen
         under 100 Hz är grov). Referenser från filer är exaktare.</li>
@@ -110,8 +112,8 @@ export const HELP = {
       <p>Behörigheter, felsökning och uppdateringar.</p>
       <ul>
         <li><b>Global session</b> – lägger effekten på allt ljud. Fungerar på din telefon.</li>
-        <li><b>Mikrofon</b> – krävs av Android för att mäta ljudet: jämn volym, spektrum, analys och auto-nivåmatchning.
-        Inget spelas in eller sparas.</li>
+        <li><b>Ljudanalys ("mikrofon")</b> – låter appen läsa det som spelas internt för spektrum, analys, jämn volym och
+        auto-nivåmatchning. Mikrofonen används aldrig; Android kallar bara behörigheten så.</li>
         <li><b>Notiser</b> – notisen med PÅ/AV.</li>
         <li><b>Batterioptimering</b> – så att Android inte stänger motorn. På Samsung även: Batteri → Gränser för
         bakgrundsanvändning → <i>Appar som aldrig försätts i viloläge</i>.</li>

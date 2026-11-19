@@ -55,8 +55,8 @@ export function merView() {
     ${permRow({ id: 'global', title: 'Global session (allt ljud)', ok: globalOk,
       text: s.globalWanted ? (globalOk ? 'Effekten ligger på allt ljud som spelas.' : (s.running ? 'Påslagen men fungerar inte – se Felsökning nedan.' : 'Påslagen. Aktiveras när motorn startar.')) : 'Avslagen – bara enskilda appar som hittas bearbetas.',
       actions: `<label class="switch"><input type="checkbox" id="global" ${s.globalWanted ? 'checked' : ''}> Använd global session</label>` })}
-    ${permRow({ id: 'microphone', title: 'Mikrofon (analys och jämn volym)', ok: p.microphone,
-      text: 'Krävs av Android för att mäta ljudet: Jämn volym, spektrum, analys av låtar och Auto-nivåmatcha. Inget spelas in eller sparas.',
+    ${permRow({ id: 'microphone', title: 'Ljudanalys ("mikrofon")', ok: p.microphone,
+      text: 'Låter Masterlab läsa ljudet som spelas internt (Spotify, YouTube, Suno) för spektrum, analys, Jämn volym och Auto-nivåmatcha. Mikrofonen används aldrig – Android kallar bara behörigheten så. Inget spelas in eller sparas.',
       actions: p.microphone ? '' : '<button class="btn small primary" data-req="microphone">Tillåt</button>' })}
     ${permRow({ id: 'notifications', title: 'Notiser', ok: p.notifications, text: 'För notisen med PÅ/AV-knappen.',
       actions: p.notifications ? '' : '<button class="btn small primary" data-req="notifications">Tillåt</button>' })}

@@ -178,7 +178,8 @@ test('Orörd preset och inga telefonmenyer (allt är appens eget)', async ({ pag
   }
 });
 
-test('ingen vy är bredare än telefonen (inget sidledes scroll)', async ({ page }) => {
+for (const width of [360, 320]) test(`ingen vy är bredare än telefonen vid ${width} px (även med större systemtext)`, async ({ page }) => {
+  await page.setViewportSize({ width, height: 740 });
   await page.goto('/?sim=1&mic=1');
   for (const view of ['live', 'analys', 'fil', 'mer']) {
     await page.locator(`nav [data-view="${view}"]`).click();
@@ -188,4 +189,14 @@ test('ingen vy är bredare än telefonen (inget sidledes scroll)', async ({ page
   await page.locator('nav [data-view="live"]').click();
   await page.getByRole('button', { name: 'Avancerat' }).click();
   expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
+  // Brytarkortens rubriker får inte krocka med på/av-knappen
+  const clash = await page.evaluate(() => [...document.querySelectorAll('.main')].some((m) => {
+    const t = m.querySelector('.mt b').getBoundingClientRect(), k = m.querySelector('.mtog').getBoundingClientRect();
+    return t.right > k.left && t.bottom > k.top && t.top < k.bottom;
+  }));
+  expect(clash).toBe(false);
+  // Inställningsarkets Stäng-knapp syns helt
+  await page.getByRole('button', { name: 'Inställningar' }).click();
+  const btn = page.locator('dialog.settingssheet form button');
+  await expect(btn).toBeInViewport({ ratio: 1 });
 });

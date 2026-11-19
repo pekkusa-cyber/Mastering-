@@ -11,8 +11,9 @@ const analyze = async (page) => {
 test('utan mikrofon förklaras varför och man hänvisas till behörigheter', async ({ page }) => {
   await page.goto('/?sim=1&view=analys');
   await expect(page.locator('#monmsg')).toContainText('Mikrofonbehörighet');
-  await page.getByRole('button', { name: 'Till Behörigheter' }).click();
-  await expect(page.locator('[data-perm="microphone"]')).toBeVisible();
+  await expect(page.locator('#specArea')).toContainText('internt');
+  await page.getByRole('button', { name: 'Tillåt ljudanalys' }).click();
+  await expect(page.locator('[data-spec="live"] svg rect[rx]')).toHaveCount(24); // spektrumet startar direkt
 });
 
 test('livespektrum, analys, spara referens och omdöme', async ({ page }) => {

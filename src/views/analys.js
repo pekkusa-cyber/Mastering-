@@ -39,7 +39,10 @@ function refSelect(id = 'refsel') {
 export function spectrumPart() {
   const ref = currentRef();
   const sp = ui.spectrum;
-  if (ui.monitorMsg) return `<p class="bad" id="monmsg">${esc(ui.monitorMsg)}</p><button class="btn small" data-goto="mer">Till Behörigheter</button>`;
+  if (ui.monitorMsg) return `<p class="hint" id="monmsg">${esc(ui.monitorMsg)}</p>
+    <p class="hint small">Masterlab läser ljudet internt – det som spelas i Spotify, YouTube eller Suno. Mikrofonen används aldrig,
+    men Android kallar behörigheten för att läsa uppspelat ljud för "mikrofon".</p>
+    <div class="btnrow"><button class="btn small primary" id="allowAnalysis">Tillåt ljudanalys</button><button class="btn small ghost" data-goto="mer">Behörigheter</button></div>`;
   const series = {};
   if (sp?.bands) series.main = { label: ui.status?.on ? 'Nu (mastrat)' : 'Nu', bands: sp.bands };
   if (ref) series.ref = { label: ref.name, bands: ref.profile.bands };
@@ -135,7 +138,17 @@ export function renderSpectrum(root) {
   if (an && ui.status?.analysis?.running) { const t = an.querySelector('[data-testid=antime]'); if (t) t.textContent = `Analyserar… ${mmss(ui.spectrum?.analysisSeconds ?? 0)} hittills. Du kan byta app – den fortsätter.`; }
 }
 
-const bindGoto = (el) => el.querySelectorAll('[data-goto]').forEach((b) => { b.onclick = () => { ui.view = b.dataset.goto; app.render(); }; });
+const bindGoto = (el) => {
+  el.querySelectorAll('[data-goto]').forEach((b) => { b.onclick = () => { ui.view = b.dataset.goto; app.render(); }; });
+  const allow = el.querySelector('#allowAnalysis');
+  if (allow) allow.onclick = async () => {
+    try { await LiveDsp.requestPermission({ name: 'microphone' }); } catch { /* */ }
+    monitoring = false;
+    ui.monitorMsg = '';
+    await setMonitor(true);
+    app.render();
+  };
+};
 
 export function bindAnalys(root) {
   renderSpectrum(root);
