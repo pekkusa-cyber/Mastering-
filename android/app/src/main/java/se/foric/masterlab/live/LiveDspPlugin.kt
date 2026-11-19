@@ -89,10 +89,45 @@ class LiveDspPlugin : Plugin() {
         call.resolve(statusObj())
     }
 
+    /** Svarar en rapport { total, ok, noControl, errors, running } – bekräftelse på att ändringen ligger på ljudet. */
     @PluginMethod
     fun setParams(call: PluginCall) {
-        LiveDspEngine.setParams(LiveParams.fromJson(call.getObject("params")))
-        call.resolve()
+        val r = LiveDspEngine.setParams(LiveParams.fromJson(call.getObject("params")))
+        call.resolve(JSObject.fromJSONObject(r))
+    }
+
+    /** Bypass: helt originalljud (appen gör ingenting). */
+    @PluginMethod
+    fun setBypass(call: PluginCall) {
+        LiveDspEngine.setBypass(call.getBoolean("on", false) == true)
+        call.resolve(statusObj())
+    }
+
+    /** Ta tillbaka kontrollen från en annan app (t.ex. Wavelet). */
+    @PluginMethod
+    fun takeControl(call: PluginCall) {
+        call.resolve(JSObject.fromJSONObject(LiveDspEngine.takeControl()))
+    }
+
+    /** Hörlurskorrigering: { on, correction?: { gains[31], preamp, name } }. */
+    @PluginMethod
+    fun setCorrection(call: PluginCall) {
+        val c = call.getObject("correction")?.let { LiveDspEngine.parseCorrection(it) }
+        val on = call.getBoolean("on", false) == true
+        if (on && !LiveDspEngine.running) LiveDspService.start(context)
+        call.resolve(JSObject.fromJSONObject(LiveDspEngine.setCorrection(on, c)))
+    }
+
+    @PluginMethod
+    fun setVolComp(call: PluginCall) {
+        call.resolve(JSObject.fromJSONObject(LiveDspEngine.setVolComp(call.getBoolean("on", true) == true)))
+    }
+
+    /** Profiler per ljudutgång: { profiles: { "<nyckel>": { params, correction } } }. */
+    @PluginMethod
+    fun setProfiles(call: PluginCall) {
+        LiveDspEngine.setProfiles(call.getObject("profiles") ?: JSObject())
+        call.resolve(statusObj())
     }
 
     @PluginMethod

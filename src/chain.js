@@ -274,7 +274,33 @@ export const MACROS = [
   { key: 'punch', label: 'Tryck / limiter', help: 'Mer ingångsförstärkning in i limitern = högre och tätare. Vänster = mer dynamik.' },
   { key: 'vocal', label: 'Röst silkeslen', help: 'Mjukare 3–8 kHz och mild kompression av närvarobandet. Vänster = mer framträdande röst.' },
 ];
-export const noMacros = () => ({ kick: 0, bright: 0, punch: 0, vocal: 0 });
+MACROS.push(
+  { key: 'sibilance', label: 'S-ljud', help: 'Tämjer vassa s- och t-ljud (5–10 kHz) med snabb kompression. Vänster = mer s-ljud.' },
+  { key: 'glitter', label: 'Mjuk topp', help: 'Tar bort "glitter" och fräs i toppen (vanligt i Suno-låtar). Vänster = mer glans.' },
+);
+export const noMacros = () => ({ kick: 0, bright: 0, punch: 0, vocal: 0, sibilance: 0, glitter: 0 });
+
+/** Delar av kedjan som kan slås av var för sig. Av = neutral (påverkar inte ljudet). */
+export const STAGES = ['input', 'preEq', 'mbc0', 'mbc1', 'mbc2', 'mbc3', 'postEq', 'limiter', 'output'];
+export const allEnabled = () => Object.fromEntries([...STAGES, ...MACROS.map((m) => `m_${m.key}`)].map((k) => [k, true]));
+
+/** Makron som är avslagna räknas som 0. */
+export function activeMacros(macros, enabled = {}) {
+  return Object.fromEntries(Object.entries({ ...noMacros(), ...macros }).map(([k, v]) => [k, enabled[`m_${k}`] === false ? 0 : v]));
+}
+
+/** Neutraliserar avslagna delar av kedjan. */
+export function applyEnables(params, enabled = {}) {
+  const p = structuredClone(sanitize(params));
+  const off = (k) => enabled[k] === false;
+  if (off('input')) p.inputGain = 0;
+  if (off('preEq')) p.preEq.forEach((b) => { b.gain = 0; });
+  p.mbc.forEach((b, i) => { if (off(`mbc${i}`)) Object.assign(b, { ratio: 1, preGain: 0, postGain: 0 }); });
+  if (off('postEq')) p.postEq.forEach((b) => { b.gain = 0; });
+  if (off('limiter')) Object.assign(p.limiter, { threshold: 0, ratio: 1, postGain: 0 });
+  if (off('output')) p.outputGain = 0;
+  return p;
+}
 
 /**
  * De enkla reglagen (−100…+100, 0 = presetens egna värden) räknas om till kedjans parametrar.
@@ -296,6 +322,19 @@ export function applyMacros(base, macros) {
     p.postEq[6].gain += 1 * b;
   }
   if (u) p.inputGain += 6 * u;
+  const si = a('sibilance'), gl = a('glitter');
+  if (si) {
+    for (const m of [p.mbc[2], p.mbc[3]]) {
+      m.threshold += -8 * si;
+      m.ratio = Math.max(1, m.ratio * (1 + 1.2 * si));
+      if (si > 0) { m.attack = Math.min(m.attack, 1.5); m.release = Math.min(m.release, 80); }
+    }
+  }
+  if (gl) {
+    p.postEq[7].gain += -4 * gl;
+    p.mbc[3].threshold += -6 * gl;
+    if (gl > 0) p.mbc[3].attack = Math.min(p.mbc[3].attack, 2);
+  }
   if (v) {
     p.postEq[6].gain += -3 * v;
     p.mbc[2].threshold += -10 * v;

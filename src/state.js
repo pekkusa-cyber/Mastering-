@@ -22,6 +22,12 @@ export const ui = {
   spectrum: null,        // senaste live-spektrum { bands, rms, peak, agcGain, analysisSeconds }
   analysis: null,        // { profile } efter Stoppa
   analysisMsg: '',
+  enabled: {},           // på/av per del av kedjan och per enkelt reglage (chain.js STAGES)
+  constant: true,        // Konstant utnivå
+  corr: { on: false, id: 'liberty4pro' },
+  customHeadphones: [],
+  profiles: {},          // per ljudutgång
+  report: null,          // senaste bekräftelsen från motorn
 };
 
 /** Fylls i av main.js. */

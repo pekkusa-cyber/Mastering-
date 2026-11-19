@@ -9,16 +9,34 @@ export const HELP = {
       <h3>PÅ / AV</h3>
       <p>Den stora knappen växlar mellan mastrat (PÅ) och original (AV). Samma knapp finns i notisen, så du kan
       jämföra utan att byta app.</p>
-      <h3>Jämn volym</h3>
-      <p>Håller nivån jämn mellan appar och låtar: byt från YouTube till Suno utan att röra volymen. PÅ och AV får
-      också samma nivå, så att du jämför klang och inte volym. Kräver mikrofonbehörighet (inget spelas in).</p>
+      <p><b>Bypass</b> = helt originalljud: appen gör ingenting (inte heller jämn volym eller hörlurskorrigering).</p>
+      <h3>Bekräftelse</h3>
+      <p>När du ändrar något visas en rad längst ner: <b>✓ Ändringen ligger på ljudet</b>, eller en varning om motorn är
+      av eller om en annan app (t.ex. Wavelet) har tagit kontrollen – tryck då <b>Ta tillbaka</b>.</p>
+      <h3>Smart</h3>
+      <ul>
+        <li><b>Jämn volym</b> – samma nivå mellan appar och låtar (YouTube → Suno utan att röra volymen), och mellan PÅ och AV.
+        Kräver mikrofonbehörighet (inget spelas in).</li>
+        <li><b>Konstant utnivå</b> – varje ändring kompenseras direkt så att PÅ låter lika högt som originalet. Då hör du om
+        ändringen gör det bättre, inte bara högre. Siffran visar hur mycket som kompenseras just nu.</li>
+        <li><b>Volymoberoende kompression</b> – låter likadant vid låg och hög volym.</li>
+        <li><b>Hörlurskorrigering</b> – gör dina hörlurar neutrala (AutoEq). Liberty 4 Pro finns inbyggd; fler kan
+        importeras. Ställ Soundcore-appens EQ på platt.</li>
+        <li><b>Profil för enheten</b> – spara nuvarande inställning för hörlurarna/högtalaren/bilen. När enheten ansluts
+        byter appen själv.</li>
+      </ul>
       <h3>Presets</h3>
       <p>17 startpunkter – Mjuk kick, Suno-fix, Radio ljus, Silkeslen röst, Varm lim, Tät pop m.fl. Välj en, justera,
       och spara som din egen under <b>⋯ Hantera</b> (spara, döp om, ta bort, exportera, importera).</p>
       <h3>Enkelt och Avancerat</h3>
-      <p><b>Enkelt</b>: fyra reglage ovanpå presetten (mitten = presetten som den är). <b>Avancerat</b>: hela kedjan –
+      <p><b>Enkelt</b>: sex reglage ovanpå presetten (Kick mjukare, Ljusare, Tryck, Röst silkeslen, S-ljud, Mjuk topp) (mitten = presetten som den är). <b>Avancerat</b>: hela kedjan –
       Ingång → Pre-EQ → Multiband → Post-EQ → Limiter → Utgång.</p>
       <ul>
+        <li><b>På/av</b> på varje reglage, sektion och band: slå bara på det du vill ha (t.ex. bara mjukare kick).
+        Av = neutralt, inställningen ligger kvar. <b>Slå på allt</b> tar tillbaka allt.</li>
+        <li><b>− / +</b> för små steg.</li>
+        <li><b>Kurvor</b>: klangkurvan visar hur EQ:n ändrar klangen; kompressionskurvorna visar hur varje band trycks ihop
+        (och ungefär hur mycket). De ritas om medan du drar.</li>
         <li><b>ⓘ</b> vid varje reglage och sektion förklarar vad den gör.</li>
         <li><b>↺</b> nollställer just det reglaget (till presetens värde; enkla reglage till mitten).</li>
         <li><b>Återställ alla</b> tar tillbaka hela presetten. <b>Platt</b> gör allt neutralt.</li>
@@ -56,14 +74,19 @@ export const HELP = {
       <ol>
         <li><b>Välj låt.</b> Den mastras direkt med vald preset och mål.</li>
         <li><b>Mål:</b> Streaming (−14 LUFS, −1 dBTP) eller Hög (−10 LUFS). Nivån räknas ut automatiskt.</li>
-        <li><b>Preset</b> och reglage som i Live, plus kick-anslag, soft clip, lim och stereobredd. Ändringar mastras om automatiskt.</li>
+        <li><b>Preset</b> och reglage som i Live, plus kick-anslag, S-ljud (de-esser), Mjuk topp (mot glitter), soft clip,
+        lim och stereobredd – alla med på/av, ⓘ och ↺.</li>
         <li><b>Klang mot referens:</b> välj en referens, se omdömet och tryck <b>Matcha klang</b>. Tryck igen för att förfina.</li>
-        <li><b>Lyssna:</b> A (original) / B (mastrad), nivåmatchat så att du hör klangen och inte volymen.</li>
+        <li><b>Lyssna direkt:</b> låten spelas genom kedjan i realtid – ändringar hörs direkt. A (original) / B (mastrad),
+        nivåmatchat så att du hör klangen och inte volymen.</li>
+        <li><b>Versioner:</b> spara A, B, C … och växla mellan dem medan låten spelar.</li>
+        <li><b>Mono och fas:</b> visar om låten tappar i mono (telefonhögtalare, klubb) och om basen är för bred.</li>
+        <li><b>Album:</b> mastra flera låtar med samma inställning och nivå, exportera alla.</li>
         <li><b>Exportera:</b> 24 bit (för distribution) eller 16 bit, 44,1 eller 48 kHz, med dither.</li>
       </ol>
       <h3>Kedjan</h3>
       <p>Trim → Pre-EQ → Match-EQ → Multiband (Linkwitz-Riley, 4 band, kick-anslag på kickbandet) → Post-EQ →
-      Stereobredd → Lim → Drive → Soft clipper → True-peak-limiter (lookahead, 4x översampling) → Utgång.</p>
+      De-esser → Mjuk topp → Stereobredd → Lim → Drive → Soft clipper → True-peak-limiter (lookahead, 4x översampling) → Utgång.</p>
       <h3>Live och fil låter inte exakt lika</h3>
       <p>Live använder Androids inbyggda DSP; filmastringen har en egen kedja. Samma preset ger samma riktning men
       inte exakt samma ljud. Lyssna alltid på den exporterade filen innan du släpper den.</p>

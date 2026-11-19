@@ -1,0 +1,71 @@
+import { test, expect } from '@playwright/test';
+import { encodeWav } from '../src/dsp/wav.js';
+
+function wav(seconds = 3, { wide = false, gain = 1, seed = 7 } = {}) {
+  const fs = 44100, n = seconds * fs, L = new Float32Array(n), R = new Float32Array(n);
+  let s = seed, t = seed * 31 + 1;
+  for (let i = 0; i < n; i++) {
+    s = (Math.imul(s, 1664525) + 1013904223) >>> 0; t = (Math.imul(t, 22695477) + 1) >>> 0;
+    const kick = Math.exp(-((i % (fs / 2)) / fs) * 25) * Math.sin(2 * Math.PI * 60 * i / fs) * 0.6;
+    const a = (s / 2 ** 31 - 1) * 0.1, b = wide ? (t / 2 ** 31 - 1) * 0.1 : a;
+    L[i] = (kick + a) * gain; R[i] = (kick + b) * gain;
+  }
+  return Buffer.from(encodeWav([L, R], fs, 16));
+}
+
+const load = async (page, name = 'a.wav', buf = wav()) => {
+  await page.locator('#f-file').setInputFiles({ name, mimeType: 'audio/wav', buffer: buf });
+  await expect(page.getByTestId('meters')).toBeVisible({ timeout: 60000 });
+};
+
+test('direktlyssning, monokontroll och på/av för delar', async ({ page }) => {
+  test.setTimeout(120000);
+  await page.goto('/?sim=1&view=fil');
+  await load(page, 'brett.wav', wav(3, { wide: true }));
+  await expect(page.locator('#player')).toContainText('direkt');
+  await expect(page.getByTestId('mono')).toBeVisible();
+  await expect(page.getByTestId('mono').locator('tr', { hasText: 'Mellan' })).toContainText('-3.0 dB');
+  // S-ljud av → reglaget dämpas, inställningen ligger kvar
+  await page.getByLabel('S-ljud (de-esser) på/av').uncheck();
+  await expect(page.locator('[data-sl="f-deEss"]')).toHaveClass(/off/);
+  await page.getByRole('button', { name: 'Slå på allt' }).click();
+  await expect(page.getByLabel('S-ljud (de-esser) på/av')).toBeChecked();
+  // Avancerat: sektionerna har på/av, och kurvorna finns
+  await page.getByRole('button', { name: 'Avancerat' }).click();
+  await expect(page.locator('[data-fviz=eq] svg')).toBeVisible();
+  for (const s of ['Pre-EQ', 'Match-EQ', 'Post-EQ', 'Soft clipper', 'Lim (buss-kompressor)']) await expect(page.getByLabel(`${s} på/av`)).toBeVisible();
+});
+
+test('versioner: spara A och B och växla', async ({ page }) => {
+  test.setTimeout(120000);
+  await page.goto('/?sim=1&view=fil');
+  await load(page);
+  await page.getByRole('button', { name: 'Spara version' }).click();
+  await page.locator('dialog.ask').getByRole('button', { name: 'Spara' }).click();
+  await page.locator('#f-clip').evaluate((el) => { el.value = '5'; el.dispatchEvent(new Event('input', { bubbles: true })); });
+  await page.getByRole('button', { name: 'Spara version' }).click();
+  await page.locator('dialog.ask input').fill('Hårdare');
+  await page.locator('dialog.ask').getByRole('button', { name: 'Spara' }).click();
+  await expect(page.locator('[data-version]')).toHaveCount(2);
+  await page.locator('[data-version]').first().click();
+  await expect(page.locator('#f-clip')).toHaveValue('1.5');
+  await page.getByRole('button', { name: /Hårdare/ }).first().click();
+  await expect(page.locator('#f-clip')).toHaveValue('5');
+});
+
+test('album: två låtar mastras till samma nivå och exporteras', async ({ page }) => {
+  test.setTimeout(180000);
+  await page.goto('/?sim=1&view=fil');
+  await page.locator('#a-files').setInputFiles([
+    { name: 'spår1.wav', mimeType: 'audio/wav', buffer: wav(3, { gain: 1, seed: 3 }) },
+    { name: 'spår2.wav', mimeType: 'audio/wav', buffer: wav(3, { gain: 0.3, seed: 9 }) },
+  ]);
+  await expect(page.getByTestId('album')).toContainText('spår2.wav');
+  const downloads = [];
+  page.on('download', (d) => downloads.push(d.suggestedFilename()));
+  await page.getByRole('button', { name: 'Mastra och exportera alla' }).click();
+  await expect(page.locator('#a-msg')).toContainText('2 av 2 låtar klara', { timeout: 120000 });
+  const spread = Number((await page.locator('#a-msg').textContent()).match(/([\d.]+) LU/)[1]);
+  expect(spread).toBeLessThan(1);
+  await expect.poll(() => downloads.length).toBe(2);
+});

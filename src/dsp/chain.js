@@ -4,6 +4,7 @@ import { Biquad, coeffs } from './biquad.js';
 import { Crossover4 } from './crossover.js';
 import { Compressor, TransientShaper, softClip, coef } from './dynamics.js';
 import { TruePeakLimiter } from './limiter.js';
+import { deEsser, glitterFilter } from './splitdyn.js';
 import { EQ_CUTOFFS, MBC_CUTOFFS, MATCH_FREQS } from '../master.js';
 
 export const BLOCK = 1024;
@@ -69,10 +70,12 @@ export class PreChain {
     this.comps = MBC_CUTOFFS.map(() => new Compressor(fs));
     this.kick = new TransientShaper(fs);
     this.post = new EqBank(fs, graphicBands(EQ_CUTOFFS));
+    this.deEss = deEsser(fs);
+    this.glitter = glitterFilter(fs);
     this.glue = new Compressor(fs);
     this.width = 1; this.widthNow = 1; this.wk = coef(15, fs);
     this.bands = MBC_CUTOFFS.map(() => [new Float32Array(BLOCK), new Float32Array(BLOCK)]);
-    this.gr = { mbc: [0, 0, 0, 0], glue: 0 };
+    this.gr = { mbc: [0, 0, 0, 0], glue: 0, deEss: 0, glitter: 0 };
     this.set(p, true);
   }
 
@@ -85,6 +88,8 @@ export class PreChain {
     p.mbc.forEach((b, i) => this.comps[i].set(b));
     this.mbcActive = p.mbc.some((b) => b.ratio > 1.0001 || b.preGain !== 0 || b.postGain !== 0) || p.kickPunch !== 0;
     this.kick.set(p.kickPunch);
+    this.deEss.set(p.deEss);
+    this.glitter.set(p.glitter);
     this.glue.set({ threshold: p.glue.threshold, ratio: p.glue.ratio, attack: p.glue.attack, release: p.glue.release, knee: 6, preGain: 0, postGain: p.glue.makeup });
     this.width = p.width / 100;
     if (immediate) { this.trim.g = this.trim.t; this.widthNow = this.width; }
@@ -110,6 +115,8 @@ export class PreChain {
       }
     }
     this.post.run(L, R, n);
+    this.deEss.run(L, R, n);
+    this.glitter.run(L, R, n);
     if (this.width !== 1 || this.widthNow !== 1) {
       let w = this.widthNow; const t = this.width, k = this.wk;
       for (let i = 0; i < n; i++) {

@@ -2,8 +2,6 @@ package se.foric.masterlab.live
 
 import android.content.Context
 import android.content.SharedPreferences
-import android.media.AudioDeviceInfo
-import android.media.AudioManager
 import org.json.JSONObject
 import kotlin.math.abs
 
@@ -90,18 +88,7 @@ object AgcController {
 
     private fun current() = if (LiveDspEngine.on) agcOn else agcOff
 
-    /** Volymens dB för musik på den utgång som används (0 dB = max). */
-    private fun volumeDb(): Double {
-        val ctx = appCtx ?: return 0.0
-        return try {
-            val am = ctx.getSystemService(AudioManager::class.java)
-            val idx = am.getStreamVolume(AudioManager.STREAM_MUSIC)
-            val outs = am.getDevices(AudioManager.GET_DEVICES_OUTPUTS).map { it.type }
-            val type = listOf(AudioDeviceInfo.TYPE_BLUETOOTH_A2DP, AudioDeviceInfo.TYPE_WIRED_HEADPHONES, AudioDeviceInfo.TYPE_WIRED_HEADSET,
-                AudioDeviceInfo.TYPE_USB_HEADSET).firstOrNull { it in outs } ?: AudioDeviceInfo.TYPE_BUILTIN_SPEAKER
-            am.getStreamVolumeDb(AudioManager.STREAM_MUSIC, idx, type).toDouble().coerceIn(-96.0, 0.0)
-        } catch (_: Throwable) { 0.0 }
-    }
+    private fun volumeDb(): Double = appCtx?.let { AudioOut.volumeDb(it) } ?: 0.0
 
     private var volDbNow = Double.NaN
 

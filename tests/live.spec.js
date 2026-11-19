@@ -70,7 +70,7 @@ test('avancerat: varje parameter har ⓘ och ↺ (till presetens värde), Platt 
   for (const s of ['input', 'preEq', 'mbc', 'postEq', 'limiter', 'output']) await expect(page.locator(`[data-sec="${s}"] > summary .i`)).toHaveCount(1);
 
   await page.locator('[data-sec=mbc] > summary').click();
-  await page.getByText('Kick 0–120 Hz').click();
+  await page.locator('details.band > summary', { hasText: 'Kick' }).click({ position: { x: 70, y: 14 } });
   await setRange(page.locator('#p-mbc-0-ratio'), 8);
   await expect.poll(async () => (await sent(page)).mbc[0].ratio).toBe(8);
   await page.locator('[data-reset="p-mbc-0-ratio"]').click();
@@ -128,12 +128,13 @@ test('jämn volym kräver mikrofon, och då nivåmatchas PÅ/AV automatiskt', as
   await page.getByLabel('Jämn volym').check();
   await expect(page.getByTestId('agcread')).toContainText('-3.5 dB');
   await expect(page.locator('#onoff')).toContainText('NIVÅMATCHAT');
-  await expect(page.getByText('PÅ och AV matchas automatiskt')).toBeVisible();
+  await expect(page.getByText('Nivån hålls automatiskt')).toBeVisible();
 });
 
-test('utgångsnivå och automatisk nivåmatchning', async ({ page }) => {
+test('utgångsnivå och automatisk nivåmatchning (när Konstant utnivå är av)', async ({ page }) => {
   await page.goto('/?sim=1&mic=1');
   await page.locator('#onoff').click();
+  await page.getByLabel('Konstant utnivå').uncheck();
   await page.getByRole('button', { name: 'Auto-nivåmatcha' }).click();
   await expect(page.locator('#levelmsg')).toContainText('justerad');
   await expect(page.locator('#p-outputGain')).toHaveValue('-2.5');

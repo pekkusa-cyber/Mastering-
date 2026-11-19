@@ -24,7 +24,11 @@ function simulator() {
     agc: { on: false, target: -14, gain: 0, closedLoop: 'true', postVolume: true, probing: false },
     analyzer: { running: false, error: '' },
     analysis: { running: false, seconds: 0 },
+    bypass: false, volComp: true, volOffset: -12, correction: { on: false, name: '', preamp: 0 },
+    output: { key: '8:Soundcore Liberty 4 Pro', name: 'Soundcore Liberty 4 Pro', kind: 'bluetooth' }, profileApplied: '', profiles: [],
   };
+  let wavelet = q.get('wavelet') === '1';
+  s.control = !wavelet;
   const micMsg = 'Mikrofonbehörighet krävs för analysen (Mer → Behörigheter). Inget spelas in.';
   if (q.get('mic') === '1') perms.microphone = true;
   // Ett rosa-aktigt spektrum med lite rörelse, och en "låt" som kan analyseras
@@ -56,7 +60,18 @@ function simulator() {
     async start() { s.running = true; return refresh(); },
     async stop() { s.running = false; return refresh(); },
     async setOn({ on }) { s.on = !!on; if (on) s.running = true; return refresh(); },
-    async setParams({ params }) { s.params = params; window.__simParams = params; },
+    async setParams({ params }) {
+      s.params = params; window.__simParams = params;
+      const total = s.running ? 1 : 0;
+      return { total, ok: wavelet ? 0 : total, noControl: wavelet ? total : 0, errors: 0, running: s.running };
+    },
+    async setBypass({ on }) { s.bypass = !!on; return refresh(); },
+    async setCorrection({ on, correction }) { s.correction = { on: !!on, name: correction?.name || s.correction.name, preamp: correction?.preamp ?? s.correction.preamp }; window.__simCorrection = correction; if (on) s.running = true; return { ...refresh(), total: 1, ok: 1, noControl: 0, errors: 0, running: true }; },
+    async setVolComp({ on }) { s.volComp = !!on; return refresh(); },
+    async setProfiles({ profiles }) { window.__simProfiles = profiles; s.profiles = Object.keys(profiles); return refresh(); },
+    /** Testhjälp: låtsas att en annan utgång ansluts. */
+    simOutput(key, name) { s.output = { key, name, kind: 'bluetooth' }; const p = (window.__simProfiles || {})[key]; s.profileApplied = p ? name : ''; if (p) s.params = p.params; refresh(); },
+    async takeControl() { wavelet = false; s.control = true; refresh(); return { total: 1, ok: 1, noControl: 0, errors: 0, running: s.running }; },
     async setGlobal({ on }) { s.globalWanted = !!on; return refresh(); },
     async copyReport() { const text = 'Masterlab felsökningsrapport (simulator)\n' + JSON.stringify(s, null, 2); window.__copied = text; return { text }; },
     async getPermissions() { return { ...perms, globalActive: s.running && s.globalWanted && globalWorks, running: s.running }; },
@@ -114,3 +129,4 @@ function simulator() {
 }
 
 export const LiveDsp = isNative ? registerPlugin('LiveDsp') : isSim ? simulator() : null;
+if (isSim) window.__sim = LiveDsp;

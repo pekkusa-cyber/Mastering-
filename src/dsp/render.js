@@ -75,7 +75,7 @@ export function renderMaster(input, params, { onProgress, bypass = false } = {})
   const metrics = measure(result.channels, fs);
   return {
     channels: result.channels, fs, drive, metrics, original,
-    gr: { limiter: -toDb(result.limiter.minGain), mbc: chain.gr.mbc, glue: chain.gr.glue },
+    gr: { limiter: -toDb(result.limiter.minGain), mbc: chain.gr.mbc, glue: chain.gr.glue, deEss: chain.deEss.maxSeen, glitter: chain.glitter.maxSeen },
     clippedSamples: result.clipped, bypass: false,
   };
 }

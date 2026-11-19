@@ -5,7 +5,7 @@ import { ui, app } from './state.js';
 import { esc, showInfo, sheet } from './ui.js';
 import * as updater from './updater.js';
 import { loadRefs } from './refs.js';
-import { liveView, bindLive, initLive, changed, onButton, toggleOn, agcRow, bindAgc } from './views/live.js';
+import { liveView, bindLive, initLive, changed, onButton, toggleOn, agcRow, bindAgc, bindStatus, renderViz, syncProfileFromStatus } from './views/live.js';
 import { analysView, bindAnalys, renderSpectrum, setMonitor } from './views/analys.js';
 import { filView, bindFil, renderFilePart, stopFilePlayback } from './views/fil.js';
 import { merView, bindMer, refreshPerms, debugCard, bindDebug } from './views/mer.js';
@@ -38,6 +38,41 @@ function apkBanner() {
     ${ui.updateMsg ? `<p class="hint" id="apkMsg">${esc(ui.updateMsg)}</p>` : ''}</section>`;
 }
 
+/**
+ * Bekräftelsen ovanför flikarna: visar efter varje ändring om den ligger på ljudet, och varnar så länge en annan
+ * app (t.ex. Wavelet) har kontrollen över effekten.
+ */
+function confirmBar() {
+  if (!LiveDsp || ui.view !== 'live') return '';
+  const s = ui.status || {}, r = ui.report;
+  const recent = r && Date.now() - r.at < 2500 && r.user;
+  if (s.running && s.control === false || r?.noControl > 0 && Date.now() - r.at < 60000 && s.control !== true) {
+    return `<div class="confirm warn" id="confirm" role="status"><span>⚠ En annan app (t.ex. Wavelet) styr ljudet – dina ändringar hörs inte.</span><button class="btn small" id="takeControl">Ta tillbaka</button></div>`;
+  }
+  if (!recent) return '<div id="confirm" hidden></div>';
+  if (r.errors > 0) return `<div class="confirm bad" id="confirm" role="status">✕ Ändringen kunde inte läggas på (${r.errors} fel) – se Mer → Felsökning.</div>`;
+  if (!r.running || !r.total) return '<div class="confirm warn" id="confirm" role="status">Sparat – motorn är av. Slå PÅ för att höra ändringen.</div>';
+  if (!s.on && !s.agc?.on && !s.correction?.on) return '<div class="confirm" id="confirm" role="status">✓ Sparat – hörs när du slår PÅ.</div>';
+  return `<div class="confirm ok" id="confirm" role="status">✓ Ändringen ligger på ljudet – hörs nu.</div>`;
+}
+
+let confirmTimer = 0;
+function renderConfirm() {
+  const el = root.querySelector('#confirm');
+  if (!el) return;
+  el.outerHTML = confirmBar();
+  const t = root.querySelector('#takeControl');
+  if (t) t.onclick = async () => {
+    t.textContent = 'Tar tillbaka…';
+    const r = await LiveDsp.takeControl();
+    ui.report = { ...r, at: Date.now(), user: true };
+    ui.status = await LiveDsp.getStatus();
+    renderConfirm();
+  };
+  clearTimeout(confirmTimer);
+  confirmTimer = setTimeout(renderConfirm, 2600);
+}
+
 function body() {
   if (!LiveDsp && (ui.view === 'live' || ui.view === 'analys')) {
     return `<section class="card"><h2>Live-läget</h2><p>Live-bearbetningen och live-analysen finns bara i Android-appen. Filmastringen (Fil) fungerar även här.</p></section>`;
@@ -49,7 +84,7 @@ function body() {
 function render() {
   const scroll = window.scrollY;
   const open = [...root.querySelectorAll('details[data-sec], details.band, details#debug')].map((d) => [d.dataset.sec || d.id || d.querySelector('summary')?.textContent, d.open]);
-  root.innerHTML = `${header()}<main>${isSim ? '<p class="sim">Simulator – inget riktigt ljud</p>' : ''}${apkBanner()}${body()}</main>${nav()}`;
+  root.innerHTML = `${header()}<main>${isSim ? '<p class="sim">Simulator – inget riktigt ljud</p>' : ''}${apkBanner()}${body()}</main>${confirmBar()}${nav()}`;
   const map = new Map(open);
   root.querySelectorAll('details[data-sec], details.band, details#debug').forEach((d) => {
     const k = d.dataset.sec || d.id || d.querySelector('summary')?.textContent;
@@ -60,6 +95,7 @@ function render() {
 }
 
 function bind() {
+  renderConfirm();
   root.querySelectorAll('[data-view]').forEach((b) => {
     b.onclick = () => {
       if (b.dataset.view === ui.view) return;
@@ -88,7 +124,7 @@ function renderPart(part) {
   if (part === 'status') {
     if (ui.view === 'live') {
       const area = root.querySelector('#statusArea');
-      if (area) { area.innerHTML = onButton(); area.querySelector('#onoff').onclick = toggleOn; }
+      if (area) { area.innerHTML = onButton(); area.querySelector('#onoff').onclick = toggleOn; bindStatus(area); }
       const agc = root.querySelector('#agcArea');
       if (agc && !agc.contains(document.activeElement)) { agc.innerHTML = agcRow(); bindAgc(agc); }
     }
@@ -102,6 +138,8 @@ function renderPart(part) {
       if (an && !!an.querySelector('#an-stop') !== running) render();
     }
   }
+  if (part === 'confirm' || part === 'status') renderConfirm();
+  if (part === 'viz' && ui.view === 'live') renderViz(root);
   if (part === 'spectrum' && ui.view === 'analys') renderSpectrum(root);
   if (ui.view === 'fil' && part.startsWith('file')) renderFilePart(root, part);
 }
@@ -128,7 +166,13 @@ async function init() {
   if (!LiveDsp) { ui.view = 'fil'; render(); return; }
   await initLive();
   ui.status = await LiveDsp.getStatus();
-  await LiveDsp.addListener('status', (x) => { ui.status = x; if (!ui.busy) renderPart('status'); });
+  await LiveDsp.addListener('status', (x) => {
+    const prev = ui.status?.output?.key;
+    ui.status = x;
+    // Ny ljudutgång med sparad profil: motorn har redan bytt – visa samma inställning i appen
+    if (syncProfileFromStatus(prev)) { render(); return; }
+    if (!ui.busy) renderPart('status');
+  });
   await LiveDsp.addListener('spectrum', (x) => { ui.spectrum = x; renderPart('spectrum'); });
   changed({ now: true }); // motorn får alltid samma inställning som skärmen visar
   const q = new URLSearchParams(location.search);

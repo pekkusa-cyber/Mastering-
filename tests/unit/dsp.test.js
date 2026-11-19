@@ -182,3 +182,52 @@ test('WAV 24 och 16 bit tur och retur (med dither)', () => {
   const silent = decodeWav(encodeWav([new Float32Array(1000), new Float32Array(1000)], FS, 16)).channels[0];
   assert.ok(silent.every((v) => Math.abs(v) <= 1 / 32768 + 1e-9));
 });
+
+// ---- De-esser och glitterfilter ----
+import { deEsser, glitterFilter } from '../../src/dsp/splitdyn.js';
+import { Biquad, coeffs } from '../../src/dsp/biquad.js';
+
+/** Energi (dB) i ett frekvensområde (filtrerat med två biquads). */
+function bandDb(x, lo, hi) {
+  const y = new Float32Array(x);
+  const f = [new Biquad(coeffs('highpass', FS, lo), 1), new Biquad(coeffs('highpass', FS, lo), 1), new Biquad(coeffs('lowpass', FS, hi), 1), new Biquad(coeffs('lowpass', FS, hi), 1)];
+  for (const b of f) b.run(y, 0);
+  let e = 0; for (let i = 0; i < y.length; i++) e += y[i] * y[i];
+  return 10 * Math.log10(e / y.length + 1e-20);
+}
+
+function vocalWithEss() {
+  const n = FS * 3, L = new Float32Array(n);
+  let s = 3;
+  for (let i = 0; i < n; i++) {
+    s = (s * 1103515245 + 12345) >>> 0; const w = s / 2 ** 31 - 1;
+    const sib = (i % FS) < FS * 0.15 ? 1 : 0; // ett "s" varje sekund
+    L[i] = 0.3 * Math.sin((2 * Math.PI * 220 * i) / FS) + 0.15 * Math.sin((2 * Math.PI * 660 * i) / FS) + sib * w * 0.4;
+  }
+  return L;
+}
+
+test('de-essern sänker s-ljuden men inte rösten', () => {
+  const src = vocalWithEss();
+  const run = (amount) => {
+    const L = new Float32Array(src), R = new Float32Array(src), d = deEsser(FS);
+    d.set(amount);
+    for (let s = 0; s < L.length; s += BLOCK) d.run(L.subarray(s, s + BLOCK), R.subarray(s, s + BLOCK), Math.min(BLOCK, L.length - s));
+    return L;
+  };
+  const off = run(0), on = run(100);
+  assert.deepEqual(off, src, 'av = bit-transparent');
+  assert.ok(bandDb(src, 5000, 10000) - bandDb(on, 5000, 10000) > 3, 's-ljuden sänks minst 3 dB');
+  assert.ok(Math.abs(bandDb(src, 100, 1000) - bandDb(on, 100, 1000)) < 0.5, 'rösten orörd');
+});
+
+test('glitterfiltret sänker fräs över 11 kHz', () => {
+  const n = FS * 2, L = new Float32Array(n);
+  let s = 5;
+  for (let i = 0; i < n; i++) { s = (s * 1103515245 + 12345) >>> 0; L[i] = (s / 2 ** 31 - 1) * 0.3 + 0.3 * Math.sin((2 * Math.PI * 440 * i) / FS); }
+  const src = new Float32Array(L), R = new Float32Array(L), g = glitterFilter(FS);
+  g.set(100);
+  for (let k = 0; k < n; k += BLOCK) g.run(L.subarray(k, k + BLOCK), R.subarray(k, k + BLOCK), Math.min(BLOCK, n - k));
+  assert.ok(bandDb(src, 12000, 20000) - bandDb(L, 12000, 20000) > 2.5);
+  assert.ok(Math.abs(bandDb(src, 200, 2000) - bandDb(L, 200, 2000)) < 0.5);
+});

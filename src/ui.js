@@ -16,24 +16,35 @@ export function setPath(obj, path, v) {
 export const infoBtn = (key, label = 'Förklaring') => (key ? `<button type="button" class="i" data-info="${esc(key)}" aria-label="${esc(label)}">ⓘ</button>` : '');
 
 /**
- * Ett reglage: namn, ⓘ, värde, ↺ (nollställ till `resetTo`) och själva skjutreglaget.
+ * Ett reglage: (på/av), namn, ⓘ, värde, ↺ (nollställ till `resetTo`), − / + och själva skjutreglaget.
  * kind/key berättar för vyn vad som ändras (t.ex. kind="path" key="mbc.0.ratio").
+ * enable: { key, on } ger en på/av-knapp – av = reglaget påverkar inte ljudet.
  */
-export function slider({ id, label, value, range, info, resetTo = null, kind, key }) {
+export function slider({ id, label, value, range, info, resetTo = null, kind, key, enable = null }) {
   const [min, max, step, unit] = range;
   const atReset = resetTo !== null && Math.abs(Number(value) - Number(resetTo)) < 1e-9;
-  return `<div class="sl" data-sl="${esc(id)}">
+  const off = enable && !enable.on;
+  return `<div class="sl${off ? ' off' : ''}" data-sl="${esc(id)}">
     <div class="slhead">
+      ${enable ? toggle(enable.key, enable.on, label) : ''}
       <label for="${esc(id)}" class="name">${esc(label)}</label>${infoBtn(info, `Om ${label}`)}
       <output for="${esc(id)}">${fmt(value, step)}${unit ? ` ${unit}` : ''}</output>
       ${resetTo !== null ? `<button type="button" class="rst${atReset ? ' at' : ''}" data-reset="${esc(id)}" data-to="${resetTo}" aria-label="Nollställ ${esc(label)}">↺</button>` : ''}
     </div>
-    <input type="range" id="${esc(id)}" min="${min}" max="${max}" step="${step}" value="${value}" data-kind="${esc(kind)}" data-key="${esc(key)}" data-unit="${esc(unit)}">
+    <div class="slrow">
+      <button type="button" class="step" data-step="${esc(id)}" data-dir="-1" aria-label="Minska ${esc(label)}">−</button>
+      <input type="range" id="${esc(id)}" min="${min}" max="${max}" step="${step}" value="${value}" data-kind="${esc(kind)}" data-key="${esc(key)}" data-unit="${esc(unit)}">
+      <button type="button" class="step" data-step="${esc(id)}" data-dir="1" aria-label="Öka ${esc(label)}">+</button>
+    </div>
   </div>`;
 }
 
-/** Kopplar alla reglage och ↺ i root. onChange(kind, key, value) anropas vid varje ändring. */
-export function bindSliders(root, onChange) {
+/** Liten på/av-knapp (för en sektion, ett band eller ett reglage). */
+export const toggle = (key, on, label) =>
+  `<label class="tog" title="${on ? 'På' : 'Av'}"><input type="checkbox" data-enable="${esc(key)}" ${on ? 'checked' : ''} aria-label="${esc(label)} på/av"><i></i></label>`;
+
+/** Kopplar alla reglage, ↺, −/+ och på/av i root. onChange(kind, key, value), onEnable(key, on). */
+export function bindSliders(root, onChange, onEnable) {
   const update = (el, v) => {
     const out = el.closest('.sl').querySelector('output');
     const unit = el.dataset.unit;
@@ -41,16 +52,28 @@ export function bindSliders(root, onChange) {
     const r = el.closest('.sl').querySelector('.rst');
     if (r) r.classList.toggle('at', Math.abs(v - Number(r.dataset.to)) < 1e-9);
   };
+  const set = (el, v) => { el.value = String(v); const n = Number(el.value); update(el, n); onChange(el.dataset.kind, el.dataset.key, n); };
   root.querySelectorAll('input[type=range][data-kind]').forEach((el) => {
     el.oninput = () => { const v = Number(el.value); update(el, v); onChange(el.dataset.kind, el.dataset.key, v); };
   });
   root.querySelectorAll('[data-reset]').forEach((b) => {
+    b.onclick = () => set(root.querySelector(`#${CSS.escape(b.dataset.reset)}`), Number(b.dataset.to));
+  });
+  root.querySelectorAll('[data-step]').forEach((b) => {
     b.onclick = () => {
-      const el = root.querySelector(`#${CSS.escape(b.dataset.reset)}`);
-      const v = Number(b.dataset.to);
-      el.value = String(v);
-      update(el, v);
-      onChange(el.dataset.kind, el.dataset.key, v);
+      const el = root.querySelector(`#${CSS.escape(b.dataset.step)}`);
+      const st = Number(el.step), range = Number(el.max) - Number(el.min);
+      const inc = Math.max(st, Math.round(range / 40 / st) * st);
+      const v = Math.min(Number(el.max), Math.max(Number(el.min), Number(el.value) + Number(b.dataset.dir) * inc));
+      set(el, Math.round(v / st) * st);
+    };
+  });
+  if (onEnable) root.querySelectorAll('[data-enable]').forEach((c) => {
+    c.onclick = (e) => e.stopPropagation(); // en knapp i en <summary> ska inte fälla ut sektionen
+    c.onchange = () => {
+      c.closest('.sl')?.classList.toggle('off', !c.checked);
+      c.closest('details')?.classList.toggle('off', !c.checked && c.closest('summary') !== null);
+      onEnable(c.dataset.enable, c.checked);
     };
   });
 }

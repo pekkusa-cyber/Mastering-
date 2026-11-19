@@ -87,3 +87,66 @@ export class AbPlayer {
 
   stop() { this.pause(); this.offset = 0; }
 }
+
+// ---- Direktlyssning (AudioWorklet) ----
+import workletUrl from './dsp/worklet.js?worker&url';
+
+/**
+ * Spelar originalet genom mastringskedjan i realtid – ändringar hörs direkt. Faller tillbaka på AbPlayer
+ * (renderade buffertar) om webbläsaren saknar AudioWorklet.
+ */
+export class RealtimePlayer {
+  constructor() { this.ctx = null; this.node = null; this.buf = null; this.src = null; this.offset = 0; this.startedAt = 0; this.playing = false; this.ready = null; this.onEnd = null; this.params = null; this.drive = 0; this.which = 'master'; this.matchGain = 1; }
+  static supported() { return typeof AudioWorkletNode !== 'undefined'; }
+
+  async ensure() {
+    if (!this.ready) {
+      if (!this.ctx) this.ctx = new AudioContext({ sampleRate: 48000 });
+      this.ready = this.ctx.audioWorklet.addModule(workletUrl).then(() => {
+        this.node = new AudioWorkletNode(this.ctx, 'masterlab-master', { numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [2] });
+        this.node.connect(this.ctx.destination);
+        if (this.params) this.setParams(this.params, this.drive);
+        this.setAb(this.which, this.matchGain);
+      });
+    }
+    await this.ready;
+    return this.ctx;
+  }
+
+  setBuffer(channels, fs) {
+    const ctx = this.ctx || new AudioContext({ sampleRate: 48000 });
+    this.ctx = ctx;
+    const b = ctx.createBuffer(2, channels[0].length, fs);
+    b.copyToChannel(channels[0], 0); b.copyToChannel(channels[1] || channels[0], 1);
+    this.buf = b;
+  }
+
+  setParams(params, drive) {
+    this.params = params; this.drive = drive;
+    this.node?.port.postMessage({ type: 'params', params, drive });
+  }
+
+  setAb(which, matchGain = this.matchGain) {
+    this.which = which; this.matchGain = matchGain;
+    this.node?.port.postMessage({ type: 'ab', which, matchGain });
+  }
+
+  get duration() { return this.buf?.duration || 0; }
+  position() { return this.playing ? Math.min(this.duration, this.offset + this.ctx.currentTime - this.startedAt) : this.offset; }
+
+  async play(at = this.offset) {
+    await this.ensure();
+    await this.ctx.resume();
+    this.stopSrc();
+    const src = this.ctx.createBufferSource();
+    src.buffer = this.buf;
+    src.connect(this.node);
+    src.start(0, Math.min(at, this.duration));
+    src.onended = () => { if (this.playing && this.position() >= this.duration - 0.05) { this.playing = false; this.offset = 0; this.onEnd?.(); } };
+    this.src = src; this.offset = at; this.startedAt = this.ctx.currentTime; this.playing = true;
+  }
+
+  pause() { if (!this.playing) return; this.offset = this.position(); this.stopSrc(); this.playing = false; }
+  seek(t) { this.offset = Math.max(0, Math.min(this.duration, t)); if (this.playing) this.play(this.offset); }
+  stopSrc() { if (this.src) { try { this.src.onended = null; this.src.stop(); } catch { /* */ } this.src = null; } }
+}

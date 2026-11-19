@@ -202,3 +202,43 @@ export function applyLiveMatch(params, curve) {
   const add = toLiveEq(curve);
   return { ...params, postEq: params.postEq.map((b, i) => ({ gain: Math.max(-12, Math.min(12, +(b.gain + add[i]).toFixed(1))) })) };
 }
+
+// ---- Mono- och faskontroll ----
+import { Biquad as _Bq, coeffs as _co } from './dsp/biquad.js';
+
+const STEREO_BANDS = [
+  { id: 'bas', name: 'Bas (under 150 Hz)', filters: [['lowpass', 150], ['lowpass', 150]] },
+  { id: 'mellan', name: 'Mellan (150 Hz–5 kHz)', filters: [['highpass', 150], ['highpass', 150], ['lowpass', 5000], ['lowpass', 5000]] },
+  { id: 'topp', name: 'Topp (över 5 kHz)', filters: [['highpass', 5000], ['highpass', 5000]] },
+];
+
+function corrAndLoss(L, R) {
+  let lr = 0, ll = 0, rr = 0, mm = 0;
+  for (let i = 0; i < L.length; i++) { const l = L[i], r = R[i]; lr += l * r; ll += l * l; rr += r * r; const m = (l + r) * 0.5; mm += m * m; }
+  const corr = ll > 0 && rr > 0 ? lr / Math.sqrt(ll * rr) : 1;
+  const side = (ll + rr) / 2;
+  const loss = side > 0 ? 10 * Math.log10(Math.max(mm, 1e-20) / side) : 0;
+  return { corr: +corr.toFixed(3), monoLoss: +Math.max(-40, loss).toFixed(2) };
+}
+
+/**
+ * Hur låten klarar mono (telefonhögtalare, klubbsystem, Bluetooth-högtalare): korrelation (1 = mono, 0 = brett,
+ * negativt = fasproblem) och hur mycket nivån sjunker i mono (dB), totalt och per band. warnings = text att visa.
+ */
+export function stereoInfo(channels, fs) {
+  const L = channels[0], R = channels[1] || channels[0];
+  const step = Math.max(1, Math.floor(L.length / (fs * 60))); // högst ca en minut av låten räcker
+  const pick = (x) => (step === 1 ? x : Float32Array.from({ length: Math.floor(x.length / step) }, (_, i) => x[i * step]));
+  const total = corrAndLoss(L, R);
+  const bands = STEREO_BANDS.map((b) => {
+    const l = new Float32Array(L), r = new Float32Array(R);
+    for (const [t, f] of b.filters) { new _Bq(_co(t, fs, f)).run(l, 0); new _Bq(_co(t, fs, f)).run(r, 0); }
+    return { id: b.id, name: b.name, ...corrAndLoss(pick(l), pick(r)) };
+  });
+  const warnings = [];
+  if (total.corr < 0) warnings.push('Fasproblem: vänster och höger tar delvis ut varandra – låten blir tunn i mono.');
+  const bas = bands[0];
+  if (bas.corr < 0.7 || bas.monoLoss < -1.5) warnings.push(`Basen är stereobred (korrelation ${bas.corr.toFixed(2)}) – den kan försvinna i mono och på klubb. Smalna av basen.`);
+  if (total.monoLoss < -3) warnings.push(`Låten blir ${Math.abs(total.monoLoss).toFixed(1)} dB svagare i mono – minska stereobredden.`);
+  return { ...total, bands, warnings };
+}

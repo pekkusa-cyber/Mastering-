@@ -33,6 +33,16 @@ export const INFO = {
   punch: { title: 'Tryck / limiter', text: 'Mer signal in i limitern: högre och tätare. För mycket gör låten platt och trött. Åt vänster = mer dynamik.' },
   vocal: { title: 'Röst silkeslen', text: 'Mjukar upp 3–8 kHz och komprimerar närvarobandet lätt, så att rösten blir len men fortfarande tydlig. Åt vänster = mer framträdande, skarpare röst.' },
 
+  sibilance: { title: 'S-ljud', text: 'Tämjer vassa s-, t- och sch-ljud (5–10 kHz) med snabb kompression i de två övre banden – en de-esser. Åt vänster = mer s-ljud.' },
+  glitter: { title: 'Mjuk topp', text: 'Tar bort "glitter", fräs och metalliskt skimmer i toppen över 8 kHz – vanligt i AI-genererad musik som Suno. Åt vänster = mer glans.' },
+  enable: { title: 'På/av', text: 'Varje del kan slås av. Avslagen = påverkar inte ljudet alls (neutral), men inställningen sparas tills du slår på igen. Bra för att höra vad en enskild del gör.' },
+  bypass: { title: 'Bypass', text: 'Helt originalljud – appen gör ingenting, inte ens jämn volym eller hörlurskorrigering. AV däremot visar originalet men nivåmatchat (och med hörlurskorrigering om den är på), så att jämförelsen blir rättvis.' },
+  constant: { title: 'Konstant utnivå', text: 'Varje ändring (EQ, kompression, ingång, limiter) kompenseras direkt så att PÅ ligger på samma nivå som originalet. Då hör du om ändringen gör låten bättre – inte bara högre. Appen räknar ut det från inställningarna; med Jämn volym på finjusteras det också med mätning.' },
+  volComp: { title: 'Volymoberoende kompression', text: 'Android lägger effekten efter volymknappen, så utan detta komprimerar appen mindre ju lägre du lyssnar. Med detta på flyttas trösklarna med volymen, så att det låter likadant på alla volymer.' },
+  correction: { title: 'Hörlurskorrigering', text: 'Rättar till dina hörlurars egen klang så att de låter neutralt (mot Harman-målkurvan) – som AutoEq i Wavelet. Gäller både PÅ och AV, så att du jämför på en neutral grund. Inbyggd: Soundcore Liberty 4 Pro (mätning av DHRME via AutoEq). Ställ Soundcore-appens EQ på platt/av. Du kan importera fler från AutoEq (ParametricEQ.txt).' },
+  deviceProfile: { title: 'Profil per enhet', text: 'Koppla en preset och hörlurskorrigering till den utgång som används nu (t.ex. dina hörlurar, telefonens högtalare eller bilen). När den ansluts byter appen själv.' },
+  eqCurve: { title: 'Klangkurva', text: 'Hur EQ:n ändrar klangen per frekvens: över linjen = mer, under = mindre. Heldragen = dina inställningar (pre- och post-EQ tillsammans), streckad = hörlurskorrigeringen.' },
+  compCurve: { title: 'Kompressionskurvor', text: 'In-nivå (vågrätt) mot ut-nivå (lodrätt) per band. Den streckade diagonalen = ingen kompression. Där kurvan böjer av börjar kompressionen; ju flackare efter böjen, desto hårdare. Siffran = ungefär hur mycket bandet trycks ihop på normal musiknivå.' },
   outputGain: { title: 'Utgångsnivå', text: 'Sänk eller höj det mastrade ljudet så att PÅ och AV låter lika högt – annars luras örat av att högre låter bättre. Behövs inte när Jämn volym är på.' },
   autolevel: { title: 'Auto-nivåmatcha', text: 'Mäter nivån med och utan bearbetning (ca 8 sekunder, ljudet växlar) och ställer in utgångsnivån. Kräver mikrofonbehörighet.' },
 
@@ -90,6 +100,12 @@ export const INFO = {
   meters: { title: 'Mätare', text: 'Integrerad loudness (LUFS, hela låten enligt EBU R128), högsta short-term (3 s), true peak (dBTP, även mellan samplen), loudness range (LU, dynamik) och hur mycket limitern som mest sänkte (dB).' },
   ab: { title: 'A/B', text: 'Växla mellan original och mastrad under uppspelning. Med "Nivåmatchad" spelas originalet lika högt som den mastrade – då hör du klangskillnaden, inte volymen.' },
   export: { title: 'Exportera', text: 'WAV med dither. 24 bit för distribution (DistroKid m.fl. tar emot det), 16 bit för CD-format. 44,1 kHz är standard för musik, 48 kHz för video.' },
+  fileDeEss: { title: 'S-ljud (de-esser)', text: 'Sänker vassa s-, t- och sch-ljud (5–10 kHz) bara när de sticker ut jämfört med resten – rösten i övrigt rörs inte. 20–40 % räcker oftast.' },
+  fileGlitter: { title: 'Mjuk topp', text: 'Tar udden av fräs och "glitter" över 11 kHz (vanligt i AI-genererad musik): sänker toppen dynamiskt när den sticker ut och lite fast. 20–40 % brukar räcka.' },
+  mono: { title: 'Mono och fas', text: 'Många lyssnar i mono: telefonhögtalare, Bluetooth-högtalare, klubbar. Korrelation 1 = mono, 0 = brett, under 0 = fasproblem (ljud tar ut varandra). Förlust i mono = hur mycket svagare det blir. Basen bör vara nästan mono (korrelation över 0,7).' },
+  realtime: { title: 'Direktlyssning', text: 'Låten spelas genom samma mastringskedja i realtid, så varje ändring hörs direkt. Mätare, spektrum och exportfil räknas om i bakgrunden en stund efter.' },
+  versions: { title: 'Versioner', text: 'Spara upp till sex inställningar (A, B, C …) och växla mellan dem medan låten spelar – det snabbaste sättet att välja den bästa. Versionerna sparas på telefonen.' },
+  album: { title: 'Album', text: 'Mastrar flera låtar med exakt samma inställning och mål, så att de låter lika högt och hör ihop. Varje låt exporteras som egen WAV. Nivåskillnaden mellan låtarna visas efteråt (under 1 LU är bra).' },
   liveVsFile: { title: 'Live och fil låter inte exakt lika', text: 'Live använder Androids inbyggda DSP; filmastringen har en egen kedja (Linkwitz-Riley-multiband, soft clipper, true-peak-limiter med lookahead). Samma preset ger samma riktning men inte exakt samma ljud.' },
 };
 

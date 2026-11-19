@@ -100,3 +100,23 @@ test('import av trasig fil ger begripligt fel', () => {
   const one = importPresets([], JSON.stringify({ name: 'X', params: { inputGain: 500 } }));
   assert.equal(one[0].params.inputGain, 12);
 });
+
+test('nya reglage: S-ljud och Mjuk topp', async () => {
+  const { applyMacros, neutral } = await import('../../src/chain.js');
+  const s = applyMacros(neutral(), { sibilance: 100 });
+  assert.ok(s.mbc[2].ratio > 1 && s.mbc[3].ratio > 1 && s.mbc[3].attack <= 1.5);
+  const g = applyMacros(neutral(), { glitter: 100 });
+  assert.ok(g.postEq[7].gain < -3 && g.mbc[3].threshold < 0);
+});
+
+test('på/av per del: avslagen del blir neutral, resten orört', async () => {
+  const { applyEnables, activeMacros, BUILTIN_PRESETS, sanitize } = await import('../../src/chain.js');
+  const p = BUILTIN_PRESETS.find((x) => x.id === 'suno-fix').params;
+  const only = applyEnables(p, { preEq: false, postEq: false, mbc1: false, mbc2: false, mbc3: false, limiter: false });
+  assert.ok(only.preEq.every((b) => b.gain === 0) && only.postEq.every((b) => b.gain === 0));
+  assert.deepEqual(only.mbc[0], sanitize(p).mbc[0], 'kickbandet kvar');
+  assert.equal(only.mbc[2].ratio, 1);
+  assert.equal(only.limiter.ratio, 1);
+  assert.deepEqual(applyEnables(p, {}), sanitize(p), 'allt på = oförändrat');
+  assert.deepEqual(activeMacros({ kick: 50, bright: 30 }, { m_bright: false }), { kick: 50, bright: 0, punch: 0, vocal: 0, sibilance: 0, glitter: 0 });
+});

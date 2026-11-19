@@ -1,66 +1,106 @@
-// Live-vyn: PÅ/AV, Jämn volym, presets, Enkelt/Avancerat med ⓘ och ↺ på varje reglage.
+// Live-vyn: PÅ/AV och Bypass, smarta funktioner (jämn volym, konstant utnivå, volymoberoende kompression,
+// hörlurskorrigering, profil per enhet), presets, Enkelt/Avancerat med på/av, ⓘ, ↺ och −/+ på allt, och kurvor
+// som visar vad inställningarna gör.
 import { LiveDsp, isNative } from '../livedsp.js';
 import { ui, app } from '../state.js';
 import { load, save } from '../store.js';
 import {
-  BUILTIN_PRESETS, EQ_CUTOFFS, MACROS, MBC_CUTOFFS, MBC_NAMES, RANGES, applyMacros, bandLabel, deletePreset,
-  exportPresets, importPresets, neutral, noMacros, renamePreset, sanitize, savePreset, toNative,
+  BUILTIN_PRESETS, EQ_CUTOFFS, MACROS, MBC_CUTOFFS, MBC_NAMES, RANGES, activeMacros, allEnabled, applyEnables,
+  applyMacros, bandLabel, deletePreset, exportPresets, importPresets, neutral, noMacros, renamePreset, sanitize,
+  savePreset, toNative,
 } from '../chain.js';
-import { ask, bindSliders, esc, fmtDb, getPath, infoBtn, setPath, sheet, slider, saveFile } from '../ui.js';
+import { ask, bindSliders, esc, fmtDb, getPath, infoBtn, setPath, sheet, slider, saveFile, toggle } from '../ui.js';
+import { compensation, estimate, withCompensation } from '../level.js';
+import { eqCurveSvg, compCurvesSvg } from '../viz.js';
+import { BUILTIN_HEADPHONES, correctionFor, parseParametric } from '../headphones.js';
 import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
 
 export const allPresets = () => [...BUILTIN_PRESETS, ...ui.userPresets];
 export const currentPreset = () => allPresets().find((p) => p.id === ui.presetId);
-export const effective = () => applyMacros(ui.base, ui.macros);
+/** Kedjan som den låter: preset + enkla reglage, med avslagna delar neutrala. */
+export const effective = () => applyEnables(applyMacros(ui.base, activeMacros(ui.macros, ui.enabled)), ui.enabled);
+/** Det som skickas till motorn: med nivåkompensation om Konstant utnivå är på. */
+export const sendParams = () => (ui.constant ? withCompensation(effective()) : effective());
 const presetBase = () => sanitize(currentPreset()?.params ?? neutral());
 const isDirty = () => {
   const p = currentPreset();
-  return !p || JSON.stringify(effective()) !== JSON.stringify(sanitize(p.params));
+  return !p || JSON.stringify(applyMacros(ui.base, ui.macros)) !== JSON.stringify(sanitize(p.params));
 };
+const en = (k) => ui.enabled[k] !== false;
+const headphones = () => [...BUILTIN_HEADPHONES, ...ui.customHeadphones];
+const fileDeps = () => ({ isNative, Filesystem, Directory, Encoding, Share });
 
 let sendTimer = 0, saveTimer = 0;
-/** Skickar kedjan till motorn (lite fördröjt medan ett reglage dras) och sparar läget lokalt. */
-export function changed({ now = false } = {}) {
+/** Skickar kedjan till motorn (lite fördröjt medan ett reglage dras), sparar lokalt och ritar om kurvorna. */
+export function changed({ now = false, user = true } = {}) {
   clearTimeout(sendTimer);
-  const send = () => LiveDsp?.setParams({ params: toNative(effective()) });
+  const send = async () => {
+    if (!LiveDsp) return;
+    const r = await LiveDsp.setParams({ params: toNative(sendParams()) });
+    if (r && typeof r === 'object') { ui.report = { ...r, at: Date.now(), user }; app.renderPart('confirm'); }
+  };
   if (now) send(); else sendTimer = setTimeout(send, 60);
   clearTimeout(saveTimer);
-  saveTimer = setTimeout(() => save('state', { presetId: ui.presetId, base: ui.base, macros: ui.macros, mode: ui.mode }), 300);
+  saveTimer = setTimeout(() => save('state', { presetId: ui.presetId, base: ui.base, macros: ui.macros, mode: ui.mode, enabled: ui.enabled, constant: ui.constant }), 300);
   const d = document.querySelector('#dirty');
   if (d) d.hidden = !isDirty();
+  app.renderPart('viz');
 }
 
 export async function initLive() {
   const st = await load('state', null);
   ui.userPresets = await load('presets', []);
+  ui.customHeadphones = await load('headphones', []);
+  ui.corr = await load('corr', { on: false, id: 'liberty4pro' });
+  ui.profiles = await load('profiles', {});
+  ui.enabled = allEnabled();
+  ui.constant = true;
   if (st) {
     ui.presetId = st.presetId ?? ui.presetId;
     ui.base = sanitize(st.base);
     ui.macros = { ...noMacros(), ...st.macros };
     ui.mode = st.mode === 'advanced' ? 'advanced' : 'simple';
+    ui.enabled = { ...allEnabled(), ...st.enabled };
+    ui.constant = st.constant !== false;
   }
 }
 
 // ---- Delar ----
 
 export function onButton() {
-  const s = ui.status;
-  const agc = s?.agc?.on;
-  return `<button class="big ${s?.on ? 'on' : ''}" id="onoff" aria-pressed="${!!s?.on}">
-      <span>${s?.on ? 'MASTRAT' : agc ? 'ORIGINAL · NIVÅMATCHAT' : 'ORIGINAL'}</span><strong>${s?.on ? 'PÅ' : 'AV'}</strong></button>
-    <p class="status" data-testid="motor">${s?.running
-      ? (s.globalActive ? 'Bearbetar allt ljud' : `Motorn går · ${s.sessions.filter((x) => x.attached).length} sessioner`)
-      : 'Motorn startar när du slår PÅ'}${infoBtn('onoff')}</p>`;
+  const s = ui.status || {};
+  const agc = s.agc?.on;
+  const label = s.bypass ? 'BYPASS · HELT ORIGINAL' : s.on ? 'MASTRAT' : agc ? 'ORIGINAL · NIVÅMATCHAT' : 'ORIGINAL';
+  return `<button class="big ${s.on && !s.bypass ? 'on' : ''} ${s.bypass ? 'bypassed' : ''}" id="onoff" aria-pressed="${!!s.on}">
+      <span>${label}</span><strong>${s.on ? 'PÅ' : 'AV'}</strong></button>
+    <p class="status" data-testid="motor">${s.running
+      ? (s.globalActive ? 'Bearbetar allt ljud' : `Bearbetar ${s.sessions.filter((x) => x.attached).length} spelande appar`)
+      : 'Motorn startar när du slår PÅ'}${s.output?.name ? ` · ${esc(s.output.name)}` : ''}${infoBtn('onoff')}</p>
+    <label class="switch center-switch"><input type="checkbox" id="bypass" ${s.bypass ? 'checked' : ''}> Bypass – helt original</label>${infoBtn('bypass')}`;
 }
 
 export function agcRow() {
-  const a = ui.status?.agc || {};
-  const read = a.on ? `<span class="dim small" data-testid="agcread">nu ${fmtDb(a.gain)} dB${a.probing ? ' · mäter…' : ''}</span>` : '';
-  return `<div class="row agc">
-    <label class="switch"><input type="checkbox" id="agc" ${a.on ? 'checked' : ''}> Jämn volym</label>${infoBtn('agc')}
-    <span class="grow"></span>${read}
-  </div>${ui.agcMsg ? `<p class="hint small" id="agcmsg">${esc(ui.agcMsg)}</p>` : ''}`;
+  const s = ui.status || {};
+  const a = s.agc || {};
+  const comp = ui.constant ? compensation(effective()) : 0;
+  const hp = headphones().find((h) => h.id === ui.corr?.id);
+  const out = s.output || {};
+  const prof = out.key && ui.profiles[out.key];
+  return `<h2 class="smart-h">Smart ${infoBtn('constant', 'Om smarta funktioner')}</h2>
+    <div class="row agc"><label class="switch"><input type="checkbox" id="agc" ${a.on ? 'checked' : ''}> Jämn volym</label>${infoBtn('agc')}
+      <span class="grow"></span>${a.on ? `<span class="dim small" data-testid="agcread">nu ${fmtDb(a.gain)} dB${a.probing ? ' · mäter…' : ''}</span>` : ''}</div>
+    ${ui.agcMsg ? `<p class="hint small" id="agcmsg">${esc(ui.agcMsg)}</p>` : ''}
+    <div class="row"><label class="switch"><input type="checkbox" id="constant" ${ui.constant ? 'checked' : ''}> Konstant utnivå</label>${infoBtn('constant')}
+      <span class="grow"></span>${ui.constant ? `<span class="dim small" data-testid="compread">${fmtDb(comp)} dB</span>` : ''}</div>
+    <div class="row"><label class="switch"><input type="checkbox" id="volcomp" ${s.volComp !== false ? 'checked' : ''}> Volymoberoende kompression</label>${infoBtn('volComp')}</div>
+    <div class="row"><label class="switch"><input type="checkbox" id="corr" ${s.correction?.on ? 'checked' : ''}> Hörlurskorrigering</label>${infoBtn('correction')}</div>
+    <button class="btn small ghost pick" id="corr-pick">🎧 ${esc(hp?.name || 'Välj hörlurar')} ›</button>
+    ${ui.corrMsg ? `<p class="hint small" id="corrmsg">${esc(ui.corrMsg)}</p>` : ''}
+    <div class="row profile"><span class="small">Profil för <b>${esc(out.name || 'utgången')}</b>${infoBtn('deviceProfile')}</span><span class="grow"></span>
+      ${prof ? `<span class="ok small" data-testid="profile">✓ ${esc(prof.label)}</span><button class="btn small ghost" id="prof-del" aria-label="Ta bort profilen">✕</button>`
+        : '<button class="btn small" id="prof-save">Spara nuvarande</button>'}</div>
+    ${s.profileApplied ? `<p class="hint small" id="profmsg">Profilen för ${esc(s.profileApplied)} används.</p>` : ''}`;
 }
 
 function presetCard() {
@@ -79,32 +119,45 @@ function presetCard() {
   </section>`;
 }
 
-const path = (key, label, range, info = key) =>
-  slider({ id: `p-${key.replace(/\./g, '-')}`, label, value: getPath(ui.base, key), range, info, resetTo: getPath(presetBase(), key), kind: 'path', key });
+const path = (key, label, range, info = key, enableKey = null) =>
+  slider({ id: `p-${key.replace(/\./g, '-')}`, label, value: getPath(ui.base, key), range, info, resetTo: getPath(presetBase(), key), kind: 'path', key,
+    enable: enableKey ? { key: enableKey, on: en(enableKey) } : null });
 
 function levelBlock() {
   const agcOn = ui.status?.agc?.on;
-  return `${path('outputGain', 'Utgångsnivå', RANGES.outputGain)}
-    ${agcOn ? '<p class="hint small">Jämn volym är på – PÅ och AV matchas automatiskt.</p>'
+  return `${path('outputGain', 'Utgångsnivå', RANGES.outputGain, 'outputGain', 'output')}
+    ${agcOn || ui.constant ? '<p class="hint small">Nivån hålls automatiskt (Jämn volym / Konstant utnivå). Reglaget finjusterar.</p>'
       : `<div class="btnrow"><button class="btn small" id="autolevel">Auto-nivåmatcha</button>${infoBtn('autolevel')}</div>`}
     ${ui.levelMsg ? `<p class="hint" id="levelmsg">${esc(ui.levelMsg)}</p>` : ''}`;
 }
 
+/** Kurvorna: klangkurva + kompression. Ritas om medan du drar (app.renderPart('viz')). */
+export function vizPart(kind = 'all') {
+  const p = effective();
+  const e = estimate(p);
+  const hp = headphones().find((h) => h.id === ui.corr?.id);
+  const corr = ui.status?.correction?.on && hp ? correctionFor(hp) : null;
+  const eq = kind !== 'comp' ? eqCurveSvg({ pre: p.preEq.map((b) => b.gain), post: p.postEq.map((b) => b.gain), corr }) : '';
+  const comp = kind !== 'eq' ? compCurvesSvg({ mbc: p.mbc, limiter: p.limiter, gr: e.mbcGr, limGr: e.limGr, enabled: ui.enabled }) : '';
+  return eq + comp;
+}
+
 function simpleCard() {
   return `<section class="card" id="simple">
-    ${MACROS.map((m) => slider({ id: `m-${m.key}`, label: m.label, value: ui.macros[m.key], range: [-100, 100, 1, ''], info: m.key, resetTo: 0, kind: 'macro', key: m.key })).join('')}
+    ${MACROS.map((m) => slider({ id: `m-${m.key}`, label: m.label, value: ui.macros[m.key] ?? 0, range: [-100, 100, 1, ''], info: m.key, resetTo: 0, kind: 'macro', key: m.key, enable: { key: `m_${m.key}`, on: en(`m_${m.key}`) } })).join('')}
     <div class="sep"></div>
     ${levelBlock()}
+    <details class="sec" data-sec="viz-simple"><summary>Visa kurvor${infoBtn('eqCurve')}</summary><div class="vizbox" data-vizbox="all">${vizPart('all')}</div></details>
     <div class="btnrow"><button class="btn small" id="reset-all">Återställ alla</button></div>
   </section>`;
 }
 
-const section = (id, title, info, body, open = false) =>
-  `<details class="sec" data-sec="${id}" ${open ? 'open' : ''}><summary>${esc(title)}${infoBtn(info, `Om ${title}`)}</summary><div class="secbody">${body}</div></details>`;
+const section = (id, title, info, body, { open = false, enableKey = null } = {}) =>
+  `<details class="sec${enableKey && !en(enableKey) ? ' off' : ''}" data-sec="${id}" ${open ? 'open' : ''}><summary>${enableKey ? toggle(enableKey, en(enableKey), title) : ''}${esc(title)}${infoBtn(info, `Om ${title}`)}</summary><div class="secbody">${body}</div></details>`;
 
 function advancedCard() {
   const eq = (k) => EQ_CUTOFFS.map((_, i) => path(`${k}.${i}.gain`, bandLabel(EQ_CUTOFFS, i), RANGES.eqGain)).join('');
-  const mbc = MBC_CUTOFFS.map((_, i) => `<details class="band"><summary>${esc(MBC_NAMES[i])}${infoBtn(`mbcBand${i}`)}</summary>
+  const mbc = MBC_CUTOFFS.map((_, i) => `<details class="band${en(`mbc${i}`) ? '' : ' off'}"><summary>${toggle(`mbc${i}`, en(`mbc${i}`), MBC_NAMES[i])}${esc(MBC_NAMES[i])}${infoBtn(`mbcBand${i}`)}</summary>
       ${path(`mbc.${i}.threshold`, 'Tröskel', RANGES.threshold)}
       ${path(`mbc.${i}.ratio`, 'Ratio', RANGES.ratio)}
       ${path(`mbc.${i}.attack`, 'Attack', RANGES.attack)}
@@ -114,18 +167,19 @@ function advancedCard() {
       ${path(`mbc.${i}.postGain`, 'Förstärkning efter', RANGES.postGain)}
     </details>`).join('');
   return `<section class="card" id="advanced">
-    ${section('input', 'Ingång', 'sec_input', path('inputGain', 'Ingångsförstärkning', RANGES.inputGain), true)}
-    ${section('preEq', 'Pre-EQ', 'sec_preEq', eq('preEq'))}
-    ${section('mbc', 'Multiband-kompressor', 'sec_mbc', mbc)}
-    ${section('postEq', 'Post-EQ', 'sec_postEq', eq('postEq'))}
+    <div class="vizbox" data-vizbox="eq">${vizPart('eq')}</div>
+    ${section('input', 'Ingång', 'sec_input', path('inputGain', 'Ingångsförstärkning', RANGES.inputGain), { open: true, enableKey: 'input' })}
+    ${section('preEq', 'Pre-EQ', 'sec_preEq', eq('preEq'), { enableKey: 'preEq' })}
+    ${section('mbc', 'Multiband-kompressor', 'sec_mbc', `<div class="vizbox" data-vizbox="comp">${vizPart('comp')}</div>${mbc}`)}
+    ${section('postEq', 'Post-EQ', 'sec_postEq', eq('postEq'), { enableKey: 'postEq' })}
     ${section('limiter', 'Limiter', 'sec_limiter', `
       ${path('limiter.threshold', 'Tak', RANGES.limThreshold)}
       ${path('limiter.ratio', 'Ratio', RANGES.limRatio)}
       ${path('limiter.attack', 'Attack', RANGES.limAttack)}
       ${path('limiter.release', 'Release', RANGES.limRelease)}
-      ${path('limiter.postGain', 'Efterförstärkning', RANGES.limPostGain)}`)}
+      ${path('limiter.postGain', 'Efterförstärkning', RANGES.limPostGain)}`, { enableKey: 'limiter' })}
     ${section('output', 'Utgång', 'sec_output', levelBlock())}
-    <div class="btnrow"><button class="btn small" id="reset-all">Återställ alla</button><button class="btn small" id="flat">Platt</button></div>
+    <div class="btnrow"><button class="btn small" id="reset-all">Återställ alla</button><button class="btn small" id="flat">Platt</button><button class="btn small" id="all-on">Slå på allt</button></div>
   </section>`;
 }
 
@@ -140,6 +194,13 @@ export function liveView() {
       ${infoBtn(ui.mode === 'simple' ? 'simple' : 'advanced')}
     </div>
     ${ui.mode === 'simple' ? simpleCard() : advancedCard()}`;
+}
+
+/** Ritar om kurvorna (och nivåkompensationen) utan att röra reglagen. */
+export function renderViz(root) {
+  root.querySelectorAll('[data-vizbox]').forEach((el) => { el.innerHTML = vizPart(el.dataset.vizbox); });
+  const c = root.querySelector('[data-testid=compread]');
+  if (c) c.textContent = `${fmtDb(compensation(effective()))} dB`;
 }
 
 // ---- Händelser ----
@@ -161,8 +222,6 @@ function selectPreset(id) {
   app.render();
 }
 
-const fileDeps = () => ({ isNative, Filesystem, Directory, Encoding, Share });
-
 async function presetMenu() {
   const user = ui.userPresets.some((p) => p.id === ui.presetId);
   const d = sheet(`<h2>Presets</h2>
@@ -173,7 +232,7 @@ async function presetMenu() {
       <button class="btn wide" data-act="export" ${ui.userPresets.length ? '' : 'disabled'}>Exportera mina (${ui.userPresets.length})</button>
       <label class="btn wide file">Importera<input type="file" id="p-import" accept=".json,application/json" hidden></label>
     </div>
-    <p class="hint small">Inbyggda presets kan inte döpas om eller tas bort – spara en kopia med "Spara som".</p>`);
+    <p class="hint small">Inbyggda presets kan inte döpas om eller tas bort – spara en kopia med "Spara som". Avslagna delar sparas som neutrala.</p>`);
   const done = () => { d.close(); app.render(); };
   d.querySelector('[data-act=save]').onclick = async () => {
     d.close();
@@ -186,6 +245,7 @@ async function presetMenu() {
     ui.presetId = r.preset.id;
     ui.base = structuredClone(r.preset.params);
     ui.macros = noMacros();
+    ui.enabled = allEnabled();
     ui.msg = `Sparad som "${r.preset.name}".`;
     changed();
     app.render();
@@ -227,18 +287,81 @@ async function presetMenu() {
   };
 }
 
+/** Hörlurskorrigeringen skickas till motorn (31 tersband). */
+export async function sendCorrection(on = ui.status?.correction?.on) {
+  const hp = headphones().find((h) => h.id === ui.corr.id) || BUILTIN_HEADPHONES[0];
+  ui.corr = { on: !!on, id: hp.id };
+  await save('corr', ui.corr);
+  const r = await LiveDsp.setCorrection({ on: !!on, correction: correctionFor(hp) });
+  if (r && typeof r === 'object' && 'total' in r) ui.report = { ...r, at: Date.now(), user: true };
+  ui.status = await LiveDsp.getStatus();
+}
+
+function pickHeadphones() {
+  const d = sheet(`<h2>Hörlurar</h2>
+    <div class="menu">${headphones().map((h) => `<button class="btn wide ${h.id === ui.corr.id ? 'primary' : ''}" data-hp="${esc(h.id)}">${esc(h.name)}<br><span class="small">${esc(h.source || 'importerad')}</span></button>`).join('')}</div>
+    <h2 style="margin-top:14px">Importera från AutoEq</h2>
+    <p class="hint small">Sök dina hörlurar på github.com/jaakkopasanen/AutoEq (results), öppna "… ParametricEQ.txt" och klistra in texten här.</p>
+    <input id="hp-name" placeholder="Namn, t.ex. Sony WH-1000XM5" maxlength="60">
+    <textarea id="hp-text" rows="5" placeholder="Preamp: -6.1 dB&#10;Filter 1: ON LSC Fc 105 Hz Gain 5.2 dB Q 0.70&#10;…"></textarea>
+    <button class="btn wide" id="hp-import">Lägg till</button>
+    <p class="hint small" id="hp-msg"></p>`);
+  d.querySelectorAll('[data-hp]').forEach((b) => {
+    b.onclick = async () => { ui.corr.id = b.dataset.hp; d.close(); await sendCorrection(true); ui.corrMsg = ''; app.render(); };
+  });
+  d.querySelector('#hp-import').onclick = async () => {
+    const name = d.querySelector('#hp-name').value.trim() || 'Mina hörlurar';
+    const text = d.querySelector('#hp-text').value;
+    try {
+      parseParametric(text);
+      const hp = { id: `hp-${Date.now().toString(36)}`, name, source: 'importerad från AutoEq', text };
+      ui.customHeadphones = [...ui.customHeadphones, hp];
+      await save('headphones', ui.customHeadphones);
+      ui.corr.id = hp.id;
+      d.close();
+      await sendCorrection(true);
+      ui.corrMsg = `"${name}" tillagd och påslagen.`;
+      app.render();
+    } catch (e) { d.querySelector('#hp-msg').textContent = e.message; }
+  };
+}
+
+/** Profiler per ljudutgång: sparas lokalt och i motorn (så att bytet sker även när appen ligger i bakgrunden). */
+async function sendProfiles() {
+  const native = {};
+  for (const [key, p] of Object.entries(ui.profiles)) {
+    const hp = headphones().find((h) => h.id === p.corr?.id);
+    const eff = applyEnables(applyMacros(p.base, activeMacros(p.macros, p.enabled)), p.enabled);
+    native[key] = { params: toNative(p.constant ? withCompensation(eff) : eff), correction: hp ? { on: !!p.corr.on, ...correctionFor(hp) } : { on: false } };
+  }
+  await save('profiles', ui.profiles);
+  ui.status = await LiveDsp.setProfiles({ profiles: native });
+}
+
+/** Utgången bytte och motorn lade på en profil: visa samma inställning i appen. */
+export function syncProfileFromStatus(prevKey) {
+  const out = ui.status?.output;
+  if (!out?.key || out.key === prevKey) return false;
+  const p = ui.profiles[out.key];
+  if (!p) return false;
+  Object.assign(ui, { presetId: p.presetId, base: structuredClone(p.base), macros: { ...noMacros(), ...p.macros }, enabled: { ...allEnabled(), ...p.enabled }, constant: p.constant !== false });
+  if (p.corr) ui.corr = { ...p.corr };
+  return true;
+}
+
 export function bindLive(root) {
   root.querySelector('#onoff').onclick = toggleOn;
+  bindStatus(root);
   bindAgc(root);
   bindSliders(root, (kind, key, v) => {
     if (kind === 'path') setPath(ui.base, key, v);
     if (kind === 'macro') ui.macros[key] = v;
     changed();
-  });
+  }, (key, on) => { ui.enabled[key] = on; changed(); });
   root.querySelectorAll('[data-mode]').forEach((b) => {
     b.onclick = () => {
       if (b.dataset.mode === ui.mode) return;
-      if (b.dataset.mode === 'advanced') { ui.base = effective(); ui.macros = noMacros(); } // de enkla reglagen bakas in
+      if (b.dataset.mode === 'advanced') { ui.base = applyMacros(ui.base, activeMacros(ui.macros, ui.enabled)); ui.macros = noMacros(); } // enkla reglagen bakas in
       ui.mode = b.dataset.mode;
       changed();
       app.render();
@@ -249,6 +372,7 @@ export function bindLive(root) {
   root.querySelector('#reset-all').onclick = () => {
     if (ui.mode === 'simple') { ui.macros = noMacros(); ui.base.outputGain = presetBase().outputGain; }
     else { ui.base = presetBase(); ui.macros = noMacros(); }
+    ui.enabled = allEnabled();
     ui.msg = currentPreset() ? `Återställd till "${currentPreset().name}".` : 'Återställd.';
     changed({ now: true });
     app.render();
@@ -260,6 +384,8 @@ export function bindLive(root) {
     changed({ now: true });
     app.render();
   };
+  const allOn = root.querySelector('#all-on');
+  if (allOn) allOn.onclick = () => { ui.enabled = allEnabled(); changed({ now: true }); app.render(); };
   const al = root.querySelector('#autolevel');
   if (al) al.onclick = async () => {
     ui.levelMsg = 'Mäter… (ca 8 sekunder, ljudet växlar mellan av och på)';
@@ -273,12 +399,36 @@ export function bindLive(root) {
   };
 }
 
+export function bindStatus(root) {
+  const b = root.querySelector('#bypass');
+  if (b) b.onchange = async () => { ui.status = await LiveDsp.setBypass({ on: b.checked }); app.renderPart('status'); };
+}
+
 export function bindAgc(root) {
   const a = root.querySelector('#agc');
   if (!a) return;
   a.onchange = async () => {
     ui.agcMsg = '';
     try { ui.status = await LiveDsp.setAgc({ on: a.checked }); } catch (e) { a.checked = false; ui.agcMsg = e.message; }
+    app.render();
+  };
+  root.querySelector('#constant').onchange = (e) => { ui.constant = e.target.checked; changed({ now: true }); app.render(); };
+  root.querySelector('#volcomp').onchange = async (e) => { ui.status = await LiveDsp.setVolComp({ on: e.target.checked }); app.render(); };
+  root.querySelector('#corr').onchange = async (e) => { await sendCorrection(e.target.checked); app.render(); };
+  root.querySelector('#corr-pick').onclick = pickHeadphones;
+  const ps = root.querySelector('#prof-save');
+  if (ps) ps.onclick = async () => {
+    const out = ui.status.output;
+    const label = currentPreset()?.name || 'egen inställning';
+    ui.profiles = { ...ui.profiles, [out.key]: { label, presetId: ui.presetId, base: ui.base, macros: ui.macros, enabled: ui.enabled, constant: ui.constant, corr: { ...ui.corr, on: !!ui.status.correction?.on } } };
+    await sendProfiles();
+    app.render();
+  };
+  const pd = root.querySelector('#prof-del');
+  if (pd) pd.onclick = async () => {
+    const { [ui.status.output.key]: _, ...rest } = ui.profiles;
+    ui.profiles = rest;
+    await sendProfiles();
     app.render();
   };
 }

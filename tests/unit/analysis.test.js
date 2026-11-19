@@ -86,3 +86,17 @@ test('finishProfile räknar dynamik och nivå', () => {
   assert.ok(Math.abs(p.dynamics - 10) < 0.5, `dynamik ${p.dynamics}`);
   assert.equal(p.source, 'live');
 });
+
+test('monokontroll: mono, brett och fasvänt', async () => {
+  const { stereoInfo } = await import('../../src/analysis.js');
+  const n = 48000, a = new Float32Array(n), b = new Float32Array(n);
+  let s = 1, t = 987654321;
+  for (let i = 0; i < n; i++) { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; a[i] = s / 2 ** 31 - 1; t = (Math.imul(t, 22695477) + 1) >>> 0; b[i] = t / 2 ** 31 - 1; }
+  const mono = stereoInfo([a, a], 48000);
+  assert.ok(mono.corr > 0.99 && Math.abs(mono.monoLoss) < 0.01 && mono.warnings.length === 0);
+  const wide = stereoInfo([a, b], 48000);
+  assert.ok(Math.abs(wide.corr) < 0.05 && wide.monoLoss < -2.5);
+  const inv = stereoInfo([a, a.map((v) => -v)], 48000);
+  assert.ok(inv.corr < -0.99 && inv.warnings.some((w) => /Fasproblem/.test(w)));
+  assert.equal(mono.bands.length, 3);
+});

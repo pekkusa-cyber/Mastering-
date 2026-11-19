@@ -12,7 +12,8 @@ riktig limiter, kompressor, EQ och presets. Två lägen:
 |---|---|---|
 | 1 | Prototyp: går det att bearbeta Sunos ljud live? (go/no-go) | **Godkänd** – global session (0) fungerar på Samsung S25 / Android 17 med Suno-appen, Suno i Chrome och YouTube |
 | 2 | Hela live-kedjan (EQ, multiband, limiter, presets, Enkelt/Avancerat) | **Klar** – testad på telefonen |
-| 3 | Filmastring, plus analys/referenslyssning, jämn volym, ⓘ och ↺ på allt, 17 presets, nytt gränssnitt | **Byggd – väntar på test med örat** |
+| 3 | Filmastring, plus analys/referenslyssning, jämn volym, ⓘ och ↺ på allt, 17 presets, nytt gränssnitt | **Klar** |
+| 4 | Bekräftelse/Wavelet-kontroll, bypass, på/av på allt, konstant utnivå, kurvor, hörlurskorrigering, profil per enhet, volymoberoende kompression; Fil: direktlyssning, versioner, album, mono, de-esser, mjuk topp | **Byggd – väntar på test med örat** |
 
 ## Gränssnittet
 
@@ -26,10 +27,20 @@ Fyra flikar längst ner:
   referens, A/B nivåmatchat, mätare (LUFS, short-term, true peak, LRA, GR), export WAV 24/16 bit, 44,1/48 kHz med dither.
 - **Mer** – behörigheter, felsökning, version och uppdatering.
 
+## Hörlurskorrigering
+
+Inbyggd: **Soundcore Liberty 4 Pro** – korrektion från [AutoEq](https://github.com/jaakkopasanen/AutoEq)
+(MIT-licens, © Jaakko Pasanen), mätning av DHRME, mål Harman in-ear. Ställ Soundcore-appens EQ på platt/av.
+Fler hörlurar: kopiera AutoEq:s `ParametricEQ.txt` och klistra in i appen.
+
+## Designförslag
+
+`design/` innehåller tre förslag (A Studio, B En ratt, C Kurva först) som HTML och bilder.
+
 ## Filmastringens kedja (fas 3)
 
 Trim → Pre-EQ → Match-EQ → Multiband (Linkwitz-Riley 4 band, transient shaper på kickbandet) → Post-EQ →
-Stereobredd → Lim (buss-kompressor) → Drive (automatiskt mot mål-LUFS) → Soft clipper → True-peak-limiter
+De-esser → Mjuk topp → Stereobredd → Lim (buss-kompressor) → Drive (automatiskt mot mål-LUFS) → Soft clipper → True-peak-limiter
 (lookahead, 4x översampling) → Utgång. Egen DSP i ren JavaScript (`src/dsp/`) som körs i en Web Worker – snabbare än
 realtid och samma kod som testerna kör. Avkodning och omsampling görs med `OfflineAudioContext`.
 

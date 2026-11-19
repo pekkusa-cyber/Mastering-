@@ -29,7 +29,30 @@ export const FILE_RANGES = {
   output: [-24, 0, 0.5, 'dB'],
   targetLufs: [-20, -6, 0.5, 'LUFS'],
   matchGain: [-8, 8, 0.5, 'dB'],
+  deEss: [0, 100, 1, '%'],
+  glitter: [0, 100, 1, '%'],
 };
+
+/** Delar av filkedjan som kan slås av var för sig (av = neutral). Limitern är alltid på (taket ska hållas). */
+export const FILE_STAGES = ['trim', 'preEq', 'match', 'mbc0', 'mbc1', 'mbc2', 'mbc3', 'kick', 'postEq', 'deEss', 'glitter', 'width', 'glue', 'clip', 'output'];
+
+export function applyFileEnables(params, enabled = {}) {
+  const p = structuredClone(sanitizeFile(params));
+  const off = (k) => enabled[k] === false;
+  if (off('trim')) p.trim = 0;
+  if (off('preEq')) p.preEq.forEach((b) => { b.gain = 0; });
+  if (off('match')) p.matchEq.forEach((b) => { b.gain = 0; });
+  p.mbc.forEach((b, i) => { if (off(`mbc${i}`)) Object.assign(b, { ratio: 1, preGain: 0, postGain: 0 }); });
+  if (off('kick')) p.kickPunch = 0;
+  if (off('postEq')) p.postEq.forEach((b) => { b.gain = 0; });
+  if (off('deEss')) p.deEss = 0;
+  if (off('glitter')) p.glitter = 0;
+  if (off('width')) p.width = 100;
+  if (off('glue')) Object.assign(p.glue, { ratio: 1, makeup: 0 });
+  if (off('clip')) p.clip = 0;
+  if (off('output')) p.output = 0;
+  return p;
+}
 
 const c = (v, [lo, hi], d) => { const n = Number(v); return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : d; };
 
@@ -42,6 +65,8 @@ export function fileNeutral() {
     mbc: live.mbc,
     postEq: live.postEq,
     kickPunch: 0,
+    deEss: 0,
+    glitter: 0,
     width: 100,
     glue: { threshold: -18, ratio: 1, attack: 30, release: 200, makeup: 0 },
     clip: 0,
@@ -66,6 +91,8 @@ export function sanitizeFile(p) {
     mbc: live.mbc,
     postEq: live.postEq,
     kickPunch: c(s.kickPunch, R.kickPunch, n.kickPunch),
+    deEss: c(s.deEss, R.deEss, n.deEss),
+    glitter: c(s.glitter, R.glitter, n.glitter),
     width: c(s.width, R.width, n.width),
     glue: {
       threshold: c(s.glue?.threshold, R.glueThreshold, n.glue.threshold),
@@ -91,7 +118,7 @@ export function sanitizeFile(p) {
  */
 export function liveToFile(liveParams, extra = {}) {
   const l = sanitizeLive(liveParams);
-  return sanitizeFile({ ...fileNeutral(), preEq: l.preEq, mbc: l.mbc, postEq: l.postEq, glue: { threshold: -16, ratio: 1.5, attack: 30, release: 200, makeup: 0 }, clip: 1.5, ...extra });
+  return sanitizeFile({ ...fileNeutral(), preEq: l.preEq, mbc: l.mbc, postEq: l.postEq, glue: { threshold: -16, ratio: 1.5, attack: 30, release: 200, makeup: 0 }, clip: 1.5, deEss: 25, glitter: 20, ...extra });
 }
 
 /** Målet som LUFS-värde (null = ingen automatisk nivå). */

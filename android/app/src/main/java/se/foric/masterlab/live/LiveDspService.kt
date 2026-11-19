@@ -74,7 +74,16 @@ class LiveDspService : Service() {
 
     /** Volymknapparna: jämn volym kontrollerar om mätningen följer volymen (se AgcController). */
     private val volumeReceiver = object : BroadcastReceiver() {
-        override fun onReceive(c: Context, i: Intent) = AgcController.onVolumeChanged()
+        override fun onReceive(c: Context, i: Intent) {
+            AgcController.onVolumeChanged()
+            LiveDspEngine.onVolumeChanged(c)
+        }
+    }
+
+    /** Hörlurar/bil ansluts eller kopplas från: byt profil (preset + hörlurskorrigering) för den utgången. */
+    private val deviceCallback = object : android.media.AudioDeviceCallback() {
+        override fun onAudioDevicesAdded(added: Array<out android.media.AudioDeviceInfo>?) { main.postDelayed({ LiveDspEngine.onOutputChanged(this@LiveDspService) }, 400) }
+        override fun onAudioDevicesRemoved(removed: Array<out android.media.AudioDeviceInfo>?) { main.postDelayed({ LiveDspEngine.onOutputChanged(this@LiveDspService) }, 400) }
     }
 
     private val playbackCallback = object : AudioManager.AudioPlaybackCallback() {
@@ -88,6 +97,7 @@ class LiveDspService : Service() {
 
     private val scanTick = object : Runnable {
         override fun run() {
+            LiveDspEngine.checkControl()
             scan()
             main.removeCallbacks(this)
             main.postDelayed(this, SCAN_INTERVAL_MS)
@@ -116,6 +126,8 @@ class LiveDspService : Service() {
         if (LiveDspEngine.globalWanted) LiveDspEngine.setGlobal(this, true)
         LiveDspEngine.attachPending(this)
         AgcController.attach(this)
+        LiveDspEngine.onOutputChanged(this)
+        getSystemService(AudioManager::class.java).registerAudioDeviceCallback(deviceCallback, main)
         ContextCompat.registerReceiver(this, volumeReceiver, IntentFilter("android.media.VOLUME_CHANGED_ACTION"), ContextCompat.RECEIVER_EXPORTED)
         main.post(scanTick)
     }
@@ -133,6 +145,7 @@ class LiveDspService : Service() {
         main.removeCallbacks(scanTick)
         try { unregisterReceiver(effectReceiver) } catch (_: Throwable) {}
         try { unregisterReceiver(volumeReceiver) } catch (_: Throwable) {}
+        try { getSystemService(AudioManager::class.java).unregisterAudioDeviceCallback(deviceCallback) } catch (_: Throwable) {}
         if (AgcController.on) { LiveAnalyzer.release("agc") }
         try { getSystemService(AudioManager::class.java).unregisterAudioPlaybackCallback(playbackCallback) } catch (_: Throwable) {}
         LiveDspEngine.removeListener(engineListener)
@@ -185,6 +198,8 @@ class LiveDspService : Service() {
                 for (e in entries) {
                     if (e.uid == myUid || e.uid == Process.SYSTEM_UID) continue
                     if (!SessionParser.isMusicLike(e)) continue
+                    // Bara det som faktiskt spelar – dumpsys listar även pausade och tomma spelare
+                    if (e.state != null && e.state != "started") continue
                     seen += e.session
                     LiveDspEngine.attach(ctx, e.session, LiveDspEngine.packageFor(ctx, e.uid, e.pid), e.source, e.state, e.usage)
                 }
@@ -222,8 +237,8 @@ class LiveDspService : Service() {
 
     private fun buildNotification(): Notification {
         val on = LiveDspEngine.on
-        val how = if (LiveDspEngine.globalActive()) "allt ljud (global session)"
-            else "${LiveDspEngine.status(this).getJSONArray("sessions").length()} ljud-sessioner"
+        val how = if (LiveDspEngine.globalActive()) "allt ljud"
+            else "${LiveDspEngine.attachedCount()} spelande appar"
         val open = PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE)
         return NotificationCompat.Builder(this, CHANNEL)
             .setSmallIcon(R.mipmap.ic_launcher)

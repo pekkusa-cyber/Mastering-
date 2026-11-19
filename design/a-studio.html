@@ -1,0 +1,33 @@
+<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="base.css"><style>
+.phone{--bg:linear-gradient(180deg,#0f1a1d 0%,#0b1114 60%,#0a0e10 100%);--ac:#3fd3b0;--card:rgba(255,255,255,.045);--line:rgba(255,255,255,.08)}
+h1{font-size:20px;margin:6px 18px 10px;display:flex;align-items:center;gap:8px}h1 b{color:var(--ac)}
+.ab{margin:0 18px;display:grid;grid-template-columns:1fr 1fr;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:4px}
+.ab div{text-align:center;padding:12px;border-radius:12px;font-weight:600;color:#9fb0b6}.ab .on{background:linear-gradient(180deg,#1f4c46,#163a35);color:#dffdf6;box-shadow:0 0 0 1px #2c6e64 inset}
+.meter{margin:12px 18px 0;display:flex;gap:10px;align-items:center;font-size:12px;color:#9fb0b6}
+.bar{flex:1;height:8px;border-radius:4px;background:#1b262a;position:relative;overflow:hidden}.bar i{position:absolute;inset:0 38% 0 0;background:linear-gradient(90deg,#2a8f7b,var(--ac));border-radius:4px}
+.smart{display:flex;gap:8px;margin:12px 18px 0;overflow:hidden}.smart span{white-space:nowrap;padding:7px 12px;border-radius:20px;border:1px solid var(--line);background:var(--card);font-size:12.5px}.smart .on{border-color:#2c6e64;color:#bff5e8;background:#14302c}
+.presets{display:flex;gap:10px;margin:14px 0 0 18px;overflow:hidden}
+.pc{min-width:128px;padding:12px;border-radius:16px;background:var(--card);border:1px solid var(--line)}.pc b{display:block;font-size:14px}.pc small{color:#8fa1a7;font-size:11.5px}.pc.sel{border-color:var(--ac);background:#122b27}
+.pc .ico{font-size:20px;margin-bottom:4px;display:block}
+.grp{margin:14px 18px 0;padding:14px;border-radius:18px;background:var(--card);border:1px solid var(--line)}
+.grp h3{margin:0 0 10px;font-size:11px;letter-spacing:1.4px;color:#7f9399;display:flex;justify-content:space-between}
+.sl{margin:10px 0 0}.sl .h{display:flex;justify-content:space-between;font-size:13.5px}.sl .h span{color:#9fb0b6}
+.row{display:flex;align-items:center;gap:10px;margin-top:6px}.pm{width:30px;height:30px;border-radius:50%;border:1px solid var(--line);display:grid;place-items:center;color:#cfe}
+.tr{flex:1;height:4px;background:#26353a;border-radius:2px;position:relative}.tr i{position:absolute;top:-7px;width:18px;height:18px;border-radius:50%;background:#e9fffa;box-shadow:0 0 0 4px rgba(63,211,176,.25)}
+.tr em{position:absolute;left:0;top:0;bottom:0;background:var(--ac);border-radius:2px}
+.sw{width:30px;height:18px;border-radius:9px;background:var(--ac);position:relative}.sw::after{content:'';position:absolute;right:2px;top:2px;width:14px;height:14px;border-radius:50%;background:#062b24}
+.tabs{background:rgba(10,16,18,.92);border-top:1px solid var(--line)}.tabs .sel{color:var(--ac)}
+</style></head><body><div class="phone">
+<div class="statusbar"><span>09:41</span><span>● ● ●</span></div>
+<h1>Masterlab <b>●</b><span style="flex:1"></span><span style="font-size:13px;color:#8fa1a7">Liberty 4 Pro</span></h1>
+<div class="ab"><div>Original</div><div class="on">Mastrad</div></div>
+<div class="meter">IN<div class="bar"><i></i></div>−14 LUFS · jämn</div>
+<div class="smart"><span class="on">✓ Jämn volym</span><span class="on">✓ Hörlurar</span><span>Bypass</span><span class="on">✓ Konstant nivå</span></div>
+<div class="presets"><div class="pc sel"><span class="ico">🥁</span><b>Suno-fix</b><small>Mjuk kick, len topp</small></div><div class="pc"><span class="ico">📻</span><b>Radio ljus</b><small>Tät och glansig</small></div><div class="pc"><span class="ico">🎤</span><b>Silkeslen röst</b><small>Mjuk 3–8 kHz</small></div></div>
+<div class="grp"><h3>TON <span class="sw"></span></h3>
+<div class="sl"><div class="h">Värme <span>+1.5</span></div><div class="row"><span class="pm">−</span><div class="tr"><em style="width:58%"></em><i style="left:56%"></i></div><span class="pm">+</span></div></div>
+<div class="sl"><div class="h">Luft <span>−2.0</span></div><div class="row"><span class="pm">−</span><div class="tr"><em style="width:38%"></em><i style="left:36%"></i></div><span class="pm">+</span></div></div></div>
+<div class="grp"><h3>BAS <span class="sw"></span></h3>
+<div class="sl"><div class="h">Kick mjukare <span>+40</span></div><div class="row"><span class="pm">−</span><div class="tr"><em style="width:70%"></em><i style="left:68%"></i></div><span class="pm">+</span></div></div></div>
+<div class="tabs"><div class="sel"><i>◉</i>Live</div><div><i>▤</i>Analys</div><div><i>♫</i>Fil</div><div><i>⋯</i>Mer</div></div>
+</div></body></html>

@@ -32,6 +32,8 @@ object LiveDspEngine {
         var effect: DynamicsProcessing? = null,
         var error: String? = null,
         var note: String? = null,
+        /** Har vi kontrollen över effekten? (En annan app, t.ex. Wavelet, kan ta den.) */
+        var control: Boolean = true,
     )
 
     private val main = Handler(Looper.getMainLooper())
@@ -59,10 +61,32 @@ object LiveDspEngine {
      */
     fun applied(): LiveParams {
         val base = if (mastered()) params else NEUTRAL
-        return if (agcGain == 0f) base else base.copy(inputGain = base.inputGain + agcGain)
+        val off = if (mastered()) thresholdOffset() else 0f
+        val mbc = if (off == 0f) base.mbc else base.mbc.map { it.copy(threshold = (it.threshold + off).coerceIn(-90f, 0f)) }
+        return base.copy(inputGain = base.inputGain + agcGain, mbc = mbc)
     }
 
-    private fun effectEnabled() = mastered() || AgcController.on
+    /** Bypass: helt originalljud – effekten är avstängd oavsett allt annat. */
+    var bypass = false; private set
+    private fun effectEnabled() = !bypass && (mastered() || AgcController.on || correctionActive())
+
+    fun setBypass(value: Boolean): JSONObject { bypass = value; val r = refreshEffects(); changed(); return r }
+
+    // ---- Hörlurskorrigering, volymoberoende kompression och profiler per ljudutgång ----
+    var correction: PostEq.Correction? = null; private set
+    var correctionOn = false; private set
+    var volComp = true; private set
+    /** Volymens dB (≤ 0) som trösklarna flyttas med när volymoberoende kompression är på. */
+    var volOffset = 0f; private set
+    private var profiles = JSONObject()
+    var output: AudioOut.Output? = null; private set
+    var lastProfile: String = ""; private set
+    var lastReport = JSONObject(); private set
+
+    private fun correctionActive() = correctionOn && correction?.isEmpty == false
+
+    /** Trösklarna i multibandet följer volymen (om ljudet bearbetas efter volymknappen, se AgcController.postVolume). */
+    private fun thresholdOffset(): Float = if (volComp && AgcController.postVolume) volOffset else 0f
 
     var broadcastsReceived = 0
     var scans = 0
@@ -79,13 +103,69 @@ object LiveDspEngine {
         on = p.getBoolean("on", false)
         globalWanted = p.getBoolean("global", true)
         params = try { LiveParams.fromJson(JSONObject(p.getString("params", "{}") ?: "{}")) } catch (_: Throwable) { LiveParams.neutral() }
+        correctionOn = p.getBoolean("corrOn", false)
+        correction = try { parseCorrection(JSONObject(p.getString("corr", "{}") ?: "{}")) } catch (_: Throwable) { null }
+        volComp = p.getBoolean("volComp", true)
+        profiles = try { JSONObject(p.getString("profiles", "{}") ?: "{}") } catch (_: Throwable) { JSONObject() }
     }
 
     fun wasRunning(): Boolean = prefs?.getBoolean("running", false) == true
 
     private fun save() {
         prefs?.edit()?.putBoolean("on", on)?.putBoolean("global", globalWanted)?.putBoolean("running", running)
-            ?.putString("params", params.toJson().toString())?.apply()
+            ?.putString("params", params.toJson().toString())
+            ?.putBoolean("corrOn", correctionOn)?.putString("corr", correction?.let { correctionJson(it) }?.toString() ?: "{}")
+            ?.putBoolean("volComp", volComp)?.putString("profiles", profiles.toString())?.apply()
+    }
+
+    fun parseCorrection(o: JSONObject): PostEq.Correction? {
+        val arr = o.optJSONArray("gains") ?: return null
+        val g = FloatArray(PostEq.N) { i -> arr.optDouble(i, 0.0).toFloat().coerceIn(-20f, 20f) }
+        return PostEq.Correction(g, o.optDouble("preamp", 0.0).toFloat().coerceIn(-20f, 6f), o.optString("name", ""))
+    }
+
+    private fun correctionJson(c: PostEq.Correction) = JSONObject().put("gains", JSONArray(c.gains.map { it.toDouble() }))
+        .put("preamp", c.preamp.toDouble()).put("name", c.name)
+
+    /** { on, gains[31], preamp, name } */
+    fun setCorrection(on: Boolean, c: PostEq.Correction?): JSONObject {
+        correctionOn = on
+        if (c != null) correction = c
+        save()
+        val r = refreshEffects()
+        changed()
+        return r
+    }
+
+    fun setVolComp(on: Boolean): JSONObject { volComp = on; save(); val r = refreshEffects(); changed(); return r }
+
+    fun onVolumeChanged(ctx: Context) {
+        val v = AudioOut.volumeDb(ctx).toFloat()
+        if (kotlin.math.abs(v - volOffset) < 0.5f) return
+        volOffset = v
+        if (volComp && AgcController.postVolume && mastered()) refreshEffects()
+    }
+
+    /** Profiler per ljudutgång: { "<nyckel>": { params: {...}, correction: { on, gains, preamp, name } } }. */
+    fun setProfiles(p: JSONObject) { profiles = p; save(); changed() }
+
+    /** Ny ljudutgång (t.ex. hörlurarna ansluts): byt till dess profil om det finns en. */
+    fun onOutputChanged(ctx: Context) {
+        val o = AudioOut.current(ctx)
+        val changedDevice = o.key != output?.key
+        output = o
+        volOffset = AudioOut.volumeDb(ctx).toFloat()
+        if (changedDevice) {
+            val prof = profiles.optJSONObject(o.key)
+            if (prof != null) {
+                prof.optJSONObject("params")?.let { params = LiveParams.fromJson(it) }
+                prof.optJSONObject("correction")?.let { c -> correctionOn = c.optBoolean("on", false); parseCorrection(c)?.let { correction = it } }
+                lastProfile = o.name
+                save()
+            } else lastProfile = ""
+            refreshEffects()
+        }
+        changed()
     }
 
     fun addListener(l: () -> Unit) { listeners += l }
@@ -111,20 +191,63 @@ object LiveDspEngine {
         refreshEffects()
     }
 
-    fun setParams(p: LiveParams) {
+    /** Svarar en rapport: hur många effekter som tog emot ändringen och om en annan app har kontrollen. */
+    fun setParams(p: LiveParams): JSONObject {
         params = p
         save()
-        refreshEffects()
+        val r = refreshEffects()
         changed()
+        return r
     }
 
-    /** Lägger aktuella parametrar och på/av på alla effekter. */
-    fun refreshEffects() {
+    /**
+     * Lägger aktuella parametrar och på/av på alla effekter. Rapporten { total, ok, noControl, errors, running }
+     * visas i appen som bekräftelse på att ändringen verkligen ligger på ljudet.
+     */
+    fun refreshEffects(): JSONObject {
         val a = applied()
+        var total = 0; var ok = 0; var noControl = 0; var errors = 0
         for (s in sessions.values) s.effect?.let { dp ->
-            try { applyParams(dp, a) } catch (t: Throwable) { s.error = "parametrar: ${t.javaClass.simpleName}: ${t.message}" }
-            applyEnabled(s)
+            total++
+            val control = try { dp.hasControl() } catch (_: Throwable) { false }
+            s.control = control
+            if (!control) { noControl++; return@let }
+            try {
+                applyParams(dp, a)
+                applyEnabled(s)
+                if (s.error?.startsWith("parametrar") == true) s.error = null
+                ok++
+            } catch (t: Throwable) { s.error = "parametrar: ${t.javaClass.simpleName}: ${t.message}"; errors++ }
         }
+        lastReport = JSONObject().put("total", total).put("ok", ok).put("noControl", noControl).put("errors", errors)
+            .put("running", running).put("time", System.currentTimeMillis())
+        return lastReport
+    }
+
+    /** Reserv till kontroll-lyssnaren: upptäck att kontrollen kommit tillbaka och lägg på våra inställningar. */
+    fun checkControl() {
+        var any = false
+        for (s in sessions.values) s.effect?.let { dp ->
+            val c = try { dp.hasControl() } catch (_: Throwable) { false }
+            if (c != s.control) {
+                s.control = c
+                any = true
+                if (c) try { applyParams(dp, applied()); applyEnabled(s) } catch (_: Throwable) {}
+            }
+        }
+        if (any) changed()
+    }
+
+    /** Ta tillbaka kontrollen från en annan app (t.ex. Wavelet): skapa om alla effekter. */
+    fun takeControl(): JSONObject {
+        for (s in sessions.values) {
+            if (s.note != null) continue
+            release(s)
+            tryCreate(s)
+        }
+        val r = refreshEffects()
+        changed()
+        return r
     }
 
     /** Ny förstärkning från jämn volym – bara ingångsförstärkningen uppdateras (små steg, inga klick). */
@@ -143,6 +266,9 @@ object LiveDspEngine {
         changed()
     }
 
+    /** Antal effekter som faktiskt sitter på något (för notisen). */
+    fun attachedCount() = sessions.values.count { it.effect != null }
+
     /** Global session kopplad utan fel. */
     fun globalActive(): Boolean = sessions[0]?.let { it.effect != null && it.error == null } == true
 
@@ -157,6 +283,8 @@ object LiveDspEngine {
             if (existing.pkg.startsWith("uid ") && !pkg.startsWith("uid ")) existing.pkg = pkg
             return
         }
+        // Skydd: aldrig fler än 16 egna effekter (dumpsys kan lista många spelare)
+        if (id != 0 && sessions.values.count { it.id != 0 } >= 16) return
         val s = Session(id, pkg, source, state, usage)
         sessions[id] = s
         if (id != 0 && globalActive()) s.note = "global session används – ingen egen effekt"
@@ -184,7 +312,17 @@ object LiveDspEngine {
     private fun tryCreate(s: Session) {
         try {
             val dp = DynamicsProcessing(Int.MAX_VALUE, s.id, buildConfig(applied()))
-            dp.setControlStatusListener { _, _ -> changed() }
+            // Får vi tillbaka kontrollen (t.ex. när Wavelet stängs) läggs våra inställningar på igen direkt –
+            // effektmotorn kan annars ligga kvar med den andra appens inställningar eller vara avstängd.
+            dp.setControlStatusListener { _, granted ->
+                main.post {
+                    s.control = granted
+                    if (granted && s.effect === dp) {
+                        try { applyParams(dp, applied()); applyEnabled(s) } catch (_: Throwable) {}
+                    }
+                    changed()
+                }
+            }
             dp.setEnableStatusListener { _, _ -> changed() }
             s.effect = dp
             s.error = null
@@ -222,7 +360,7 @@ object LiveDspEngine {
             2,
             true, p.preEq.size,
             true, p.mbc.size,
-            true, p.postEq.size,
+            true, PostEq.N,
             true,
         )
         // Byggaren tar hela steg (Eq/Mbc) – banden sätts på stegen först
@@ -230,8 +368,9 @@ object LiveDspEngine {
         p.preEq.forEachIndexed { i, e -> pre.setBand(i, eqBand(e)) }
         val mbc = DynamicsProcessing.Mbc(true, true, p.mbc.size)
         p.mbc.forEachIndexed { i, m -> mbc.setBand(i, mbcBand(m)) }
-        val post = DynamicsProcessing.Eq(true, true, p.postEq.size)
-        p.postEq.forEachIndexed { i, e -> post.setBand(i, eqBand(e)) }
+        val postBands = PostEq.expand(p.postEq, if (correctionActive()) correction else null)
+        val post = DynamicsProcessing.Eq(true, true, postBands.size)
+        postBands.forEachIndexed { i, e -> post.setBand(i, eqBand(e)) }
         b.setPreEqAllChannelsTo(pre)
         b.setMbcAllChannelsTo(mbc)
         b.setPostEqAllChannelsTo(post)
@@ -244,7 +383,7 @@ object LiveDspEngine {
         dp.setInputGainAllChannelsTo(p.inputGain)
         p.preEq.forEachIndexed { i, e -> dp.setPreEqBandAllChannelsTo(i, eqBand(e)) }
         p.mbc.forEachIndexed { i, m -> dp.setMbcBandAllChannelsTo(i, mbcBand(m)) }
-        p.postEq.forEachIndexed { i, e -> dp.setPostEqBandAllChannelsTo(i, eqBand(e)) }
+        PostEq.expand(p.postEq, if (correctionActive()) correction else null).forEachIndexed { i, e -> dp.setPostEqBandAllChannelsTo(i, eqBand(e)) }
         dp.setLimiterAllChannelsTo(limiter(p))
     }
 
@@ -332,6 +471,15 @@ object LiveDspEngine {
             put("device", "${Build.MANUFACTURER} ${Build.MODEL}")
             put("params", params.toJson())
             put("agc", AgcController.status())
+            put("control", sessions.values.filter { it.effect != null }.all { it.control })
+            put("report", lastReport)
+            put("correction", JSONObject().put("on", correctionOn).put("name", correction?.name ?: "").put("preamp", (correction?.preamp ?: 0f).toDouble()))
+            put("volComp", volComp)
+            put("bypass", bypass)
+            put("volOffset", volOffset.toDouble())
+            put("output", output?.let { JSONObject().put("key", it.key).put("name", it.name).put("kind", it.kind) } ?: JSONObject())
+            put("profileApplied", lastProfile)
+            put("profiles", JSONArray(profiles.keys().asSequence().toList()))
             put("analyzer", LiveAnalyzer.status())
             put("analysis", JSONObject().put("running", LiveAnalysis.running).put("seconds", LiveAnalysis.seconds))
             put("sessions", list)
