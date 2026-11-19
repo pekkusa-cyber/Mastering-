@@ -9,10 +9,10 @@ test('stora knappen växlar mellan mastrat och original och startar motorn', asy
   await expect(btn).toHaveAttribute('aria-pressed', 'false');
   await btn.click();
   await expect(btn).toHaveAttribute('aria-pressed', 'true');
-  await expect(btn).toContainText('PÅ');
+  await expect(page.getByTestId('mode')).toHaveText('MASTRAT');
   await expect(page.getByTestId('motor')).toContainText('allt ljud');
   await btn.click();
-  await expect(btn).toContainText('ORIGINAL');
+  await expect(page.getByTestId('mode')).toHaveText('ORIGINAL');
 });
 
 test('vald preset skickas till motorn med alla band, och det finns minst 16 presets', async ({ page }) => {
@@ -127,7 +127,7 @@ test('jämn volym kräver mikrofon, och då nivåmatchas PÅ/AV automatiskt', as
   await page.goto('/?sim=1&mic=1');
   await page.getByLabel('Jämn volym').check();
   await expect(page.getByTestId('agcread')).toContainText('-3.5 dB');
-  await expect(page.locator('#onoff')).toContainText('NIVÅMATCHAT');
+  await expect(page.getByTestId('mode')).toContainText('NIVÅMATCHAT');
   await expect(page.getByText('Nivån hålls automatiskt')).toBeVisible();
 });
 

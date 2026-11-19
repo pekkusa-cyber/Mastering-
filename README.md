@@ -35,7 +35,8 @@ Fler hörlurar: kopiera AutoEq:s `ParametricEQ.txt` och klistra in i appen.
 
 ## Designförslag
 
-`design/` innehåller tre förslag (A Studio, B En ratt, C Kurva först) som HTML och bilder.
+`design/` innehåller tre förslag (A Studio, B En ratt, C Kurva först) som HTML och bilder. **A Studio är valt** och
+infört i appen: Original/Mastrad-växel, smarta funktioner som chips, preset-kort med "Påverkar", grupperade reglage.
 
 ## Filmastringens kedja (fas 3)
 

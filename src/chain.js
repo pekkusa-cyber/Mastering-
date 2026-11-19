@@ -269,14 +269,14 @@ export const BUILTIN_PRESETS = [
 ];
 
 export const MACROS = [
-  { key: 'kick', label: 'Kick mjukare', help: 'Komprimerar kick-bandet (0–120 Hz) hårdare och snabbare. Vänster = hårdare kick.' },
-  { key: 'bright', label: 'Ljusare', help: 'Höjer diskanten över 8 kHz (och lite 3–8 kHz). Vänster = mörkare.' },
-  { key: 'punch', label: 'Tryck / limiter', help: 'Mer ingångsförstärkning in i limitern = högre och tätare. Vänster = mer dynamik.' },
-  { key: 'vocal', label: 'Röst silkeslen', help: 'Mjukare 3–8 kHz och mild kompression av närvarobandet. Vänster = mer framträdande röst.' },
+  { key: 'kick', label: 'Kick mjukare', group: 'bas', affects: 'Multiband: kickbandet (0–120 Hz) + EQ 60–120 Hz', help: 'Komprimerar kick-bandet (0–120 Hz) hårdare och snabbare. Vänster = hårdare kick.' },
+  { key: 'bright', label: 'Ljusare', group: 'ton', affects: 'Post-EQ: 3–8 kHz och 8 kHz+', help: 'Höjer diskanten över 8 kHz (och lite 3–8 kHz). Vänster = mörkare.' },
+  { key: 'punch', label: 'Tryck / limiter', group: 'dynamik', affects: 'Ingång → hårdare in i limitern', help: 'Mer ingångsförstärkning in i limitern = högre och tätare. Vänster = mer dynamik.' },
+  { key: 'vocal', label: 'Röst silkeslen', group: 'vokal', affects: 'Post-EQ 3–8 kHz + multiband: närvarobandet', help: 'Mjukare 3–8 kHz och mild kompression av närvarobandet. Vänster = mer framträdande röst.' },
 ];
 MACROS.push(
-  { key: 'sibilance', label: 'S-ljud', help: 'Tämjer vassa s- och t-ljud (5–10 kHz) med snabb kompression. Vänster = mer s-ljud.' },
-  { key: 'glitter', label: 'Mjuk topp', help: 'Tar bort "glitter" och fräs i toppen (vanligt i Suno-låtar). Vänster = mer glans.' },
+  { key: 'sibilance', label: 'S-ljud', group: 'vokal', affects: 'Multiband: närvaro- och luftbandet (snabb)', help: 'Tämjer vassa s- och t-ljud (5–10 kHz) med snabb kompression. Vänster = mer s-ljud.' },
+  { key: 'glitter', label: 'Mjuk topp', group: 'ton', affects: 'Post-EQ 8 kHz+ + multiband: luftbandet', help: 'Tar bort "glitter" och fräs i toppen (vanligt i Suno-låtar). Vänster = mer glans.' },
 );
 export const noMacros = () => ({ kick: 0, bright: 0, punch: 0, vocal: 0, sibilance: 0, glitter: 0 });
 
@@ -386,4 +386,38 @@ export function importPresets(userPresets, text) {
   }
   if (out.length === userPresets.length) throw new Error('Hittade inga presets i filen.');
   return out;
+}
+
+/** Grupperna i Enkelt läge (som design A). */
+export const MACRO_GROUPS = [
+  { id: 'ton', name: 'Ton' },
+  { id: 'vokal', name: 'Vokal' },
+  { id: 'bas', name: 'Bas' },
+  { id: 'dynamik', name: 'Dynamik' },
+];
+
+const SHORT = ['Kick', 'Mellan', 'Närvaro', 'Luft'];
+const fmtG = (g) => `${g > 0 ? '+' : ''}${+g.toFixed(1)}`;
+
+/**
+ * Vad en inställning faktiskt gör, jämfört med neutral – för "Påverkar"-raden på presets.
+ * Svarar en lista med korta texter, t.ex. ["Ingång +3 dB", "Kick 4:1 (snabb)", "Limiter 12:1"].
+ */
+export function presetEffects(params) {
+  const p = sanitize(params), n = neutral(), out = [];
+  if (p.inputGain !== 0) out.push(`Ingång ${fmtG(p.inputGain)} dB`);
+  const eq = (name, bands) => {
+    const changed = bands.map((b, i) => [i, b.gain]).filter(([, g]) => g !== 0);
+    if (changed.length) out.push(`${name} ${changed.map(([i, g]) => `${bandLabel(EQ_CUTOFFS, i).replace(' Hz', '')} ${fmtG(g)}`).join(', ')}`);
+  };
+  eq('Pre-EQ', p.preEq);
+  p.mbc.forEach((b, i) => {
+    if (b.ratio > 1.0001) out.push(`${SHORT[i]} ${+b.ratio.toFixed(1)}:1${b.attack <= 3 ? ' (snabb)' : ''}`);
+  });
+  eq('Post-EQ', p.postEq);
+  const l = p.limiter;
+  if (l.threshold !== n.limiter.threshold || l.ratio !== n.limiter.ratio || l.attack !== n.limiter.attack || l.release !== n.limiter.release) {
+    out.push(`Limiter ${+l.ratio.toFixed(1)}:1 vid ${fmtG(l.threshold)} dB`);
+  }
+  return out.length ? out : ['Ingen bearbetning (bara skyddslimiter)'];
 }

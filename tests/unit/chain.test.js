@@ -120,3 +120,16 @@ test('på/av per del: avslagen del blir neutral, resten orört', async () => {
   assert.deepEqual(applyEnables(p, {}), sanitize(p), 'allt på = oförändrat');
   assert.deepEqual(activeMacros({ kick: 50, bright: 30 }, { m_bright: false }), { kick: 50, bright: 0, punch: 0, vocal: 0, sibilance: 0, glitter: 0 });
 });
+
+test('Påverkar: Mjuk kick ändrar kompression och limiter, inte EQ', async () => {
+  const { presetEffects, BUILTIN_PRESETS, neutral, MACROS } = await import('../../src/chain.js');
+  const fx = presetEffects(BUILTIN_PRESETS.find((p) => p.id === 'mjuk-kick').params);
+  assert.ok(fx.includes('Ingång +3 dB'));
+  assert.ok(fx.includes('Kick 4:1 (snabb)'));
+  assert.ok(fx.some((t) => t.startsWith('Limiter 12:1')));
+  assert.ok(!fx.some((t) => /EQ/.test(t)), 'ingen EQ');
+  const radio = presetEffects(BUILTIN_PRESETS.find((p) => p.id === 'radio-ljus').params);
+  assert.ok(radio.some((t) => t === 'Post-EQ 3 k–8 k +1, 8 k+ +3'), radio.join(' | '));
+  assert.deepEqual(presetEffects(neutral()), ['Ingen bearbetning (bara skyddslimiter)']);
+  assert.ok(MACROS.every((m) => m.affects && m.group));
+});

@@ -5,7 +5,7 @@ import { LiveDsp, isNative } from '../livedsp.js';
 import { ui, app } from '../state.js';
 import { load, save } from '../store.js';
 import {
-  BUILTIN_PRESETS, EQ_CUTOFFS, MACROS, MBC_CUTOFFS, MBC_NAMES, RANGES, activeMacros, allEnabled, applyEnables,
+  BUILTIN_PRESETS, EQ_CUTOFFS, MACROS, MACRO_GROUPS, MBC_CUTOFFS, presetEffects, MBC_NAMES, RANGES, activeMacros, allEnabled, applyEnables,
   applyMacros, bandLabel, deletePreset, exportPresets, importPresets, neutral, noMacros, renamePreset, sanitize,
   savePreset, toNative,
 } from '../chain.js';
@@ -68,18 +68,22 @@ export async function initLive() {
 
 // ---- Delar ----
 
+const PRESET_ICONS = { 'mjuk-kick': '🥁', 'radio-ljus': '📻', 'silkeslen-rost': '🎤', 'varm-lim': '🧡', transparent: '◻️', 'suno-fix': '🛠️',
+  'bas-varm': '🔊', 'tat-pop': '✨', 'hiphop-punch': '👊', 'edm-hogt': '⚡', akustisk: '🎸', ballad: '🎙️', rock: '🤘', lofi: '📼', natt: '🌙', horlurar: '🎧', test: '🧪' };
+
+/** Original | Mastrad – stora växeln högst upp (design A). */
 export function onButton() {
   const s = ui.status || {};
   const agc = s.agc?.on;
-  const label = s.bypass ? 'BYPASS · HELT ORIGINAL' : s.on ? 'MASTRAT' : agc ? 'ORIGINAL · NIVÅMATCHAT' : 'ORIGINAL';
-  return `<button class="big ${s.on && !s.bypass ? 'on' : ''} ${s.bypass ? 'bypassed' : ''}" id="onoff" aria-pressed="${!!s.on}">
-      <span>${label}</span><strong>${s.on ? 'PÅ' : 'AV'}</strong></button>
-    <p class="status" data-testid="motor">${s.running
+  const mode = s.bypass ? 'BYPASS · HELT ORIGINAL' : s.on ? 'MASTRAT' : agc ? 'ORIGINAL · NIVÅMATCHAT' : 'ORIGINAL';
+  return `<button class="abswitch ${s.on ? 'on' : ''} ${s.bypass ? 'bypassed' : ''}" id="onoff" aria-pressed="${!!s.on}" aria-label="Mastrad på/av">
+      <span class="o">Original</span><span class="m">Mastrad</span></button>
+    <p class="status"><b data-testid="mode">${mode}</b> · <span data-testid="motor">${s.running
       ? (s.globalActive ? 'Bearbetar allt ljud' : `Bearbetar ${s.sessions.filter((x) => x.attached).length} spelande appar`)
-      : 'Motorn startar när du slår PÅ'}${s.output?.name ? ` · ${esc(s.output.name)}` : ''}${infoBtn('onoff')}</p>
-    <label class="switch center-switch"><input type="checkbox" id="bypass" ${s.bypass ? 'checked' : ''}> Bypass – helt original</label>${infoBtn('bypass')}`;
+      : 'Motorn startar när du väljer Mastrad'}</span>${s.output?.name ? ` · ${esc(s.output.name)}` : ''}${infoBtn('onoff')}</p>`;
 }
 
+/** Smarta funktioner som chips (design A) + val av hörlurar och profil för enheten. */
 export function agcRow() {
   const s = ui.status || {};
   const a = s.agc || {};
@@ -87,15 +91,19 @@ export function agcRow() {
   const hp = headphones().find((h) => h.id === ui.corr?.id);
   const out = s.output || {};
   const prof = out.key && ui.profiles[out.key];
-  return `<h2 class="smart-h">Smart ${infoBtn('constant', 'Om smarta funktioner')}</h2>
-    <div class="row agc"><label class="switch"><input type="checkbox" id="agc" ${a.on ? 'checked' : ''}> Jämn volym</label>${infoBtn('agc')}
-      <span class="grow"></span>${a.on ? `<span class="dim small" data-testid="agcread">nu ${fmtDb(a.gain)} dB${a.probing ? ' · mäter…' : ''}</span>` : ''}</div>
+  const pill = (id, on, text, aria, extra = '') => `<label class="pill ${on ? 'on' : ''}"><input type="checkbox" id="${id}" ${on ? 'checked' : ''} aria-label="${esc(aria)}">${on ? '✓ ' : ''}${esc(text)}${extra}</label>`;
+  return `<div class="pills">
+      ${pill('agc', a.on, 'Jämn volym', 'Jämn volym', a.on ? `<small data-testid="agcread"> ${fmtDb(a.gain)} dB${a.probing ? ' · mäter' : ''}</small>` : '')}
+      ${pill('constant', ui.constant, 'Konstant nivå', 'Konstant utnivå', ui.constant ? `<small data-testid="compread"> ${fmtDb(comp)} dB</small>` : '')}
+      ${pill('corr', s.correction?.on, 'Hörlurar', 'Hörlurskorrigering')}
+      ${pill('volcomp', s.volComp !== false, 'Volymoberoende', 'Volymoberoende kompression')}
+      ${pill('bypass', s.bypass, 'Bypass', 'Bypass – helt original')}
+    </div>
+    <div class="row smallrow">
+      <button class="btn small ghost pick" id="corr-pick">🎧 ${esc(hp?.name || 'Välj hörlurar')} ›</button>
+      <span class="grow"></span>${infoBtn('smart', 'Om smarta funktioner')}
+    </div>
     ${ui.agcMsg ? `<p class="hint small" id="agcmsg">${esc(ui.agcMsg)}</p>` : ''}
-    <div class="row"><label class="switch"><input type="checkbox" id="constant" ${ui.constant ? 'checked' : ''}> Konstant utnivå</label>${infoBtn('constant')}
-      <span class="grow"></span>${ui.constant ? `<span class="dim small" data-testid="compread">${fmtDb(comp)} dB</span>` : ''}</div>
-    <div class="row"><label class="switch"><input type="checkbox" id="volcomp" ${s.volComp !== false ? 'checked' : ''}> Volymoberoende kompression</label>${infoBtn('volComp')}</div>
-    <div class="row"><label class="switch"><input type="checkbox" id="corr" ${s.correction?.on ? 'checked' : ''}> Hörlurskorrigering</label>${infoBtn('correction')}</div>
-    <button class="btn small ghost pick" id="corr-pick">🎧 ${esc(hp?.name || 'Välj hörlurar')} ›</button>
     ${ui.corrMsg ? `<p class="hint small" id="corrmsg">${esc(ui.corrMsg)}</p>` : ''}
     <div class="row profile"><span class="small">Profil för <b>${esc(out.name || 'utgången')}</b>${infoBtn('deviceProfile')}</span><span class="grow"></span>
       ${prof ? `<span class="ok small" data-testid="profile">✓ ${esc(prof.label)}</span><button class="btn small ghost" id="prof-del" aria-label="Ta bort profilen">✕</button>`
@@ -106,15 +114,19 @@ export function agcRow() {
 function presetCard() {
   const opt = (p) => `<option value="${esc(p.id)}" ${p.id === ui.presetId ? 'selected' : ''}>${esc(p.name)}</option>`;
   const p = currentPreset();
-  return `<section class="card">
-    <div class="row"><h2>Preset ${infoBtn('presets')}</h2><span id="dirty" class="dim small" ${isDirty() ? '' : 'hidden'}>ändrad</span><span class="grow"></span>
+  const card = (x) => `<button class="pc ${x.id === ui.presetId ? 'sel' : ''}" data-preset="${esc(x.id)}">
+      <span class="ico">${PRESET_ICONS[x.id] || '⭐'}</span><b>${esc(x.name)}</b><small>${esc(x.desc || 'Din egen preset')}</small></button>`;
+  return `<section class="presets-wrap">
+    <div class="row"><h2 class="sec-h">Preset ${infoBtn('presets')}</h2><span id="dirty" class="dim small" ${isDirty() ? '' : 'hidden'}>ändrad</span><span class="grow"></span>
       <button class="btn small" id="p-menu" aria-label="Hantera presets">⋯ Hantera</button></div>
+    <div class="pcards" id="pcards">${[...ui.userPresets, ...BUILTIN_PRESETS].map(card).join('')}</div>
     <select id="preset" aria-label="Preset">
       <optgroup label="Inbyggda">${BUILTIN_PRESETS.map(opt).join('')}</optgroup>
       ${ui.userPresets.length ? `<optgroup label="Mina">${ui.userPresets.map(opt).join('')}</optgroup>` : ''}
       ${!p ? '<option value="" selected>(egen inställning)</option>' : ''}
     </select>
     <p class="hint small" id="pdesc">${esc(p?.desc || (p ? 'Din egen preset.' : 'Ändrad från en preset eller platt.'))}</p>
+    <p class="affects" data-testid="affects"><b>Påverkar:</b> ${esc(presetEffects(p?.params ?? ui.base).join(' · '))}</p>
     ${ui.msg ? `<p class="hint" id="msg">${esc(ui.msg)}</p>` : ''}
   </section>`;
 }
@@ -143,13 +155,22 @@ export function vizPart(kind = 'all') {
 }
 
 function simpleCard() {
-  return `<section class="card" id="simple">
-    ${MACROS.map((m) => slider({ id: `m-${m.key}`, label: m.label, value: ui.macros[m.key] ?? 0, range: [-100, 100, 1, ''], info: m.key, resetTo: 0, kind: 'macro', key: m.key, enable: { key: `m_${m.key}`, on: en(`m_${m.key}`) } })).join('')}
-    <div class="sep"></div>
-    ${levelBlock()}
-    <details class="sec" data-sec="viz-simple"><summary>Visa kurvor${infoBtn('eqCurve')}</summary><div class="vizbox" data-vizbox="all">${vizPart('all')}</div></details>
-    <div class="btnrow"><button class="btn small" id="reset-all">Återställ alla</button></div>
-  </section>`;
+  const macro = (m) => `${slider({ id: `m-${m.key}`, label: m.label, value: ui.macros[m.key] ?? 0, range: [-100, 100, 1, ''], info: m.key, resetTo: 0, kind: 'macro', key: m.key, enable: { key: `m_${m.key}`, on: en(`m_${m.key}`) } })}
+    <p class="affects small">Påverkar: ${esc(m.affects)}</p>`;
+  const group = (g) => {
+    const ms = MACROS.filter((m) => m.group === g.id);
+    const allOn = ms.every((m) => en(`m_${m.key}`));
+    return `<section class="card grp" data-group="${g.id}">
+      <h3>${esc(g.name.toUpperCase())}<span class="grow"></span>${toggle(`grp_${g.id}`, allOn, g.name)}</h3>
+      ${ms.map(macro).join('')}
+      ${g.id === 'dynamik' ? levelBlock() : ''}
+    </section>`;
+  };
+  return `<div id="simple">
+    ${MACRO_GROUPS.map(group).join('')}
+    <section class="card"><details class="sec" data-sec="viz-simple"><summary>Visa kurvor${infoBtn('eqCurve')}</summary><div class="vizbox" data-vizbox="all">${vizPart('all')}</div></details>
+    <div class="btnrow"><button class="btn small" id="reset-all">Återställ alla</button></div></section>
+  </div>`;
 }
 
 const section = (id, title, info, body, { open = false, enableKey = null } = {}) =>
@@ -185,8 +206,8 @@ function advancedCard() {
 
 export function liveView() {
   return `
-    <section class="card center" id="statusArea">${onButton()}</section>
-    <section class="card" id="agcArea">${agcRow()}</section>
+    <section class="hero" id="statusArea">${onButton()}</section>
+    <section class="card smart" id="agcArea">${agcRow()}</section>
     ${presetCard()}
     <div class="seg" role="tablist">
       <button data-mode="simple" class="${ui.mode === 'simple' ? 'sel' : ''}">Enkelt</button>
@@ -357,7 +378,16 @@ export function bindLive(root) {
     if (kind === 'path') setPath(ui.base, key, v);
     if (kind === 'macro') ui.macros[key] = v;
     changed();
-  }, (key, on) => { ui.enabled[key] = on; changed(); });
+  }, (key, on) => {
+    if (key.startsWith('grp_')) { // gruppknappen slår av/på alla reglage i gruppen
+      MACROS.filter((m) => m.group === key.slice(4)).forEach((m) => { ui.enabled[`m_${m.key}`] = on; });
+      changed();
+      app.render();
+      return;
+    }
+    ui.enabled[key] = on;
+    changed();
+  });
   root.querySelectorAll('[data-mode]').forEach((b) => {
     b.onclick = () => {
       if (b.dataset.mode === ui.mode) return;
@@ -368,6 +398,8 @@ export function bindLive(root) {
     };
   });
   root.querySelector('#preset').onchange = (e) => selectPreset(e.target.value);
+  root.querySelectorAll('[data-preset]').forEach((b) => { b.onclick = () => selectPreset(b.dataset.preset); });
+  root.querySelector('.pc.sel')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   root.querySelector('#p-menu').onclick = presetMenu;
   root.querySelector('#reset-all').onclick = () => {
     if (ui.mode === 'simple') { ui.macros = noMacros(); ui.base.outputGain = presetBase().outputGain; }
@@ -405,6 +437,7 @@ export function bindStatus(root) {
 }
 
 export function bindAgc(root) {
+  bindStatus(root);
   const a = root.querySelector('#agc');
   if (!a) return;
   a.onchange = async () => {

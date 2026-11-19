@@ -29,9 +29,9 @@ test('bypass = helt original', async ({ page }) => {
   await page.goto('/?sim=1');
   await page.locator('#onoff').click();
   await page.getByLabel('Bypass – helt original').check();
-  await expect(page.locator('#onoff')).toContainText('BYPASS');
+  await expect(page.getByTestId('mode')).toContainText('BYPASS');
   await page.getByLabel('Bypass – helt original').uncheck();
-  await expect(page.locator('#onoff')).toContainText('MASTRAT');
+  await expect(page.getByTestId('mode')).toHaveText('MASTRAT');
 });
 
 test('på/av per del: bara kicken mjukas upp, EQ och resten av', async ({ page }) => {
@@ -112,4 +112,20 @@ test('profil per enhet: sparas och används när enheten ansluts', async ({ page
   await page.evaluate((k) => window.__sim.simOutput(k, 'Soundcore Liberty 4 Pro'), key);
   await expect(page.getByLabel('Preset', { exact: true }).locator('option:checked')).toHaveText('Bas varm');
   await expect(page.locator('#profmsg')).toContainText('Soundcore Liberty 4 Pro');
+});
+
+test('design A: presetkort med "Påverkar", grupper med gruppknapp', async ({ page }) => {
+  await page.goto('/?sim=1');
+  await expect(page.locator('.pc.sel')).toContainText('Mjuk kick');
+  await expect(page.getByTestId('affects')).toContainText('Kick 4:1 (snabb)');
+  await expect(page.getByTestId('affects')).not.toContainText('EQ');
+  await page.locator('[data-preset="radio-ljus"]').click();
+  await expect(page.locator('.pc.sel')).toContainText('Radio ljus');
+  await expect(page.getByTestId('affects')).toContainText('Post-EQ');
+  for (const g of ['ton', 'vokal', 'bas', 'dynamik']) await expect(page.locator(`[data-group="${g}"]`)).toBeVisible();
+  await expect(page.locator('[data-group="ton"] .affects').first()).toContainText('Post-EQ');
+  // Gruppknappen slår av båda reglagen i Vokal
+  await page.getByLabel('Vokal på/av').uncheck();
+  await expect(page.getByLabel('Röst silkeslen på/av')).not.toBeChecked();
+  await expect(page.getByLabel('S-ljud på/av')).not.toBeChecked();
 });

@@ -21,7 +21,7 @@ const MBC_BANDS = [
 
 export const INFO = {
   // ---- Live: övergripande ----
-  onoff: { title: 'PÅ / AV', text: 'PÅ = mastrat ljud. AV = originalet. Med Jämn volym påslagen låter PÅ och AV lika högt, så att du hör skillnaden i klang – inte i volym.' },
+  onoff: { title: 'Original / Mastrad', text: 'Mastrad = bearbetat ljud (PÅ). Original = AV. Med Jämn volym påslagen låter PÅ och AV lika högt, så att du hör skillnaden i klang – inte i volym.' },
   agc: { title: 'Jämn volym', text: 'Håller ljudnivån jämn mellan appar och låtar: byt från YouTube till Suno utan att röra volymen. Masterlab mäter hur högt det spelas och höjer eller sänker gradvis (snabbare nedåt än uppåt). PÅ och AV får varsin nivå, så A/B-jämförelsen blir rättvis av sig själv. Första gången gör appen en kort mätning (ljudet sänks 4 dB i en sekund). Kräver mikrofonbehörighet – inget spelas in.' },
   agcTarget: { title: 'Nivå för jämn volym', text: 'Hur högt allt ska ligga. −14 passar de flesta. Lägre värde = tystare och mer marginal.' },
   presets: { title: 'Presets', text: 'Färdiga startpunkter att justera med örat – inte facit. Välj en, finjustera, och spara som din egen med "Spara som". Dina egna kan döpas om, tas bort och exporteras som fil (t.ex. till en annan telefon).' },
@@ -37,6 +37,7 @@ export const INFO = {
   glitter: { title: 'Mjuk topp', text: 'Tar bort "glitter", fräs och metalliskt skimmer i toppen över 8 kHz – vanligt i AI-genererad musik som Suno. Åt vänster = mer glans.' },
   enable: { title: 'På/av', text: 'Varje del kan slås av. Avslagen = påverkar inte ljudet alls (neutral), men inställningen sparas tills du slår på igen. Bra för att höra vad en enskild del gör.' },
   bypass: { title: 'Bypass', text: 'Helt originalljud – appen gör ingenting, inte ens jämn volym eller hörlurskorrigering. AV däremot visar originalet men nivåmatchat (och med hörlurskorrigering om den är på), så att jämförelsen blir rättvis.' },
+  smart: { title: 'Smarta funktioner', text: 'Tryck på ett chip för att slå på/av. Jämn volym: samma nivå mellan appar och mellan Original/Mastrad. Konstant nivå: varje ändring kompenseras direkt så att det låter lika högt (siffran = kompensationen). Hörlurar: gör dina hörlurar neutrala (välj modell under chipen). Volymoberoende: kompressionen låter likadant på alla volymer. Bypass: helt originalljud – appen gör ingenting.' },
   constant: { title: 'Konstant utnivå', text: 'Varje ändring (EQ, kompression, ingång, limiter) kompenseras direkt så att PÅ ligger på samma nivå som originalet. Då hör du om ändringen gör låten bättre – inte bara högre. Appen räknar ut det från inställningarna; med Jämn volym på finjusteras det också med mätning.' },
   volComp: { title: 'Volymoberoende kompression', text: 'Android lägger effekten efter volymknappen, så utan detta komprimerar appen mindre ju lägre du lyssnar. Med detta på flyttas trösklarna med volymen, så att det låter likadant på alla volymer.' },
   correction: { title: 'Hörlurskorrigering', text: 'Rättar till dina hörlurars egen klang så att de låter neutralt (mot Harman-målkurvan) – som AutoEq i Wavelet. Gäller både PÅ och AV, så att du jämför på en neutral grund. Inbyggd: Soundcore Liberty 4 Pro (mätning av DHRME via AutoEq). Ställ Soundcore-appens EQ på platt/av. Du kan importera fler från AutoEq (ParametricEQ.txt).' },

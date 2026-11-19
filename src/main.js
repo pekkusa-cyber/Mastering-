@@ -174,7 +174,7 @@ async function init() {
     if (!ui.busy) renderPart('status');
   });
   await LiveDsp.addListener('spectrum', (x) => { ui.spectrum = x; renderPart('spectrum'); });
-  changed({ now: true }); // motorn får alltid samma inställning som skärmen visar
+  changed({ now: true, user: false }); // motorn får alltid samma inställning som skärmen visar
   const q = new URLSearchParams(location.search);
   if (isSim && q.get('update') === 'apk') ui.update = { kind: 'apk' };
   if (isSim && q.get('view')) ui.view = q.get('view');

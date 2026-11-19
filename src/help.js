@@ -6,14 +6,15 @@ export const HELP = {
     html: `
       <p>Live lägger Androids ljudeffekt <b>DynamicsProcessing</b> på allt ljud telefonen spelar – Suno-appen, Suno i
       Chrome, YouTube – medan du lyssnar.</p>
-      <h3>PÅ / AV</h3>
-      <p>Den stora knappen växlar mellan mastrat (PÅ) och original (AV). Samma knapp finns i notisen, så du kan
+      <h3>Original / Mastrad</h3>
+      <p>Växeln högst upp jämför originalet med det mastrade ljudet. Samma knapp finns i notisen, så du kan
       jämföra utan att byta app.</p>
       <p><b>Bypass</b> = helt originalljud: appen gör ingenting (inte heller jämn volym eller hörlurskorrigering).</p>
       <h3>Bekräftelse</h3>
       <p>När du ändrar något visas en rad längst ner: <b>✓ Ändringen ligger på ljudet</b>, eller en varning om motorn är
       av eller om en annan app (t.ex. Wavelet) har tagit kontrollen – tryck då <b>Ta tillbaka</b>.</p>
-      <h3>Smart</h3>
+      <h3>Smart (chipen under växeln)</h3>
+      <p>Tryck på ett chip för att slå på/av. Under chipen väljer du hörlurar och sparar en profil för enheten.</p>
       <ul>
         <li><b>Jämn volym</b> – samma nivå mellan appar och låtar (YouTube → Suno utan att röra volymen), och mellan PÅ och AV.
         Kräver mikrofonbehörighet (inget spelas in).</li>
@@ -26,10 +27,12 @@ export const HELP = {
         byter appen själv.</li>
       </ul>
       <h3>Presets</h3>
-      <p>17 startpunkter – Mjuk kick, Suno-fix, Radio ljus, Silkeslen röst, Varm lim, Tät pop m.fl. Välj en, justera,
-      och spara som din egen under <b>⋯ Hantera</b> (spara, döp om, ta bort, exportera, importera).</p>
+      <p>17 startpunkter som kort du sveper mellan – Mjuk kick, Suno-fix, Radio ljus, Silkeslen röst, Varm lim, Tät pop m.fl.
+      Raden <b>Påverkar</b> visar exakt vad presetten gör, t.ex. att Mjuk kick bara arbetar med kompression av kickbandet och
+      limitern – inte med EQ. Spara din egen under <b>⋯ Hantera</b> (spara, döp om, ta bort, exportera, importera).</p>
       <h3>Enkelt och Avancerat</h3>
-      <p><b>Enkelt</b>: sex reglage ovanpå presetten (Kick mjukare, Ljusare, Tryck, Röst silkeslen, S-ljud, Mjuk topp) (mitten = presetten som den är). <b>Avancerat</b>: hela kedjan –
+      <p><b>Enkelt</b>: sex reglage i grupperna Ton, Vokal, Bas och Dynamik, ovanpå presetten. Under varje reglage står vad det påverkar,
+      och gruppens knapp slår av/på hela gruppen (mitten = presetten som den är). <b>Avancerat</b>: hela kedjan –
       Ingång → Pre-EQ → Multiband → Post-EQ → Limiter → Utgång.</p>
       <ul>
         <li><b>På/av</b> på varje reglage, sektion och band: slå bara på det du vill ha (t.ex. bara mjukare kick).
