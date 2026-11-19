@@ -216,3 +216,15 @@ test('modulpreset: byter bara EQ, kompressor eller limiter', () => {
   assert.equal(moduleActive(neutral(), 'eq'), false);
   assert.equal(moduleActive(b, 'eq'), true);
 });
+
+import { applyAmounts, noAmounts } from '../../src/chain.js';
+test('mixerns mängd: 100 % = oförändrat, 0 % = ingen EQ/kompression, 200 % = dubbelt', () => {
+  const base = BUILTIN_PRESETS.find((p) => p.id === 'radio-ljus').params;
+  assert.deepEqual(applyAmounts(base, noAmounts()), sanitize(base));
+  const zero = applyAmounts(base, { preEq: 0, comp: 0, postEq: 0, peq: 0 });
+  assert.ok(zero.postEq.every((b) => b.gain === 0) && zero.preEq.every((b) => b.gain === 0));
+  assert.ok(zero.mbc.every((b) => b.ratio === 1));
+  const dbl = applyAmounts({ postEq: [{ gain: 2 }], mbc: [{ ratio: 3 }] }, { postEq: 200, comp: 200 });
+  assert.equal(dbl.postEq[0].gain, 4);
+  assert.equal(dbl.mbc[0].ratio, 5);
+});

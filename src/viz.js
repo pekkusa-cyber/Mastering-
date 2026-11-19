@@ -93,3 +93,38 @@ export function correctionGraphSvg({ freqs, exact, applied, title = 'Hörlurskor
     <p class="hint small">Över linjen = appen höjer där (lurarna är svaga), under = sänker (lurarna är starka). Den streckade grå kurvan är hur lurarna låter utan korrigering jämfört med neutralt.</p>
   </div>`;
 }
+
+/** Frekvens ↔ x i "skärmen" (spektrum + EQ), 0…1. Används också av kurvredigeraren när punkter dras. */
+export const freqToX = (f) => Math.log(f / FMIN) / Math.log(FMAX / FMIN);
+export const xToFreq = (x) => FMIN * (FMAX / FMIN) ** Math.max(0, Math.min(1, x));
+
+/**
+ * "Skärmen" i Mixer och Kurva: live-spektrum (staplar, om analysen går) med EQ-kurvan ovanpå och, i Kurva,
+ * de parametriska EQ-punkterna. Höjden H; EQ-skalan ±range dB.
+ * handles: [{ f, gain, sel, off, label }]
+ */
+export function spectrumEqSvg({ bands = null, edges = [], p, handles = [], H = 120, range = 12, W = 340 }) {
+  const n = 120;
+  const fs = Array.from({ length: n }, (_, i) => FMIN * (FMAX / FMIN) ** (i / (n - 1)));
+  const x = (f) => freqToX(f) * W;
+  const y = (v) => 6 + ((range - Math.max(-range, Math.min(range, v))) / (2 * range)) * (H - 18);
+  let bars = '';
+  if (bands?.length) {
+    const top = Math.max(...bands);
+    bars = bands.map((d, i) => {
+      const h = Math.max(1, Math.min(1, (d - top + 42) / 42) * (H - 14) * 0.8);
+      const x0 = x(edges[i]) + 1, x1 = x(edges[i + 1]) - 1;
+      return `<rect x="${x0.toFixed(1)}" y="${(H - 12 - h).toFixed(1)}" width="${Math.max(1, x1 - x0).toFixed(1)}" height="${h.toFixed(1)}" rx="1.5" fill="${C.main}" fill-opacity=".35"/>`;
+    }).join('');
+  }
+  const preF = smoothCurve(EQ_CUTOFFS, p.preEq.map((b) => b.gain)), postF = smoothCurve(EQ_CUTOFFS, p.postEq.map((b) => b.gain));
+  const main = fs.map((f) => preF(f) + postF(f) + peqDb(p.peq, f));
+  const pts = main.map((v, i) => `${x(fs[i]).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
+  const grid = [range, 0, -range].map((v) => `<line x1="0" x2="${W}" y1="${y(v)}" y2="${y(v)}" stroke="${v === 0 ? C.zero : C.grid}" ${v === 0 ? '' : 'stroke-dasharray="2 4"'}/>`).join('');
+  const ticks = [100, 1000, 10000].map((f) => `<text x="${x(f)}" y="${H - 2}" class="ax" text-anchor="middle">${f >= 1000 ? `${f / 1000}k` : f}</text>`).join('');
+  const hs = handles.map((h, i) => `<g class="hnd${h.sel ? ' sel' : ''}${h.off ? ' off' : ''}" data-h="${i}">
+      <circle cx="${x(h.f).toFixed(1)}" cy="${y(h.gain).toFixed(1)}" r="${h.sel ? 11 : 8}"/>
+      <text x="${x(h.f).toFixed(1)}" y="${(y(h.gain) + 3.5).toFixed(1)}" text-anchor="middle">${i + 1}</text></g>`).join('');
+  return `<svg class="screen-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="Spektrum och EQ">${bars}${grid}${ticks}
+    <polyline fill="none" stroke="#3fd3b0" stroke-width="2.5" points="${pts}" vector-effect="non-scaling-stroke"/>${hs}</svg>`;
+}

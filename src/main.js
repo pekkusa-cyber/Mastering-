@@ -5,7 +5,7 @@ import { ui, app } from './state.js';
 import { esc, showInfo, sheet } from './ui.js';
 import * as updater from './updater.js';
 import { loadRefs } from './refs.js';
-import { liveView, bindLive, initLive, changed, onButton, bindStatus, renderViz, renderSettings, openSettings, syncProfileFromStatus, undo } from './views/live.js';
+import { liveView, bindLive, initLive, changed, onButton, bindStatus, renderViz, renderSettings, openSettings, syncProfileFromStatus, undo, renderScreen, wantsSpectrum, onSpectrumWanted } from './views/live.js';
 import { analysView, bindAnalys, renderSpectrum, setMonitor } from './views/analys.js';
 import { filView, bindFil, renderFilePart, stopFilePlayback } from './views/fil.js';
 import { merView, bindMer, refreshPerms, debugCard, bindDebug } from './views/mer.js';
@@ -105,7 +105,7 @@ function bind() {
       if (b.dataset.view === ui.view) return;
       ui.view = b.dataset.view; ui.msg = '';
       if (ui.view !== 'fil') stopFilePlayback();
-      setMonitor(ui.view === 'analys' && !document.hidden);
+      setMonitor((ui.view === 'analys' || wantsSpectrum()) && !document.hidden);
       if (ui.view === 'mer') refreshPerms().then(render);
       window.scrollTo(0, 0);
       render();
@@ -146,6 +146,7 @@ function renderPart(part) {
   if (part === 'confirm' || part === 'status') renderConfirm();
   if (part === 'viz' && ui.view === 'live') renderViz(root);
   if (part === 'spectrum' && ui.view === 'analys') renderSpectrum(root);
+  if (part === 'spectrum' && ui.view === 'live') renderScreen(root);
   if (ui.view === 'fil' && part.startsWith('file')) renderFilePart(root, part);
 }
 
@@ -188,14 +189,15 @@ async function init() {
   updater.markBooted();
   checkForUpdate();
   document.addEventListener('visibilitychange', async () => {
-    setMonitor(ui.view === 'analys' && !document.hidden);
+    setMonitor((ui.view === 'analys' || wantsSpectrum()) && !document.hidden);
     if (document.hidden) return;
     ui.status = await LiveDsp.getStatus();
     await refreshPerms();
     if (ui.view === 'mer') render(); else renderPart('status');
     checkForUpdate();
   });
-  if (ui.view === 'analys') setMonitor(true);
+  onSpectrumWanted((on) => setMonitor(on && !document.hidden));
+  if (ui.view === 'analys' || wantsSpectrum()) setMonitor(true);
 }
 
 init();

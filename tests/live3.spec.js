@@ -21,9 +21,8 @@ test('solo: S på ett multiband hör bara det bandet, Avsluta solo tar tillbaka 
   await expect.poll(async () => JSON.stringify((await params(page)).postEq)).toBe(JSON.stringify(before.postEq));
 });
 
-test('solo på ett enkelt reglage i Enkelt läge', async ({ page }) => {
+test('solo på en fader i Mixern', async ({ page }) => {
   await page.goto('/?sim=1');
-  await page.locator('details.grp[data-group="ton"] summary .gname').click();
   await page.getByRole('button', { name: 'Solo Ljusare' }).click();
   await expect(page.getByTestId('solobar')).toBeVisible();
   await expect.poll(async () => (await params(page)).mbc.every((b) => b.ratio === 1)).toBe(true);
@@ -62,4 +61,24 @@ test('separata presets: EQ från en preset, limitern från en annan', async ({ p
   // Byter man hela presetten nollställs delvalen
   await pick(page, 'Preset', 'Suno-fix');
   await expect(page.locator('#mod-eq b')).toHaveText('Byt ▾');
+});
+
+test('Kurva: dra en EQ-punkt i spektrumet ändrar frekvens och gain', async ({ page }) => {
+  await page.goto('/?sim=1');
+  await page.getByRole('button', { name: 'Kurva', exact: true }).click();
+  await page.locator('#screen').evaluate((e) => e.scrollIntoView({ block: 'start' }));
+  const box = await page.locator('.scrbox[data-screen="curve"] svg').boundingBox();
+  // punkt 3 (Mitt, 1 kHz, 0 dB) ligger vid x = log(1000/20)/log(1000) av bredden, mitt i höjd
+  const x = box.x + box.width * (Math.log(50) / Math.log(1000)), y = box.y + box.height * ((6 + 0.5 * 212) / 230);
+  await page.mouse.move(x, y); await page.mouse.down();
+  await page.mouse.move(x + box.width * 0.1, y - box.height * 0.2, { steps: 8 }); await page.mouse.up();
+  await expect.poll(async () => (await params(page)).post31[20]).toBeGreaterThan(2); // ≈2 kHz höjd
+  await expect(page.locator('#p-peq-2-freq')).not.toHaveValue('1000');
+  await expect(page.locator('.chip.sel')).toContainText('Mitt');
+  // ett tryck flyttar inget
+  const before = await page.locator('#p-peq-2-gain').inputValue();
+  await page.mouse.click(box.x + box.width * 0.5, box.y + 20);
+  await expect(page.locator('#p-peq-2-gain')).toHaveValue(before);
+  await page.getByRole('button', { name: 'Platta ut kurvan' }).click();
+  await expect.poll(async () => (await params(page)).post31.every((g) => g === 0)).toBe(true);
 });

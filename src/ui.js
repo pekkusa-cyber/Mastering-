@@ -40,6 +40,26 @@ export function slider({ id, label, value, range, info, resetTo = null, kind, ke
   </div>`;
 }
 
+/**
+ * Lodrät fader för mixern: värde överst, fader (dra uppåt/nedåt – ett tryck flyttar den inte), M (mute = av) och
+ * S (solo) under, namn längst ner. Bygger på samma <input type=range> som slider(), så ↺, Ångra och tester fungerar lika.
+ */
+export function vfader({ id, label, short = label, value, range, kind, key, resetTo = 0, enable = null, soloKey = null, soloOn = false, info = null }) {
+  const [min, max, step] = range;
+  const off = enable && !enable.on;
+  const p = pct(value, min, max);
+  const z = pct(Math.min(max, Math.max(min, resetTo)), min, max);
+  return `<div class="sl vf${off ? ' off' : ''}" data-sl="${esc(id)}" style="--p:${p}%;--z:${z}%">
+    <output for="${esc(id)}">${fmt(value, step)}</output>
+    <div class="vrow" aria-hidden="false"><div class="vtrack"><i class="vfill"></i><i class="vthumb"></i></div>
+      <input type="range" id="${esc(id)}" min="${min}" max="${max}" step="${step}" value="${value}" data-kind="${esc(kind)}" data-key="${esc(key)}" data-unit="" aria-label="${esc(label)}" style="--p:${p}%"></div>
+    <div class="vbtns">${enable ? `<label class="mbtn" title="Mute"><input type="checkbox" data-enable="${esc(enable.key)}" ${enable.on ? 'checked' : ''} aria-label="Mute ${esc(label)}"><span>M</span></label>` : '<span class="mbtn ghost"></span>'}
+      ${soloKey ? soloBtn(soloKey, soloOn, label) : '<span class="solo ghost"></span>'}</div>
+    <button type="button" class="vname" data-dblreset="${esc(id)}" data-to="${resetTo}" title="Dubbeltryck = nollställ">${esc(short)}</button>
+    ${info ? infoBtn(info, `Om ${label}`) : ''}
+  </div>`;
+}
+
 /** S-knappen: hör bara den här delen (allt annat neutralt). Kopplas i vyn via [data-solo]. */
 export const soloBtn = (key, on, label) =>
   `<button type="button" class="solo${on ? ' on' : ''}" data-solo="${esc(key)}" aria-pressed="${!!on}" aria-label="Solo ${esc(label)}" title="Solo – hör bara detta">S</button>`;
@@ -52,6 +72,7 @@ export const toggle = (key, on, label) =>
 export function bindSliders(root, onChange, onEnable) {
   const update = (el, v) => {
     el.style.setProperty('--p', `${pct(v, Number(el.min), Number(el.max))}%`);
+    el.closest('.vf')?.style.setProperty('--p', `${pct(v, Number(el.min), Number(el.max))}%`);
     const out = el.closest('.sl').querySelector('output');
     const unit = el.dataset.unit;
     out.textContent = `${fmt(v, Number(el.step))}${unit ? ` ${unit}` : ''}`;
@@ -64,9 +85,11 @@ export function bindSliders(root, onChange, onEnable) {
   });
   // Skydd mot misstag: reglaget ändras bara av ett tydligt vågrätt drag (inte av tryck eller scroll), och dragen
   // är relativa – värdet hoppar aldrig dit fingret landar.
-  root.querySelectorAll('.slrow').forEach((row) => {
+  // Lodräta fadrar (.vrow) fungerar likadant fast i höjdled: ett vågrätt svep där är ett sidbyte, inte en ändring.
+  root.querySelectorAll('.slrow, .vrow').forEach((row) => {
     const el = row.querySelector('input[type=range][data-kind]');
     if (!el || row.dataset.guard) return;
+    const vert = row.classList.contains('vrow');
     row.dataset.guard = '1';
     let g = null;
     row.addEventListener('pointerdown', (e) => {
@@ -75,7 +98,8 @@ export function bindSliders(root, onChange, onEnable) {
     });
     row.addEventListener('pointermove', (e) => {
       if (!g || e.pointerId !== g.id) return;
-      const dx = e.clientX - g.x, dy = e.clientY - g.y;
+      let dx = e.clientX - g.x, dy = e.clientY - g.y;
+      if (vert) [dx, dy] = [g.y - e.clientY, e.clientX - g.x]; // uppåt = mer
       if (!g.active) {
         if (Math.abs(dy) > 8 && Math.abs(dy) > Math.abs(dx)) { g = null; return; } // scroll – rör inte reglaget
         if (Math.abs(dx) < 10 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
@@ -85,7 +109,7 @@ export function bindSliders(root, onChange, onEnable) {
       }
       e.preventDefault();
       const min = Number(el.min), max = Number(el.max), st = Number(el.step);
-      const w = el.getBoundingClientRect().width || 1;
+      const w = (vert ? row.getBoundingClientRect().height : el.getBoundingClientRect().width) || 1;
       const v = Math.min(max, Math.max(min, Math.round((g.v + (dx / w) * (max - min)) / st) * st));
       if (v !== Number(el.value)) set(el, v);
     });
@@ -95,6 +119,9 @@ export function bindSliders(root, onChange, onEnable) {
   });
   root.querySelectorAll('[data-reset]').forEach((b) => {
     b.onclick = () => set(root.querySelector(`#${CSS.escape(b.dataset.reset)}`), Number(b.dataset.to));
+  });
+  root.querySelectorAll('[data-dblreset]').forEach((b) => {
+    b.ondblclick = () => set(root.querySelector(`#${CSS.escape(b.dataset.dblreset)}`), Number(b.dataset.to));
   });
   root.querySelectorAll('[data-step]').forEach((b) => {
     b.onclick = () => {

@@ -37,19 +37,17 @@ export const HELP = {
       att bygga från), Mjuk kick, Suno-fix, Radio ljus, Silkeslen röst, R&amp;B silke, Trap 808, Schlager, Bilstereo, Telefonhögtalare m.fl.
       Raden <b>Påverkar</b> visar exakt vad presetten gör, t.ex. att Mjuk kick bara arbetar med kompression av kickbandet och
       limitern – inte med EQ. Spara din egen under <b>⋯ Hantera</b> (spara, döp om, ta bort, exportera, importera).</p>
-      <h3>Enkelt och Avancerat</h3>
-      <h3>Byt bara en del</h3>
-      <p>Under presetten finns <b>EQ</b>, <b>Kompressor</b> och <b>Limiter</b>: ta den delen från en annan preset (t.ex. EQ från
-      Radio ljus men limitern från Mjuk kick). Resten ligger kvar.</p>
-      <h3>Solo och mute</h3>
-      <p><b>S</b> vid ett reglage, en sektion eller ett band = solo: bara den delen hörs, resten av kedjan blir neutral. En gul rad
-      visar vad som är solat – <b>Avsluta solo</b> går tillbaka. På/av-knappen är mute: just den delen stängs av.</p>
-      <h3>Skydd mot misstag och Ångra</h3>
-      <p>Reglagen ändras bara när du drar <b>i sidled</b> – sveper du upp eller ner scrollar sidan och inget ändras. Ett tryck flyttar
-      inte reglaget. <b>↶ Ångra</b> på raden längst ner tar tillbaka den senaste ändringen (upp till 20 steg).</p>
-      <p><b>Enkelt</b>: sex reglage i grupperna Ton, Vokal, Bas och Dynamik, ovanpå presetten. Tryck på en grupp för att öppna den
-      (en i taget, så att sidan håller sig kort). Under varje reglage står vad det påverkar, och gruppens knapp slår av/på hela gruppen (mitten = presetten som den är). <b>Avancerat</b>: hela kedjan –
-      Ingång → Pre-EQ → Multiband → Post-EQ → <b>Parametrisk EQ</b> (5 band med frekvens, gain och <b>Q</b> = bredd) → Limiter → Utgång.</p>
+      <h3>Mixer, Kurva och Avancerat</h3>
+      <p>Överst ligger <b>skärmen</b> med spektrum och klangkurva – den följer med när du scrollar så att du alltid ser den.</p>
+      <ul>
+        <li><b>Mixer</b> – lodräta fadrar med <b>M</b> (mute) och <b>S</b> (solo) under. Sidan <b>Reglage</b>: Kick, Ljus, Tryck, Röst,
+        S-ljud och Topp ovanpå presetten. Sidan <b>Kedjan</b>: In, Pre-EQ, Kompressor, Post-EQ, PEQ, Limiter och Ut.
+        Dra uppåt/nedåt, dubbeltryck på namnet = nollställ, svep i sidled = byt sida.</li>
+        <li><b>Kurva</b> – dra de fem EQ-punkterna direkt i spektrumet (frekvens och gain), två fingrar = Q. Reglagen under
+        finjusterar valt band.</li>
+        <li><b>Avancerat</b> – hela kedjan med alla parametrar:
+      Ingång → Pre-EQ → Multiband → Post-EQ → <b>Parametrisk EQ</b> (5 band med frekvens, gain och <b>Q</b> = bredd) → Limiter → Utgång.</li>
+      </ul>
       <ul>
         <li><b>På/av</b> på varje reglage, sektion och band: slå bara på det du vill ha (t.ex. bara mjukare kick).
         Av = neutralt, inställningen ligger kvar. <b>Slå på allt</b> tar tillbaka allt.</li>

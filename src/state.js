@@ -3,7 +3,10 @@ import { BUILTIN_PRESETS, noMacros } from './chain.js';
 
 export const ui = {
   view: 'live',          // 'live' | 'analys' | 'fil' | 'mer'
-  mode: 'simple',        // Live: 'simple' | 'advanced'
+  mode: 'mixer',         // Live: 'mixer' | 'curve' | 'advanced'
+  mixPage: 'macros',     // Mixer: 'macros' (enkla reglage) | 'chain' (kedjans delar)
+  amounts: { preEq: 100, comp: 100, postEq: 100, peq: 100 }, // Mixerns mängd per del (%)
+  curveSel: 2,           // Kurva: valt PEQ-band
   presetId: 'mjuk-kick',
   base: structuredClone(BUILTIN_PRESETS.find((p) => p.id === 'mjuk-kick').params),
   macros: noMacros(),

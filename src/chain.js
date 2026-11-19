@@ -479,6 +479,22 @@ export function soloParams(base, macros, enabled, solo) {
   return p;
 }
 
+/**
+ * Mixerns "mängd" per del (0–200 %, 100 = presetten som den är): skalar EQ-förstärkningarna och kompressionen
+ * (ratio). Läggs ovanpå grunden innan enkla reglage och på/av.
+ */
+export const AMOUNT_KEYS = ['preEq', 'comp', 'postEq', 'peq'];
+export const noAmounts = () => Object.fromEntries(AMOUNT_KEYS.map((k) => [k, 100]));
+export function applyAmounts(base, amounts = {}) {
+  const p = structuredClone(sanitize(base));
+  const a = (k) => Math.max(0, Math.min(200, Number(amounts?.[k] ?? 100))) / 100;
+  p.preEq.forEach((b) => { b.gain *= a('preEq'); });
+  p.postEq.forEach((b) => { b.gain *= a('postEq'); });
+  p.peq.forEach((b) => { b.gain *= a('peq'); });
+  p.mbc.forEach((b) => { if (b.ratio > 1) b.ratio = 1 + (b.ratio - 1) * a('comp'); });
+  return sanitize(p);
+}
+
 /** Delar som kan bytas var för sig med en modulpreset (EQ från en preset, limiter från en annan …). */
 export const MODULES = {
   eq: { name: 'EQ', keys: ['preEq', 'postEq', 'peq'] },

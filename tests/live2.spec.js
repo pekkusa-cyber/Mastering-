@@ -63,20 +63,16 @@ test('på/av per del: bara kicken mjukas upp, EQ och resten av', async ({ page }
   await expect.poll(async () => (await sent(page)).postEq[6].gain).toBe(-2);
 });
 
-test('på/av och −/+ på enkla reglage', async ({ page }) => {
+test('M (mute) på en fader: delen stängs av men inställningen ligger kvar', async ({ page }) => {
   await page.goto('/?sim=1');
-  await openGroup(page, 'ton');
-  await page.getByRole('button', { name: 'Öka Ljusare' }).click();
-  await expect(page.locator('#m-bright')).toHaveValue('5');
-  await page.getByRole('button', { name: 'Minska Ljusare' }).click();
-  await page.getByRole('button', { name: 'Minska Ljusare' }).click();
-  await expect(page.locator('#m-bright')).toHaveValue('-5');
   await setRange(page.locator('#m-bright'), 100);
   await expect.poll(async () => (await sent(page)).postEq[7].gain).toBe(4);
-  await page.getByLabel('Ljusare på/av').uncheck();
+  await page.getByLabel('Mute Ljusare').uncheck();
   await expect.poll(async () => (await sent(page)).postEq[7].gain).toBe(0);
   await expect(page.locator('[data-sl="m-bright"]')).toHaveClass(/off/);
   await expect(page.locator('#m-bright')).toHaveValue('100'); // inställningen ligger kvar
+  await page.getByLabel('Mute Ljusare').check();
+  await expect.poll(async () => (await sent(page)).postEq[7].gain).toBe(4);
 });
 
 test('konstant utnivå: mer ingång → lägre utgång, och kurvorna följer med', async ({ page }) => {
@@ -88,12 +84,10 @@ test('konstant utnivå: mer ingång → lägre utgång, och kurvorna följer med
   await openSettings(page);
   await expect(page.getByTestId('compread')).toContainText('dB');
   await page.locator('dialog.settingssheet').getByRole('button', { name: 'Stäng' }).click();
-  await page.locator('[data-sec="viz-simple"] summary').click();
-  await expect(page.locator('[data-viz=eq] svg')).toBeVisible();
-  await expect(page.locator('[data-viz=comp] .mini')).toHaveCount(5);
-  const curve = await page.locator('[data-viz=eq] polyline').first().getAttribute('points');
+  // skärmen (spektrum + klangkurva) följer med
+  const curve = await page.locator('#screen polyline').first().getAttribute('points');
   await setRange(page.locator('#m-bright'), 100);
-  await expect.poll(() => page.locator('[data-viz=eq] polyline').first().getAttribute('points')).not.toBe(curve);
+  await expect.poll(() => page.locator('#screen polyline').first().getAttribute('points')).not.toBe(curve);
   await openSettings(page);
   await page.getByLabel('Konstant utnivå').uncheck();
   await expect.poll(async () => (await sent(page)).outputGain).toBe(0);
@@ -142,7 +136,7 @@ test('profil per enhet: sparas och används när enheten ansluts', async ({ page
   await expect(page.locator('#profmsg')).toContainText('Soundcore Liberty 4 Pro');
 });
 
-test('design A: bara vald preset syns, "Påverkar", fällbara grupper med gruppknapp', async ({ page }) => {
+test('design A + mixer: bara vald preset syns, "Påverkar", två sidor med fadrar, Kompressor-M stänger av alla band', async ({ page }) => {
   await page.goto('/?sim=1');
   await expect(picked(page, 'Preset')).toHaveText('Mjuk kick');
   await expect(page.locator('.pc')).toHaveCount(0); // ingen karusell
@@ -151,18 +145,24 @@ test('design A: bara vald preset syns, "Påverkar", fällbara grupper med gruppk
   await pick(page, 'Preset', 'Radio ljus');
   await expect(picked(page, 'Preset')).toHaveText('Radio ljus');
   await expect(page.getByTestId('affects')).toContainText('Post-EQ');
-  for (const g of ['ton', 'vokal', 'bas', 'dynamik']) await expect(page.locator(`[data-group="${g}"] summary`)).toBeVisible();
-  await expect(page.locator('#m-bright')).toBeHidden(); // grupperna är stängda tills man öppnar dem
-  await openGroup(page, 'ton');
-  await expect(page.locator('[data-group="ton"] .affects').first()).toContainText('Post-EQ');
-  // Bara en grupp öppen i taget
-  await openGroup(page, 'vokal');
-  await expect(page.locator('#m-bright')).toBeHidden();
-  // Gruppknappen slår av båda reglagen i Vokal
-  await page.getByLabel('Vokal på/av').uncheck();
-  await expect(page.getByLabel('Röst silkeslen på/av')).not.toBeChecked();
-  await expect(page.getByLabel('S-ljud på/av')).not.toBeChecked();
-  await expect(page.locator('[data-gsum="vokal"]')).toContainText('S-ljud av');
+  await expect(page.locator('#faders .vf')).toHaveCount(6);
+  // svep i sidled byter till Kedjan
+  await page.locator('#faders').evaluate((e) => e.scrollIntoView({ block: 'center' }));
+  const box = await page.locator('#faders').boundingBox();
+  const y = box.y + box.height - 20;
+  await page.mouse.move(box.x + box.width * 0.8, y); await page.mouse.down();
+  await page.mouse.move(box.x + box.width * 0.2, y, { steps: 8 }); await page.mouse.up();
+  await expect(page.locator('#faders .vf')).toHaveCount(7);
+  await expect(page.locator('[data-sl="a-comp"] .vname')).toHaveText('Kompr.');
+  // mängd: 0 % Post-EQ = ingen post-EQ
+  await setRange(page.locator('#a-postEq'), 0);
+  await expect.poll(async () => (await sent(page)).postEq.every((b) => b.gain === 0)).toBe(true);
+  await setRange(page.locator('#a-postEq'), 100);
+  await page.getByLabel('Mute Kompressor mängd').uncheck();
+  await expect.poll(async () => (await sent(page)).mbc.every((b) => b.ratio === 1)).toBe(true);
+  // skärmen är fäst överst och syns även när man scrollat
+  await page.mouse.wheel(0, 600);
+  await expect(page.locator('#screen')).toBeInViewport();
 });
 
 test('Orörd preset och inga telefonmenyer (allt är appens eget)', async ({ page }) => {
@@ -201,22 +201,22 @@ for (const width of [360, 320]) test(`ingen vy är bredare än telefonen vid ${w
   await expect(btn).toBeInViewport({ ratio: 1 });
 });
 
-test('skydd mot misstag: tryck och lodrätt svep ändrar inget, vågrätt drag gör det, Ångra tar tillbaka', async ({ page }) => {
+test('skydd mot misstag: tryck och vågrätt svep ändrar inte en fader, drag uppåt gör det, Ångra tar tillbaka', async ({ page }) => {
   await page.goto('/?sim=1');
-  await openGroup(page, 'ton');
   const el = page.locator('#m-bright');
-  await el.evaluate((e) => e.scrollIntoView({ block: 'center' }));
-  const box = await el.boundingBox();
-  const cx = box.x + box.width * 0.85, cy = box.y + box.height / 2;
-  // Tryck långt till höger på reglaget: inget hopp
+  const row = page.locator('[data-sl="m-bright"] .vrow');
+  await row.evaluate((e) => e.scrollIntoView({ block: 'center' }));
+  const box = await row.boundingBox();
+  const cx = box.x + box.width / 2, cy = box.y + box.height * 0.1;
+  // Tryck högt upp på fadern: inget hopp
   await page.mouse.click(cx, cy);
   await expect(el).toHaveValue('0');
-  // Lodrätt svep (som när man scrollar): ingen ändring
-  await page.mouse.move(cx, cy); await page.mouse.down(); await page.mouse.move(cx + 3, cy - 60, { steps: 6 }); await page.mouse.up();
+  // Kort vågrätt svep: ingen ändring
+  const my = box.y + box.height / 2;
+  await page.mouse.move(cx, my); await page.mouse.down(); await page.mouse.move(cx + 40, my + 3, { steps: 6 }); await page.mouse.up();
   await expect(el).toHaveValue('0');
-  // Vågrätt drag: relativt – en fjärdedel av bredden ≈ +50
-  const sx = box.x + box.width * 0.5;
-  await page.mouse.move(sx, cy); await page.mouse.down(); await page.mouse.move(sx + box.width / 4, cy, { steps: 8 }); await page.mouse.up();
+  // Drag uppåt: relativt – en fjärdedel av höjden ≈ +50
+  await page.mouse.move(cx, my); await page.mouse.down(); await page.mouse.move(cx, my - box.height / 4, { steps: 8 }); await page.mouse.up();
   const v = Number(await el.inputValue());
   expect(v).toBeGreaterThan(35);
   expect(v).toBeLessThan(65);

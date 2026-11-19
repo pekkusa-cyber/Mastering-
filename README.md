@@ -125,8 +125,11 @@ Ingång → pre-EQ (8 band) → multiband-kompressor (4 band: 0–120 Hz kick, 1
 - **Utgångsnivå** för att nivåmatcha själv, eller **Auto-nivåmatcha** (mäter med Visualizer, kräver mikrofonbehörighet).
 - **Presets (30):** Orörd (ingen bearbetning), Mjuk kick, Suno-fix, Radio ljus, Silkeslen röst, Varm lim, genrer och lyssningsmiljöer (bil, telefon, hörlurar) m.fl. Spara, döp om, ta bort,
   exportera/importera som JSON.
-- **Enkelt:** Kick mjukare, Ljusare, Tryck/limiter, Röst silkeslen (mitten = presetten som den är).
+- **Mixer (standard):** lodräta fadrar med M (mute) och S (solo). Sidan Reglage: Kick, Ljus, Tryck, Röst, S-ljud, Topp
+  (mitten = presetten som den är). Sidan Kedjan: In, Pre-EQ, Kompressor, Post-EQ, PEQ (mängd 0–200 %), Limiter, Ut.
+- **Kurva:** dra de fem parametriska EQ-punkterna direkt i spektrumet, två fingrar = Q.
 - **Avancerat:** alla parametrar per band.
+- Skärmen med live-spektrum och klangkurva ligger fäst överst i Mixer och Kurva.
 - **Solo (S) och mute (på/av)** på varje sektion, band och enkelt reglage – hör bara en del, resten neutralt.
 - **Byt bara en del:** EQ, kompressor eller limiter från en annan preset; resten ligger kvar.
 - **Skydd mot misstag:** reglagen ändras bara vid drag i sidled (svep upp/ner scrollar), **↶ Ångra** upp till 20 steg.

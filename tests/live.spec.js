@@ -29,19 +29,20 @@ test('vald preset skickas till motorn med alla band, och det finns minst 16 pres
   await expect.poll(async () => (await sent(page)).postEq[6].gain).toBe(-2);
 });
 
-test('varje enkelt reglage har ⓘ och ↺, och Återställ alla nollställer', async ({ page }) => {
+test('mixern: varje fader har ⓘ, M och S, dubbeltryck nollställer, och Återställ alla nollställer', async ({ page }) => {
   await page.goto('/?sim=1');
-  await openGroup(page, 'ton');
-  for (const id of ['m-kick', 'm-bright', 'm-punch', 'm-vocal', 'p-outputGain']) {
+  await expect(page.locator('#mixer')).toBeVisible(); // Mixer är standardläget
+  for (const id of ['m-kick', 'm-bright', 'm-punch', 'm-vocal', 'm-sibilance', 'm-glitter']) {
     const sl = page.locator(`[data-sl="${id}"]`);
     await expect(sl.locator('.i')).toHaveCount(1);
-    await expect(sl.locator('.rst')).toHaveCount(1);
+    await expect(sl.locator('.mbtn input')).toHaveCount(1);
+    await expect(sl.locator('.solo')).toHaveCount(1);
   }
   await setRange(page.locator('#m-bright'), 100);
   await expect(page.locator('#dirty')).toBeVisible();
   await expect.poll(async () => (await sent(page)).postEq[7].gain).toBe(4);
-  // ↺ på just det reglaget
-  await page.locator('[data-reset="m-bright"]').click();
+  // dubbeltryck på namnet nollställer just den fadern
+  await page.locator('[data-dblreset="m-bright"]').dblclick();
   await expect(page.locator('#m-bright')).toHaveValue('0');
   await expect.poll(async () => (await sent(page)).postEq[7].gain).toBe(0);
   // Återställ alla

@@ -381,3 +381,53 @@ dialog.settingssheet .sheet-body { max-height: none; }
 .modbtn b { font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 .modbtn.set { border-color: var(--accent); }
 .pqsum { margin-left: 6px; font-weight: 400; }
+
+/* Live-lägen: Mixer | Kurva | Avancerat */
+.seg3 { display: flex; }
+.seg3 button { flex: 1; }
+/* Skärmen: spektrum + klangkurva, fäst överst så att den alltid syns */
+.screen { position: sticky; top: var(--sat); z-index: 4; margin: 8px 0; padding: 6px; border-radius: 14px; background: #0d1114; border: 1px solid var(--line); box-shadow: 0 6px 16px #0008; }
+.scrbox { position: relative; touch-action: pan-y; }
+.screen.curve .scrbox { touch-action: none; user-select: none; -webkit-user-select: none; }
+.screen-svg { display: block; width: 100%; height: 110px; }
+.screen.curve .screen-svg { height: 230px; }
+.screen-svg .ax { font-size: 9px; fill: var(--dim); }
+.screen-svg .hnd circle { fill: #e9fffa; stroke: #3fd3b0; stroke-width: 3; }
+.screen-svg .hnd.sel circle { fill: #3fd3b0; stroke: #e9fffa; }
+.screen-svg .hnd.off circle { fill: #555; stroke: #777; }
+.screen-svg .hnd text { font-size: 10px; font-weight: 700; fill: #062b24; pointer-events: none; }
+.scrhint { display: block; padding: 2px 4px 0; font-size: 11px; }
+.solobar:has(~ .screen) { position: static; }
+
+/* Mixer */
+.mixtabs { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
+.mixtabs button, .chip { padding: 6px 12px; border-radius: 14px; border: 1px solid var(--line); background: transparent; color: var(--dim); font-size: 13px; }
+.mixtabs button.sel, .chip.sel { border-color: var(--accent); color: var(--text); background: #2a2416; }
+.chip.off { text-decoration: line-through; opacity: .6; }
+.faders { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 4px; touch-action: pan-y; }
+.faders.chain { grid-template-columns: repeat(7, minmax(0, 1fr)); }
+.sl.vf { display: flex; flex-direction: column; align-items: center; gap: 6px; margin: 0; min-width: 0; position: relative; }
+.sl.vf output { min-width: 0; text-align: center; font-size: 12px; color: var(--text); font-weight: 600; }
+.vrow { position: relative; height: 210px; width: 44px; display: flex; justify-content: center; touch-action: none; user-select: none; -webkit-user-select: none; }
+.vrow input[type=range] { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; pointer-events: none; }
+.vtrack { position: relative; width: 8px; height: 100%; border-radius: 4px; background: #26353a; }
+.vfill { position: absolute; left: 0; right: 0; border-radius: 4px; background: var(--accent);
+  bottom: min(var(--p), var(--z)); top: calc(100% - max(var(--p), var(--z))); }
+.vthumb { position: absolute; left: 50%; bottom: var(--p); width: 34px; height: 18px; margin: 0 0 -9px -17px; border-radius: 6px; background: #f3f5f8; box-shadow: 0 0 0 3px #f0a63a40; }
+.vrow.dragging .vthumb { box-shadow: 0 0 0 7px #f0a63a66; }
+.sl.vf.off .vfill { background: #4a4f58; }
+.sl.vf.off .vthumb, .sl.vf.off output { opacity: .45; }
+.vbtns { display: flex; flex-direction: column; gap: 4px; align-items: center; }
+.vbtns .solo { margin: 0; }
+.mbtn { position: relative; display: inline-grid; place-items: center; width: 30px; height: 26px; border-radius: 7px; border: 1px solid var(--line); font-size: 12px; font-weight: 700; color: var(--dim); }
+.mbtn input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; }
+.mbtn:has(input:not(:checked)) { background: #5a2b2b; border-color: #a33; color: #ffbcbc; }
+.mbtn.big { width: 36px; height: 30px; }
+.mbtn.ghost, .solo.ghost { visibility: hidden; }
+.vname { background: none; border: 0; color: var(--dim); font-size: 12px; padding: 2px 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sl.vf > .i { position: absolute; top: -4px; right: -2px; transform: scale(.8); }
+.mixhint { margin: 8px 0 0; }
+/* Kurva */
+.chips { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; }
+.chip { flex: 0 0 auto; }
+.cbhead { gap: 8px; margin-top: 8px; }

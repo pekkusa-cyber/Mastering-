@@ -10,10 +10,10 @@ export async function pick(page, label, name) {
 /** Det valda värdet som visas i väljaren. */
 export const picked = (page, label) => page.getByRole('button', { name: label, exact: true }).locator('.pv');
 
-/** Öppnar en grupp i Enkelt läge (ton, vokal, bas, dynamik). */
+/** Visar Mixerns sida: 'dynamik' → Kedjan (nivå, auto-nivåmatchning), annars Reglage (de sex enkla reglagen). */
 export async function openGroup(page, id) {
-  const d = page.locator(`details.grp[data-group="${id}"]`);
-  if (!(await d.evaluate((el) => el.open))) await d.locator('summary .gname').click();
+  if (!(await page.locator('#mixer').count())) await page.getByRole('button', { name: 'Mixer', exact: true }).click();
+  await page.locator(`[data-mixpage="${id === 'dynamik' ? 'chain' : 'macros'}"]`).click();
 }
 
 /** Öppnar inställningarna (⚙). */
