@@ -363,3 +363,21 @@ dialog.settingssheet .sheet-body { max-height: none; }
 .fixseg button b { color: var(--accent); }
 .regions .okand .ic { color: var(--dim); }
 .regions .okand { color: var(--dim); }
+/* Skydd mot misstag: reglaget tar inte emot tryck direkt – raden tolkar bara vågräta drag */
+.slrow { touch-action: pan-y; user-select: none; -webkit-user-select: none; }
+.slrow input[type=range] { pointer-events: none; }
+.slrow.dragging input[type=range]::-webkit-slider-thumb { box-shadow: 0 0 0 9px rgba(63,211,176,.35); }
+.confirm .undo { flex: 0 0 auto; }
+
+/* Solo (S) och modulpresets */
+.solo { flex: 0 0 auto; width: 30px; height: 26px; border-radius: 7px; border: 1px solid var(--line); background: transparent; color: var(--dim, #9aa); font-weight: 700; font-size: 12px; padding: 0; margin-left: 4px; }
+.solo.on { background: #5a4a1b; border-color: #a88a2e; color: #ffe08a; }
+.slhead .solo { margin-left: 2px; }
+.solobar { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 8px; margin: 8px 0; padding: 8px 10px; border-radius: 12px; background: #3a3015; border: 1px solid #a88a2e; color: #ffe9a8; font-size: 13px; }
+.solobar span { flex: 1; min-width: 0; }
+.mods { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) auto; gap: 6px; align-items: center; margin-top: 8px; }
+.modbtn { display: flex; flex-direction: column; align-items: flex-start; min-width: 0; padding: 6px 8px; border-radius: 10px; border: 1px solid var(--line); background: transparent; color: inherit; text-align: left; }
+.modbtn small { font-size: 10px; letter-spacing: .04em; text-transform: uppercase; opacity: .7; }
+.modbtn b { font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.modbtn.set { border-color: var(--accent); }
+.pqsum { margin-left: 6px; font-weight: 400; }

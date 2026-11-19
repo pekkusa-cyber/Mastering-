@@ -4,7 +4,7 @@ import kotlin.math.pow
 
 /**
  * Post-EQ:n i effekten har 31 tersband. Dina 8 post-EQ-band (LiveParams) och hörlurskorrigeringen läggs ihop
- * här: varje tersband får gain = ditt band som täcker tersbandets mitt + korrigeringen + korrigeringens preamp.
+ * här (plus den parametriska EQ:n): varje tersband får gain = ditt band som täcker tersbandets mitt + korrigeringen + korrigeringens preamp.
  * Samma tersbandsmitter som src/headphones.js (THIRD_OCTAVE) – ändra båda samtidigt.
  */
 object PostEq {
@@ -19,10 +19,11 @@ object PostEq {
         val isEmpty get() = preamp == 0f && gains.all { it == 0f }
     }
 
-    fun expand(user: List<EqBandP>, corr: Correction?): List<EqBandP> = List(N) { i ->
+    /** extra = parametrisk EQ som 31 tersband (LiveParams.post31). */
+    fun expand(user: List<EqBandP>, corr: Correction?, extra: List<Float>? = null): List<EqBandP> = List(N) { i ->
         val c = CENTERS[i]
         val u = user.firstOrNull { c < it.cutoff }?.gain ?: user.last().gain
         val k = if (corr == null) 0f else corr.gains.getOrElse(i) { 0f } + corr.preamp
-        EqBandP(CUTOFFS[i], (u + k).coerceIn(-24f, 24f))
+        EqBandP(CUTOFFS[i], (u + k + (extra?.getOrNull(i) ?: 0f)).coerceIn(-24f, 24f))
     }
 }

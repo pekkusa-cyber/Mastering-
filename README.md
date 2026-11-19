@@ -37,10 +37,12 @@ Fler hörlurar: kopiera AutoEq:s `ParametricEQ.txt` och klistra in i appen.
 
 `design/` innehåller tre förslag (A Studio, B En ratt, C Kurva först) som HTML och bilder. **A Studio är valt** och
 infört i appen: Original/Mastrad-växel, smarta funktioner som chips, preset-kort med "Påverkar", grupperade reglage.
+Tre enklare layouter utan scroll (spektrum alltid synligt): `l1-flikar` (fasta flikar EQ/Kompr./Limiter), `l2-kurva`
+(dra punkter direkt i spektrumet, rattar för frekvens/gain/Q) och `l3-mixer` (lodräta fadrar med M/S).
 
 ## Filmastringens kedja (fas 3)
 
-Trim → Pre-EQ → Match-EQ → Multiband (Linkwitz-Riley 4 band, transient shaper på kickbandet) → Post-EQ →
+Trim → Pre-EQ → Match-EQ → Multiband (Linkwitz-Riley 4 band, transient shaper på kickbandet) → Post-EQ → Parametrisk EQ →
 De-esser → Mjuk topp → Stereobredd → Lim (buss-kompressor) → Drive (automatiskt mot mål-LUFS) → Soft clipper → True-peak-limiter
 (lookahead, 4x översampling) → Utgång. Egen DSP i ren JavaScript (`src/dsp/`) som körs i en Web Worker – snabbare än
 realtid och samma kod som testerna kör. Avkodning och omsampling görs med `OfflineAudioContext`.
@@ -117,7 +119,7 @@ Det behövs bara om global session slutar fungera.
 ## Live-kedjan (fas 2)
 
 Ingång → pre-EQ (8 band) → multiband-kompressor (4 band: 0–120 Hz kick, 120 Hz–2 kHz, 2–8 kHz, 8 kHz+) → post-EQ
-(8 band) → limiter (attack, release, ratio, tak, efterförstärkning) → utgångsnivå. Allt i Androids `DynamicsProcessing`.
+(8 band) → parametrisk EQ (5 band med frekvens, gain och Q, läggs i post-EQ:ns 31 tersband) → limiter (attack, release, ratio, tak, efterförstärkning) → utgångsnivå. Allt i Androids `DynamicsProcessing`.
 
 - **PÅ/AV** (stora knappen och i notisen) växlar mellan mastrat och original.
 - **Utgångsnivå** för att nivåmatcha själv, eller **Auto-nivåmatcha** (mäter med Visualizer, kräver mikrofonbehörighet).
@@ -125,6 +127,9 @@ Ingång → pre-EQ (8 band) → multiband-kompressor (4 band: 0–120 Hz kick, 1
   exportera/importera som JSON.
 - **Enkelt:** Kick mjukare, Ljusare, Tryck/limiter, Röst silkeslen (mitten = presetten som den är).
 - **Avancerat:** alla parametrar per band.
+- **Solo (S) och mute (på/av)** på varje sektion, band och enkelt reglage – hör bara en del, resten neutralt.
+- **Byt bara en del:** EQ, kompressor eller limiter från en annan preset; resten ligger kvar.
+- **Skydd mot misstag:** reglagen ändras bara vid drag i sidled (svep upp/ner scrollar), **↶ Ångra** upp till 20 steg.
 
 Parametermodellen finns i `src/chain.js` (webben) och `LiveParams.kt` (Kotlin) med samma gränser.
 

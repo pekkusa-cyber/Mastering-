@@ -22,6 +22,8 @@ object AgcController {
     var targetDb = -14.0; private set
     var closedLoop: Boolean? = null; private set
     var postVolume = true; private set
+    /** Har appen faktiskt mätt om volymen ligger före effekten? Förrän dess används ingen volymkompensation. */
+    var postVolumeKnown = false; private set
     private val agcOn = AgcMath()
     private val agcOff = AgcMath()
     private var lastMs = 0L
@@ -49,12 +51,13 @@ object AgcController {
         targetDb = p.getFloat("target", -14f).toDouble()
         closedLoop = if (p.contains("closed")) p.getBoolean("closed", true) else null
         postVolume = p.getBoolean("postVolume", true)
+        postVolumeKnown = p.getBoolean("postVolumeKnown", false)
         agcOn.targetDb = targetDb; agcOff.targetDb = targetDb
     }
 
     private fun save() {
         prefs?.edit()?.apply {
-            putBoolean("on", on); putFloat("target", targetDb.toFloat()); putBoolean("postVolume", postVolume)
+            putBoolean("on", on); putFloat("target", targetDb.toFloat()); putBoolean("postVolume", postVolume); putBoolean("postVolumeKnown", postVolumeKnown)
             closedLoop?.let { putBoolean("closed", it) } ?: remove("closed")
         }?.apply()
     }
@@ -123,8 +126,8 @@ object AgcController {
                 val after = recentLevel(900)
                 if (after != null) {
                     val observed = after - levelBefore
-                    if (abs(observed - expected) < abs(expected) * 0.4) postVolume = true
-                    else if (abs(observed) < abs(expected) * 0.3) postVolume = false
+                    if (abs(observed - expected) < abs(expected) * 0.4) { postVolume = true; postVolumeKnown = true }
+                    else if (abs(observed) < abs(expected) * 0.3) { postVolume = false; postVolumeKnown = true }
                     save()
                 }
                 volCheck = null
@@ -173,6 +176,7 @@ object AgcController {
         put("gainOff", agcOff.gain)
         put("closedLoop", closedLoop?.toString() ?: "okänt")
         put("postVolume", postVolume)
+        put("postVolumeKnown", postVolumeKnown)
         put("probing", probeState != 0)
     }
 }

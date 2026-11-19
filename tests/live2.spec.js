@@ -200,3 +200,30 @@ for (const width of [360, 320]) test(`ingen vy är bredare än telefonen vid ${w
   const btn = page.locator('dialog.settingssheet form button');
   await expect(btn).toBeInViewport({ ratio: 1 });
 });
+
+test('skydd mot misstag: tryck och lodrätt svep ändrar inget, vågrätt drag gör det, Ångra tar tillbaka', async ({ page }) => {
+  await page.goto('/?sim=1');
+  await openGroup(page, 'ton');
+  const el = page.locator('#m-bright');
+  await el.evaluate((e) => e.scrollIntoView({ block: 'center' }));
+  const box = await el.boundingBox();
+  const cx = box.x + box.width * 0.85, cy = box.y + box.height / 2;
+  // Tryck långt till höger på reglaget: inget hopp
+  await page.mouse.click(cx, cy);
+  await expect(el).toHaveValue('0');
+  // Lodrätt svep (som när man scrollar): ingen ändring
+  await page.mouse.move(cx, cy); await page.mouse.down(); await page.mouse.move(cx + 3, cy - 60, { steps: 6 }); await page.mouse.up();
+  await expect(el).toHaveValue('0');
+  // Vågrätt drag: relativt – en fjärdedel av bredden ≈ +50
+  const sx = box.x + box.width * 0.5;
+  await page.mouse.move(sx, cy); await page.mouse.down(); await page.mouse.move(sx + box.width / 4, cy, { steps: 8 }); await page.mouse.up();
+  const v = Number(await el.inputValue());
+  expect(v).toBeGreaterThan(35);
+  expect(v).toBeLessThan(65);
+  await expect.poll(async () => (await sent(page)).postEq[7].gain).toBeGreaterThan(1);
+  // Ångra
+  await page.getByRole('button', { name: '↶ Ångra' }).click();
+  await expect(page.locator('#m-bright')).toHaveValue('0');
+  await expect.poll(async () => (await sent(page)).postEq[7].gain).toBe(0);
+  await expect(page.locator('#confirm')).toContainText('Ångrat');
+});

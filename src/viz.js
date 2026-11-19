@@ -1,7 +1,7 @@
 // Visualisering av inställningarna: klangkurva (EQ) och kompressionskurvor per band. Ritas om medan du drar.
 // Klangkurvan: heldragen = dina EQ-band (pre + post), streckad aqua = hörlurskorrigering.
 // Kompression: små diagram, ett per band (in-nivå → ut-nivå), så att färg inte behövs för att skilja banden.
-import { EQ_CUTOFFS, MBC_NAMES } from './chain.js';
+import { EQ_CUTOFFS, MBC_NAMES, peqDb } from './chain.js';
 import { gainComputer } from './dsp/dynamics.js';
 import { THIRD_OCTAVE } from './headphones.js';
 import { esc } from './ui.js';
@@ -24,14 +24,14 @@ function smoothCurve(cutoffs, gains) {
 /**
  * EQ-kurva. curves: [{ label, gains (per band), cutoffs, kind: 'main'|'corr' }]. Värden summeras per typ.
  */
-export function eqCurveSvg({ pre, post, corr = null, title = 'Klangkurva', range = 12 }) {
+export function eqCurveSvg({ pre, post, peq = null, corr = null, title = 'Klangkurva', range = 12 }) {
   const W = 340, H = 130, L = 26, R = 6, T = 6, B = 18;
   const n = 120;
   const fs = Array.from({ length: n }, (_, i) => FMIN * (FMAX / FMIN) ** (i / (n - 1)));
   const x = (f) => L + (Math.log(f / FMIN) / Math.log(FMAX / FMIN)) * (W - L - R);
   const y = (v) => T + ((range - Math.max(-range, Math.min(range, v))) / (2 * range)) * (H - T - B);
   const preF = smoothCurve(EQ_CUTOFFS, pre), postF = smoothCurve(EQ_CUTOFFS, post);
-  const main = fs.map((f) => preF(f) + postF(f));
+  const main = fs.map((f) => preF(f) + postF(f) + (peq ? peqDb(peq, f) : 0));
   const pts = (vals) => vals.map((v, i) => `${x(fs[i]).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
   let corrLine = '';
   if (corr) {

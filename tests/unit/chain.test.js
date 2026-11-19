@@ -31,7 +31,7 @@ test('inbyggda presets finns och håller sig inom gränserna', () => {
   for (const n of ['Mjuk kick', 'Radio ljus', 'Silkeslen röst', 'Varm lim']) assert.ok(names.includes(n), n);
   for (const p of BUILTIN_PRESETS) assert.deepEqual(sanitize(p.params), p.params, p.name);
   const kick = BUILTIN_PRESETS.find((p) => p.id === 'mjuk-kick').params;
-  assert.ok(kick.mbc[0].ratio > 1 && kick.mbc[0].attack <= 2, 'kick-bandet komprimeras med snabb attack');
+  assert.ok(kick.mbc[0].ratio > 1 && kick.mbc[0].attack <= 3, 'kick-bandet komprimeras med snabb attack');
 });
 
 test('reglagen på 0 ändrar ingenting', () => {
@@ -143,4 +143,76 @@ test('Orörd: allt neutralt och limitern av', async () => {
   assert.deepEqual({ ...f.params, limiter: neutral().limiter }, neutral());
   assert.deepEqual(presetEffects(f.params), ['Ingen bearbetning alls – låten är orörd']);
   assert.ok(BUILTIN_PRESETS.length >= 30);
+});
+
+test('inbyggda presets: inga kompressorer snabbare än 3 ms/100 ms, limiter-release minst 60 ms', async () => {
+  const { BUILTIN_PRESETS, sanitize } = await import('../../src/chain.js');
+  for (const p of BUILTIN_PRESETS.filter((x) => x.id !== 'test' && x.id !== 'flat')) {
+    const q = sanitize(p.params);
+    for (const b of q.mbc) if (b.ratio > 1) assert.ok(b.attack >= 3 && b.release >= 100, `${p.name}: ${b.attack}/${b.release}`);
+    assert.ok(q.limiter.release >= 60, p.name);
+  }
+});
+
+// ---- Parametrisk EQ, solo och modulpresets ----
+import { PEQ_BANDS, allEnabled, applyEnables, peqDb, soloEnables, soloParams, applyModule, moduleActive, THIRD_OCTAVE_CENTERS } from '../../src/chain.js';
+import { estimate } from '../../src/level.js';
+
+test('parametrisk EQ: gain vid frekvensen, smalare Q påverkar grannarna mindre, 31 band till motorn', () => {
+  const wide = [{}, {}, { freq: 1000, gain: 6, q: 0.7 }];
+  const narrow = [{}, {}, { freq: 1000, gain: 6, q: 6 }];
+  assert.ok(Math.abs(peqDb(sanitize({ peq: wide }).peq, 1000) - 6) < 0.01);
+  assert.ok(peqDb(sanitize({ peq: narrow }).peq, 1600) < peqDb(sanitize({ peq: wide }).peq, 1600) - 2);
+  const n = toNative({ peq: wide });
+  assert.equal(n.post31.length, 31);
+  assert.equal(THIRD_OCTAVE_CENTERS.length, 31);
+  assert.ok(Math.abs(n.post31[THIRD_OCTAVE_CENTERS.indexOf(1000)] - 6) < 0.01);
+  assert.ok(toNative(neutral()).post31.every((g) => g === 0));
+  // gränser: frekvens inom bandets område, Q och gain klämda
+  const s = sanitize({ peq: [{ freq: 5, gain: 40, q: 99 }] }).peq[0];
+  assert.deepEqual(s, { freq: PEQ_BANDS[0].range[0], gain: 12, q: 8 });
+  // nivåmodellen ser höjningen
+  assert.ok(estimate({ peq: wide }).level > estimate(neutral()).level + 0.5);
+});
+
+test('PEQ kan slås av som helhet och per band', () => {
+  const p = { peq: [{ freq: 80, gain: 3, q: 0.7 }, { freq: 250, gain: -2, q: 1 }] };
+  assert.ok(applyEnables(p, { peq: false }).peq.every((b) => b.gain === 0));
+  const one = applyEnables(p, { peq1: false }).peq;
+  assert.equal(one[0].gain, 3); assert.equal(one[1].gain, 0);
+});
+
+test('solo: bara den solade delen är på, utgången behålls, skyddslimitern ligger kvar', () => {
+  const e = soloEnables(allEnabled(), 'mbc0');
+  assert.equal(e.mbc0, true); assert.equal(e.output, true);
+  for (const k of ['input', 'preEq', 'mbc1', 'postEq', 'peq', 'limiter', 'm_kick']) assert.equal(e[k], false, k);
+  assert.deepEqual(soloEnables(allEnabled(), null), allEnabled());
+  const base = BUILTIN_PRESETS.find((p) => p.id === 'suno-fix').params;
+  const p = soloParams(base, noMacros(), allEnabled(), 'postEq');
+  assert.deepEqual(p.postEq, sanitize(base).postEq);
+  assert.ok(p.preEq.every((b) => b.gain === 0) && p.mbc.every((b) => b.ratio === 1));
+  assert.deepEqual(p.limiter, neutral().limiter);
+  // solo på ett PEQ-band: bara det bandet
+  const q = soloParams({ peq: [{ freq: 80, gain: 3, q: 0.7 }, { freq: 250, gain: -2, q: 1 }] }, noMacros(), allEnabled(), 'peq1').peq;
+  assert.equal(q[0].gain, 0); assert.equal(q[1].gain, -2);
+  // solo på ett enkelt reglage: bara reglagets ändring på en platt kedja
+  const m = soloParams(base, { ...noMacros(), bright: 100 }, allEnabled(), 'm_bright');
+  assert.ok(m.postEq[7].gain > 0);
+  assert.ok(m.mbc.every((b) => b.ratio === 1));
+});
+
+test('modulpreset: byter bara EQ, kompressor eller limiter', () => {
+  const a = BUILTIN_PRESETS.find((p) => p.id === 'mjuk-kick').params;
+  const b = BUILTIN_PRESETS.find((p) => p.id === 'radio-ljus').params;
+  const eq = applyModule(a, b, 'eq');
+  assert.deepEqual(eq.postEq, sanitize(b).postEq);
+  assert.deepEqual(eq.mbc, sanitize(a).mbc);
+  assert.deepEqual(eq.limiter, sanitize(a).limiter);
+  const lim = applyModule(a, b, 'limiter');
+  assert.deepEqual(lim.limiter, sanitize(b).limiter);
+  assert.deepEqual(lim.postEq, sanitize(a).postEq);
+  const comp = applyModule(a, b, 'comp');
+  assert.deepEqual(comp.mbc, sanitize(b).mbc);
+  assert.equal(moduleActive(neutral(), 'eq'), false);
+  assert.equal(moduleActive(b, 'eq'), true);
 });

@@ -231,3 +231,17 @@ test('glitterfiltret sänker fräs över 11 kHz', () => {
   assert.ok(bandDb(src, 12000, 20000) - bandDb(L, 12000, 20000) > 2.5);
   assert.ok(Math.abs(bandDb(src, 200, 2000) - bandDb(L, 200, 2000)) < 0.5);
 });
+
+test('parametrisk EQ i filkedjan: +6 dB vid 1 kHz höjer en 1 kHz-ton ca 6 dB men inte en 100 Hz-ton', () => {
+  const lvl = (f, gain) => {
+    const [L, R] = tones([[-20, 1]], f);
+    const p = sanitizeFile({ ...fileNeutral(), peq: [{}, {}, { freq: 1000, gain, q: 2 }] });
+    const c = new PreChain(FS, p);
+    for (let s = 0; s < L.length; s += BLOCK) c.run(L.subarray(s, s + BLOCK), R.subarray(s, s + BLOCK), Math.min(BLOCK, L.length - s));
+    let m = 0; for (let i = L.length / 2; i < L.length; i++) m = Math.max(m, Math.abs(L[i]));
+    return 20 * Math.log10(m);
+  };
+  near(lvl(1000, 6) - lvl(1000, 0), 6, 0.3, '1 kHz');
+  near(lvl(100, 6) - lvl(100, 0), 0, 0.3, '100 Hz');
+  assert.deepEqual(liveToFile({ peq: [{ freq: 80, gain: 3, q: 0.7 }] }).peq[0], { freq: 80, gain: 3, q: 0.7 });
+});

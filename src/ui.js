@@ -21,7 +21,7 @@ export const infoBtn = (key, label = 'Förklaring') => (key ? `<button type="but
  * kind/key berättar för vyn vad som ändras (t.ex. kind="path" key="mbc.0.ratio").
  * enable: { key, on } ger en på/av-knapp – av = reglaget påverkar inte ljudet.
  */
-export function slider({ id, label, value, range, info, resetTo = null, kind, key, enable = null }) {
+export function slider({ id, label, value, range, info, resetTo = null, kind, key, enable = null, extra = '' }) {
   const [min, max, step, unit] = range;
   const atReset = resetTo !== null && Math.abs(Number(value) - Number(resetTo)) < 1e-9;
   const off = enable && !enable.on;
@@ -30,7 +30,7 @@ export function slider({ id, label, value, range, info, resetTo = null, kind, ke
       ${enable ? toggle(enable.key, enable.on, label) : ''}
       <label for="${esc(id)}" class="name">${esc(label)}</label>${infoBtn(info, `Om ${label}`)}
       <output for="${esc(id)}">${fmt(value, step)}${unit ? ` ${unit}` : ''}</output>
-      ${resetTo !== null ? `<button type="button" class="rst${atReset ? ' at' : ''}" data-reset="${esc(id)}" data-to="${resetTo}" aria-label="Nollställ ${esc(label)}">↺</button>` : ''}
+      ${extra}${resetTo !== null ? `<button type="button" class="rst${atReset ? ' at' : ''}" data-reset="${esc(id)}" data-to="${resetTo}" aria-label="Nollställ ${esc(label)}">↺</button>` : ''}
     </div>
     <div class="slrow">
       <button type="button" class="step" data-step="${esc(id)}" data-dir="-1" aria-label="Minska ${esc(label)}">−</button>
@@ -39,6 +39,10 @@ export function slider({ id, label, value, range, info, resetTo = null, kind, ke
     </div>
   </div>`;
 }
+
+/** S-knappen: hör bara den här delen (allt annat neutralt). Kopplas i vyn via [data-solo]. */
+export const soloBtn = (key, on, label) =>
+  `<button type="button" class="solo${on ? ' on' : ''}" data-solo="${esc(key)}" aria-pressed="${!!on}" aria-label="Solo ${esc(label)}" title="Solo – hör bara detta">S</button>`;
 
 /** Liten på/av-knapp (för en sektion, ett band eller ett reglage). */
 export const toggle = (key, on, label) =>
@@ -57,6 +61,37 @@ export function bindSliders(root, onChange, onEnable) {
   const set = (el, v) => { el.value = String(v); const n = Number(el.value); update(el, n); onChange(el.dataset.kind, el.dataset.key, n); };
   root.querySelectorAll('input[type=range][data-kind]').forEach((el) => {
     el.oninput = () => { const v = Number(el.value); update(el, v); onChange(el.dataset.kind, el.dataset.key, v); };
+  });
+  // Skydd mot misstag: reglaget ändras bara av ett tydligt vågrätt drag (inte av tryck eller scroll), och dragen
+  // är relativa – värdet hoppar aldrig dit fingret landar.
+  root.querySelectorAll('.slrow').forEach((row) => {
+    const el = row.querySelector('input[type=range][data-kind]');
+    if (!el || row.dataset.guard) return;
+    row.dataset.guard = '1';
+    let g = null;
+    row.addEventListener('pointerdown', (e) => {
+      if (e.target.closest('.step')) return;
+      g = { x: e.clientX, y: e.clientY, v: Number(el.value), id: e.pointerId, active: false };
+    });
+    row.addEventListener('pointermove', (e) => {
+      if (!g || e.pointerId !== g.id) return;
+      const dx = e.clientX - g.x, dy = e.clientY - g.y;
+      if (!g.active) {
+        if (Math.abs(dy) > 8 && Math.abs(dy) > Math.abs(dx)) { g = null; return; } // scroll – rör inte reglaget
+        if (Math.abs(dx) < 10 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+        g.active = true;
+        row.classList.add('dragging');
+        try { row.setPointerCapture(e.pointerId); } catch { /* */ }
+      }
+      e.preventDefault();
+      const min = Number(el.min), max = Number(el.max), st = Number(el.step);
+      const w = el.getBoundingClientRect().width || 1;
+      const v = Math.min(max, Math.max(min, Math.round((g.v + (dx / w) * (max - min)) / st) * st));
+      if (v !== Number(el.value)) set(el, v);
+    });
+    const end = () => { if (g?.active) row.classList.remove('dragging'); g = null; };
+    row.addEventListener('pointerup', end);
+    row.addEventListener('pointercancel', end);
   });
   root.querySelectorAll('[data-reset]').forEach((b) => {
     b.onclick = () => set(root.querySelector(`#${CSS.escape(b.dataset.reset)}`), Number(b.dataset.to));

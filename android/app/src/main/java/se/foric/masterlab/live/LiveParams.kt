@@ -23,6 +23,8 @@ data class LiveParams(
     val postEq: List<EqBandP>,
     val limiter: LimiterP,
     val outputGain: Float,
+    /** Parametrisk EQ som 31 tersband (dB), samma mitter som PostEq.CENTERS. Läggs ovanpå post-EQ:n. */
+    val post31: List<Float> = List(PostEq.N) { 0f },
 ) {
     /** Limiterns efterförstärkning plus utgångsnivån (nivåmatchningen), eftersom kedjan slutar i limitern. */
     val finalGain: Float get() = (limiter.postGain + outputGain).coerceIn(-36f, 24f)
@@ -39,6 +41,7 @@ data class LiveParams(
         put("limiter", JSONObject().put("attack", limiter.attack.toDouble()).put("release", limiter.release.toDouble())
             .put("ratio", limiter.ratio.toDouble()).put("threshold", limiter.threshold.toDouble()).put("postGain", limiter.postGain.toDouble()))
         put("outputGain", outputGain.toDouble())
+        put("post31", JSONArray(post31.map { it.toDouble() }))
     }
 
     companion object {
@@ -86,6 +89,12 @@ data class LiveParams(
                     postGain = lim.f("postGain", -12f, 12f, 0f),
                 ),
                 outputGain = o.f("outputGain", -24f, 12f, 0f),
+                post31 = o?.optJSONArray("post31").let { a ->
+                    List(PostEq.N) { i ->
+                        val v = a?.optDouble(i, 0.0) ?: 0.0
+                        if (v.isNaN() || v.isInfinite()) 0f else v.toFloat().coerceIn(-24f, 24f)
+                    }
+                },
             )
         }
     }

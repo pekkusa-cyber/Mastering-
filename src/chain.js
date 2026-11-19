@@ -1,6 +1,8 @@
 // Live-kedjans parametrar: samma modell i webbgränssnittet och i Kotlin (LiveParams.kt).
 // Kedjan: ingångsförstärkning → pre-EQ (8 band) → multiband-kompressor (4 band) → post-EQ (8 band) → limiter → utgång.
+// Plus parametrisk EQ (5 band med frekvens, gain och Q) som läggs i post-EQ:ns 31 tersband (post31).
 // Ren JavaScript utan DOM, så att den kan enhetstestas i Node (tests/unit).
+import { coeffs, responseDb } from './dsp/biquad.js';
 
 /** Övre gräns för varje EQ-band (Hz). Bandet går från föregående gräns till sin egen (DynamicsProcessing-modellen). */
 export const EQ_CUTOFFS = [60, 120, 250, 500, 1000, 3000, 8000, 20000];
@@ -24,7 +26,29 @@ export const RANGES = {
   limThreshold: [-30, 0, 0.5, 'dB'],
   limPostGain: [-12, 12, 0.5, 'dB'],
   outputGain: [-24, 12, 0.5, 'dB'],
+  peqGain: [-12, 12, 0.5, 'dB'],
+  peqQ: [0.3, 8, 0.1, ''],
 };
+
+/** Parametrisk EQ: 5 band. Typ och frekvensområde är fasta per band; frekvens, gain och Q ställs fritt. */
+export const PEQ_BANDS = [
+  { type: 'lowshelf', name: 'Bas (hylla)', freq: 80, q: 0.7, range: [20, 400, 5, 'Hz'] },
+  { type: 'peaking', name: 'Lågmitt', freq: 250, q: 1, range: [60, 1000, 5, 'Hz'] },
+  { type: 'peaking', name: 'Mitt', freq: 1000, q: 1, range: [300, 5000, 10, 'Hz'] },
+  { type: 'peaking', name: 'Närvaro', freq: 3500, q: 1, range: [1000, 12000, 50, 'Hz'] },
+  { type: 'highshelf', name: 'Topp (hylla)', freq: 10000, q: 0.7, range: [2000, 20000, 100, 'Hz'] },
+];
+/** Tersbandens mitter i motorns post-EQ (samma som PostEq.kt och headphones.js). */
+export const THIRD_OCTAVE_CENTERS = [20, 25, 31.5, 40, 50, 63, 80, 100, 125, 160, 200, 250, 315, 400, 500, 630, 800,
+  1000, 1250, 1600, 2000, 2500, 3150, 4000, 5000, 6300, 8000, 10000, 12500, 16000, 20000];
+
+/** Den parametriska EQ:ns förstärkning (dB) vid frekvensen f. */
+export function peqDb(peq, f) {
+  return (peq || []).reduce((a, b, i) => (b && Math.abs(b.gain) > 1e-6
+    ? a + responseDb(coeffs(PEQ_BANDS[i]?.type || 'peaking', 48000, b.freq, b.q, b.gain), 48000, f) : a), 0);
+}
+/** Den parametriska EQ:n som 31 tersband – det som motorn lägger i post-EQ:n. */
+export const peqCurve = (peq) => THIRD_OCTAVE_CENTERS.map((f) => Math.round(Math.max(-24, Math.min(24, peqDb(peq, f))) * 100) / 100);
 
 const clamp = (v, [lo, hi], dflt) => {
   const n = Number(v);
@@ -47,6 +71,7 @@ export function neutral() {
     preEq: EQ_CUTOFFS.map(() => ({ gain: 0 })),
     mbc: MBC_CUTOFFS.map(() => neutralMbc()),
     postEq: EQ_CUTOFFS.map(() => ({ gain: 0 })),
+    peq: PEQ_BANDS.map((b) => ({ freq: b.freq, gain: 0, q: b.q })),
     limiter: { attack: 1, release: 60, ratio: 10, threshold: -1, postGain: 0 },
     outputGain: 0,
   };
@@ -73,6 +98,10 @@ export function sanitize(p) {
       };
     }),
     postEq: eq(src.postEq),
+    peq: n.peq.map((d, i) => {
+      const b = src.peq?.[i] || {};
+      return { freq: clamp(b.freq, PEQ_BANDS[i].range, d.freq), gain: clamp(b.gain, RANGES.peqGain, d.gain), q: clamp(b.q, RANGES.peqQ, d.q) };
+    }),
     limiter: {
       attack: clamp(src.limiter?.attack, RANGES.limAttack, n.limiter.attack),
       release: clamp(src.limiter?.release, RANGES.limRelease, n.limiter.release),
@@ -92,6 +121,7 @@ export function toNative(p) {
     preEq: s.preEq.map((b, i) => ({ ...b, cutoff: EQ_CUTOFFS[i] })),
     mbc: s.mbc.map((b, i) => ({ ...b, cutoff: MBC_CUTOFFS[i] })),
     postEq: s.postEq.map((b, i) => ({ ...b, cutoff: EQ_CUTOFFS[i] })),
+    post31: peqCurve(s.peq),
   };
 }
 
@@ -373,6 +403,18 @@ export const BUILTIN_PRESETS = [
   },
 ];
 
+/**
+ * Skydd mot skärpa och distorsion i de inbyggda presetsen: ingen kompressor snabbare än 3 ms attack / 100 ms
+ * release (snabbare skapar övertoner i basen som låter vasst), och limitern släpper aldrig snabbare än 60 ms.
+ * Gäller inte Test och Orörd.
+ */
+for (const p of BUILTIN_PRESETS) {
+  if (p.id === 'test' || p.id === 'flat') continue;
+  p.params.mbc.forEach((b) => { if (b.ratio > 1) { b.attack = Math.max(3, b.attack); b.release = Math.max(100, b.release); } });
+  p.params.limiter.release = Math.max(60, p.params.limiter.release);
+  p.params.limiter.attack = Math.max(0.5, p.params.limiter.attack);
+}
+
 export const MACROS = [
   { key: 'kick', label: 'Kick mjukare', group: 'bas', affects: 'Multiband: kickbandet (0–120 Hz) + EQ 60–120 Hz', help: 'Komprimerar kick-bandet (0–120 Hz) hårdare och snabbare. Vänster = hårdare kick.' },
   { key: 'bright', label: 'Ljusare', group: 'ton', affects: 'Post-EQ: 3–8 kHz och 8 kHz+', help: 'Höjer diskanten över 8 kHz (och lite 3–8 kHz). Vänster = mörkare.' },
@@ -386,8 +428,8 @@ MACROS.push(
 export const noMacros = () => ({ kick: 0, bright: 0, punch: 0, vocal: 0, sibilance: 0, glitter: 0 });
 
 /** Delar av kedjan som kan slås av var för sig. Av = neutral (påverkar inte ljudet). */
-export const STAGES = ['input', 'preEq', 'mbc0', 'mbc1', 'mbc2', 'mbc3', 'postEq', 'limiter', 'output'];
-export const allEnabled = () => Object.fromEntries([...STAGES, ...MACROS.map((m) => `m_${m.key}`)].map((k) => [k, true]));
+export const STAGES = ['input', 'preEq', 'mbc0', 'mbc1', 'mbc2', 'mbc3', 'postEq', 'peq', 'limiter', 'output'];
+export const allEnabled = () => Object.fromEntries([...STAGES, ...PEQ_BANDS.map((_, i) => `peq${i}`), ...MACROS.map((m) => `m_${m.key}`)].map((k) => [k, true]));
 
 /** Makron som är avslagna räknas som 0. */
 export function activeMacros(macros, enabled = {}) {
@@ -402,9 +444,59 @@ export function applyEnables(params, enabled = {}) {
   if (off('preEq')) p.preEq.forEach((b) => { b.gain = 0; });
   p.mbc.forEach((b, i) => { if (off(`mbc${i}`)) Object.assign(b, { ratio: 1, preGain: 0, postGain: 0 }); });
   if (off('postEq')) p.postEq.forEach((b) => { b.gain = 0; });
+  p.peq.forEach((b, i) => { if (off('peq') || off(`peq${i}`)) b.gain = 0; });
   if (off('limiter')) Object.assign(p.limiter, { threshold: 0, ratio: 1, postGain: 0 });
   if (off('output')) p.outputGain = 0;
   return p;
+}
+
+/**
+ * Solo: bara en del hörs, allt annat i kedjan blir neutralt (utgångsnivån behålls). Gäller sektioner (t.ex. 'mbc0',
+ * 'limiter', 'peq'), enskilda PEQ-band ('peq2') och enkla reglage ('m_kick'). Ändrar inga inställningar.
+ */
+export function soloEnables(enabled = {}, solo = null) {
+  if (!solo) return enabled;
+  const e = Object.fromEntries(Object.keys(allEnabled()).map((k) => [k, false]));
+  e.output = enabled.output !== false;
+  if (solo === 'mbc') { [0, 1, 2, 3].forEach((i) => { e[`mbc${i}`] = enabled[`mbc${i}`] !== false; }); return e; }
+  if (/^peq\d$/.test(solo)) { PEQ_BANDS.forEach((_, i) => { e[`peq${i}`] = false; }); e.peq = true; e[solo] = true; } else {
+    PEQ_BANDS.forEach((_, i) => { e[`peq${i}`] = enabled[`peq${i}`] !== false; });
+    e[solo] = true;
+  }
+  return e;
+}
+
+/** Kedjan med solo: ett solat enkelt reglage hörs ensamt ovanpå en platt kedja. */
+export function soloParams(base, macros, enabled, solo) {
+  if (solo?.startsWith('m_')) {
+    const k = solo.slice(2);
+    const p = applyMacros(neutral(), { ...noMacros(), [k]: macros?.[k] ?? 0 });
+    p.outputGain = enabled.output === false ? 0 : sanitize(base).outputGain;
+    return sanitize(p);
+  }
+  const p = applyEnables(applyMacros(base, activeMacros(macros, enabled)), soloEnables(enabled, solo));
+  if (solo && solo !== 'limiter') p.limiter = neutral().limiter; // skyddslimitern ligger kvar så att inget klipper
+  return p;
+}
+
+/** Delar som kan bytas var för sig med en modulpreset (EQ från en preset, limiter från en annan …). */
+export const MODULES = {
+  eq: { name: 'EQ', keys: ['preEq', 'postEq', 'peq'] },
+  comp: { name: 'Kompressor', keys: ['mbc'] },
+  limiter: { name: 'Limiter', keys: ['limiter'] },
+};
+/** Lägger in en del (EQ, kompressor eller limiter) från en annan preset; resten behålls. */
+export function applyModule(base, fromParams, mod) {
+  const p = structuredClone(sanitize(base));
+  const src = sanitize(fromParams);
+  for (const k of MODULES[mod].keys) p[k] = structuredClone(src[k]);
+  return p;
+}
+/** Har presetten något i den här delen (annars är den inte meningsfull som modulpreset)? */
+export function moduleActive(params, mod) {
+  const p = sanitize(params), n = neutral();
+  if (mod === 'limiter') return true;
+  return MODULES[mod].keys.some((k) => JSON.stringify(p[k]) !== JSON.stringify(n[k]));
 }
 
 /**
@@ -520,6 +612,8 @@ export function presetEffects(params) {
     if (b.ratio > 1.0001) out.push(`${SHORT[i]} ${+b.ratio.toFixed(1)}:1${b.attack <= 3 ? ' (snabb)' : ''}`);
   });
   eq('Post-EQ', p.postEq);
+  const pq = p.peq.map((b, i) => [b, i]).filter(([b]) => b.gain !== 0);
+  if (pq.length) out.push(`PEQ ${pq.map(([b]) => `${b.freq >= 1000 ? `${+(b.freq / 1000).toFixed(1)}k` : b.freq} ${fmtG(b.gain)} Q${+b.q.toFixed(1)}`).join(', ')}`);
   const l = p.limiter;
   if (l.ratio <= 1.0001) { if (out.length) out.push('Limiter av'); }
   else if (l.threshold !== n.limiter.threshold || l.ratio !== n.limiter.ratio || l.attack !== n.limiter.attack || l.release !== n.limiter.release) {

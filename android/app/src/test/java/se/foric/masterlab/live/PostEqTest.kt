@@ -28,4 +28,18 @@ class PostEqTest {
         assertEquals(1f - 2f, e[0].gain)
         assertTrue(PostEq.Correction().isEmpty)
     }
+
+    @Test fun parametricEqIsAddedPerThirdOctave() {
+        val p = LiveParams.fromJson(JSONObject().put("post31", JSONArray().apply { for (i in 0 until 31) put(if (i == 17) 4.5 else 0.0) }))
+        assertEquals(4.5f, p.post31[17])                  // 1 kHz
+        val e = PostEq.expand(user, null, p.post31)
+        assertEquals(6f + 4.5f, e[17].gain)               // 1 kHz ligger i användarbandet 1–3 kHz (6 dB) + PEQ
+    }
+
+    @Test fun missingPost31IsFlat() {
+        val p = LiveParams.fromJson(JSONObject())
+        assertEquals(31, p.post31.size)
+        assertTrue(p.post31.all { it == 0f })
+        assertEquals(p, LiveParams.fromJson(p.toJson()))
+    }
 }

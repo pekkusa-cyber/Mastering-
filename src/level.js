@@ -2,7 +2,7 @@
 // kompenserar utgången direkt – så att en ändring av EQ, kompression eller ingång inte låter "bättre" bara för att
 // den blev högre. Modell: typiskt musikspektrum (rosa-aktigt) genom EQ, multiband (statisk kurva) och limiter,
 // K-vägt som LUFS. Ren JS (testas i tests/unit/level.test.js).
-import { EQ_CUTOFFS, MBC_CUTOFFS, neutral, sanitize } from './chain.js';
+import { EQ_CUTOFFS, MBC_CUTOFFS, neutral, peqDb, sanitize } from './chain.js';
 import { BAND_CENTERS } from './analysis.js';
 import { kWeightCoeffs } from './dsp/loudness.js';
 import { responseDb } from './dsp/biquad.js';
@@ -42,7 +42,7 @@ export function estimate(params, { programDb = -12 } = {}) {
     return { gain: b.preGain - gr + b.postGain, gr };
   });
   const mbcOf = (f) => { const m = MBC_CUTOFFS.findIndex((c) => f < c); return mbcGain[m < 0 ? 3 : m]; };
-  const post = BAND_CENTERS.map((f, i) => pre[i] + mbcOf(f).gain + regionGain(EQ_CUTOFFS, p.postEq, f));
+  const post = BAND_CENTERS.map((f, i) => pre[i] + mbcOf(f).gain + regionGain(EQ_CUTOFFS, p.postEq, f) + peqDb(p.peq, f));
   // Limiter: toppar ≈ RMS + crest; minskningen märks i loudness ungefär till hälften
   const rms = sumDb(post);
   const over = rms + CREST - p.limiter.threshold;

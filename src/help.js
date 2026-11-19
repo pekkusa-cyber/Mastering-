@@ -38,9 +38,18 @@ export const HELP = {
       Raden <b>Påverkar</b> visar exakt vad presetten gör, t.ex. att Mjuk kick bara arbetar med kompression av kickbandet och
       limitern – inte med EQ. Spara din egen under <b>⋯ Hantera</b> (spara, döp om, ta bort, exportera, importera).</p>
       <h3>Enkelt och Avancerat</h3>
+      <h3>Byt bara en del</h3>
+      <p>Under presetten finns <b>EQ</b>, <b>Kompressor</b> och <b>Limiter</b>: ta den delen från en annan preset (t.ex. EQ från
+      Radio ljus men limitern från Mjuk kick). Resten ligger kvar.</p>
+      <h3>Solo och mute</h3>
+      <p><b>S</b> vid ett reglage, en sektion eller ett band = solo: bara den delen hörs, resten av kedjan blir neutral. En gul rad
+      visar vad som är solat – <b>Avsluta solo</b> går tillbaka. På/av-knappen är mute: just den delen stängs av.</p>
+      <h3>Skydd mot misstag och Ångra</h3>
+      <p>Reglagen ändras bara när du drar <b>i sidled</b> – sveper du upp eller ner scrollar sidan och inget ändras. Ett tryck flyttar
+      inte reglaget. <b>↶ Ångra</b> på raden längst ner tar tillbaka den senaste ändringen (upp till 20 steg).</p>
       <p><b>Enkelt</b>: sex reglage i grupperna Ton, Vokal, Bas och Dynamik, ovanpå presetten. Tryck på en grupp för att öppna den
       (en i taget, så att sidan håller sig kort). Under varje reglage står vad det påverkar, och gruppens knapp slår av/på hela gruppen (mitten = presetten som den är). <b>Avancerat</b>: hela kedjan –
-      Ingång → Pre-EQ → Multiband → Post-EQ → Limiter → Utgång.</p>
+      Ingång → Pre-EQ → Multiband → Post-EQ → <b>Parametrisk EQ</b> (5 band med frekvens, gain och <b>Q</b> = bredd) → Limiter → Utgång.</p>
       <ul>
         <li><b>På/av</b> på varje reglage, sektion och band: slå bara på det du vill ha (t.ex. bara mjukare kick).
         Av = neutralt, inställningen ligger kvar. <b>Slå på allt</b> tar tillbaka allt.</li>
@@ -99,7 +108,7 @@ export const HELP = {
         <li><b>Exportera:</b> 24 bit (för distribution) eller 16 bit, 44,1 eller 48 kHz, med dither.</li>
       </ol>
       <h3>Kedjan</h3>
-      <p>Trim → Pre-EQ → Match-EQ → Multiband (Linkwitz-Riley, 4 band, kick-anslag på kickbandet) → Post-EQ →
+      <p>Trim → Pre-EQ → Match-EQ → Multiband (Linkwitz-Riley, 4 band, kick-anslag på kickbandet) → Post-EQ → Parametrisk EQ →
       De-esser → Mjuk topp → Stereobredd → Lim → Drive → Soft clipper → True-peak-limiter (lookahead, 4x översampling) → Utgång.</p>
       <h3>Live och fil låter inte exakt lika</h3>
       <p>Live använder Androids inbyggda DSP; filmastringen har en egen kedja. Samma preset ger samma riktning men

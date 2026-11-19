@@ -109,7 +109,7 @@ object LiveDspEngine {
     private fun correctionActive() = correctionOn && correction?.isEmpty == false
 
     /** Trösklarna i multibandet följer volymen (om ljudet bearbetas efter volymknappen, se AgcController.postVolume). */
-    private fun thresholdOffset(): Float = if (volComp && AgcController.postVolume) volOffset else 0f
+    private fun thresholdOffset(): Float = if (volComp && AgcController.postVolumeKnown && AgcController.postVolume) volOffset.coerceAtLeast(-30f) else 0f
 
     var broadcastsReceived = 0
     var scans = 0
@@ -167,7 +167,7 @@ object LiveDspEngine {
         val v = AudioOut.volumeDb(ctx).toFloat()
         if (kotlin.math.abs(v - volOffset) < 0.5f) return
         volOffset = v
-        if (volComp && AgcController.postVolume && mastered()) refreshEffects()
+        if (volComp && AgcController.postVolumeKnown && AgcController.postVolume && mastered()) refreshEffects()
     }
 
     /** Profiler per ljudutgång: { "<nyckel>": { params: {...}, correction: { on, gains, preamp, name } } }. */
@@ -393,7 +393,7 @@ object LiveDspEngine {
         p.preEq.forEachIndexed { i, e -> pre.setBand(i, eqBand(e)) }
         val mbc = DynamicsProcessing.Mbc(true, true, p.mbc.size)
         p.mbc.forEachIndexed { i, m -> mbc.setBand(i, mbcBand(m)) }
-        val postBands = PostEq.expand(p.postEq, if (correctionActive()) correction else null)
+        val postBands = PostEq.expand(p.postEq, if (correctionActive()) correction else null, p.post31)
         val post = DynamicsProcessing.Eq(true, true, postBands.size)
         postBands.forEachIndexed { i, e -> post.setBand(i, eqBand(e)) }
         b.setPreEqAllChannelsTo(pre)
@@ -408,7 +408,7 @@ object LiveDspEngine {
         dp.setInputGainAllChannelsTo(p.inputGain)
         p.preEq.forEachIndexed { i, e -> dp.setPreEqBandAllChannelsTo(i, eqBand(e)) }
         p.mbc.forEachIndexed { i, m -> dp.setMbcBandAllChannelsTo(i, mbcBand(m)) }
-        PostEq.expand(p.postEq, if (correctionActive()) correction else null).forEachIndexed { i, e -> dp.setPostEqBandAllChannelsTo(i, eqBand(e)) }
+        PostEq.expand(p.postEq, if (correctionActive()) correction else null, p.post31).forEachIndexed { i, e -> dp.setPostEqBandAllChannelsTo(i, eqBand(e)) }
         dp.setLimiterAllChannelsTo(limiter(p))
     }
 

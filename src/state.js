@@ -29,6 +29,8 @@ export const ui = {
   profiles: {},          // per ljudutgång
   report: null,          // senaste bekräftelsen från motorn
   fix: null,             // Åtgärda – 3 förslag { variants, active, backup }
+  mods: {},              // modulpresets: { eq, comp, limiter } = namnet på presetten delen kom från
+  solo: null,            // solad del (chain.js soloEnables) – sparas aldrig
 };
 
 /** Fylls i av main.js. */

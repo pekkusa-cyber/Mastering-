@@ -1,0 +1,18 @@
+<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="l-base.css"><style>
+.spec{height:230px;align-items:flex-end}
+.spec i{opacity:.35}
+.dots circle{fill:#fff;stroke:#3fd3b0;stroke-width:3}
+.panel{margin:8px 14px 0;padding:10px 12px;border-radius:14px;background:var(--card);border:1px solid var(--line)}
+.chips{display:flex;gap:6px;margin-bottom:8px}.chips span{padding:6px 10px;border-radius:14px;border:1px solid var(--line);font-size:12.5px;color:var(--dim)}.chips .on{border-color:#3fd3b0;color:#c3f6e9;background:#13302b}
+.knobs{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;text-align:center;font-size:12px;color:var(--dim)}
+.kn{width:62px;height:62px;margin:0 auto 4px;border-radius:50%;background:conic-gradient(#3fd3b0 0 var(--p),#26353a var(--p) 75%,transparent 75%);transform:rotate(-135deg);position:relative}.kn::after{content:'';position:absolute;inset:8px;border-radius:50%;background:#121c1e}
+.knobs b{display:block;color:#eef3f4;font-size:14px}
+</style></head><body><div class="phone"><div class="sb"><span>09:41</span><span>●●●</span></div><div class="hd"><b>Masterlab</b><span class="ic">⚙</span><span class="ic">ⓘ</span></div><div class="mains"><div class="mn on">🎧 Hörlurar<i></i></div><div class="mn on">🎚️ Masterlab<i></i></div></div><div class="ab"><span>Original</span><span class="on">Mastrad</span></div><div class="spec"><i style="height:72%"></i><i style="height:80%"></i><i style="height:76%"></i><i style="height:66%"></i><i style="height:60%"></i><i style="height:58%"></i><i style="height:61%"></i><i style="height:54%"></i><i style="height:50%"></i><i style="height:52%"></i><i style="height:47%"></i><i style="height:44%"></i><i style="height:45%"></i><i style="height:41%"></i><i style="height:38%"></i><i style="height:36%"></i><i style="height:33%"></i><i style="height:30%"></i><i style="height:27%"></i><i style="height:22%"></i><svg viewBox="0 0 362 92" preserveAspectRatio="none"><polyline fill="none" stroke="#d95926" stroke-width="2" points="0,22 40,18 80,26 120,34 160,38 200,42 240,46 280,52 320,58 362,66"/></svg></div>
+<div style="position:absolute;left:14px;right:14px;top:190px;height:0"></div>
+<div class="panel"><div class="chips"><span class="on">EQ</span><span>Kompressor</span><span>Limiter</span><span style="margin-left:auto" class="ms"><span class="m">M</span><span class="s on">S</span></span></div>
+<div class="knobs"><div><div class="kn" style="--p:30%"></div><b>300 Hz</b>Frekvens</div><div><div class="kn" style="--p:28%"></div><b>−2.5 dB</b>Gain</div><div><div class="kn" style="--p:40%"></div><b>Q 1.4</b>Bredd</div></div></div>
+<div class="preset" style="margin-top:8px">🛠️<div><small>PRESET · EQ: Mindre grumligt · Limiter: Säker</small><b>Suno-fix</b></div><span class="byt">Byt ▾</span></div>
+<div class="tabs"><span class="sel">◉<br>Live</span><span>▤<br>Analys</span><span>♫<br>Fil</span><span>⋯<br>Mer</span></div></div>
+<script>
+const sp=document.querySelector('.spec');sp.insertAdjacentHTML('beforeend','<svg viewBox="0 0 362 230" style="position:absolute;inset:0"><path d="M0,120 C40,112 70,108 100,130 S170,150 200,124 S270,96 300,118 S340,126 362,122" fill="none" stroke="#3fd3b0" stroke-width="3"/><g class="dots"><circle cx="40" cy="112" r="8"/><circle cx="105" cy="132" r="11"/><circle cx="200" cy="124" r="8"/><circle cx="285" cy="104" r="8"/><circle cx="340" cy="124" r="8"/></g><text x="96" y="160" fill="#c3f6e9" font-size="11">dra punkten · nyp = Q</text></svg>');
+</script></body></html>

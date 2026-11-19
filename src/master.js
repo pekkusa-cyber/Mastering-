@@ -44,7 +44,7 @@ export function applyFileEnables(params, enabled = {}) {
   if (off('match')) p.matchEq.forEach((b) => { b.gain = 0; });
   p.mbc.forEach((b, i) => { if (off(`mbc${i}`)) Object.assign(b, { ratio: 1, preGain: 0, postGain: 0 }); });
   if (off('kick')) p.kickPunch = 0;
-  if (off('postEq')) p.postEq.forEach((b) => { b.gain = 0; });
+  if (off('postEq')) { p.postEq.forEach((b) => { b.gain = 0; }); p.peq.forEach((b) => { b.gain = 0; }); }
   if (off('deEss')) p.deEss = 0;
   if (off('glitter')) p.glitter = 0;
   if (off('width')) p.width = 100;
@@ -64,6 +64,7 @@ export function fileNeutral() {
     matchEq: MATCH_FREQS.map(() => ({ gain: 0 })),
     mbc: live.mbc,
     postEq: live.postEq,
+    peq: live.peq,
     kickPunch: 0,
     deEss: 0,
     glitter: 0,
@@ -82,7 +83,7 @@ export function fileNeutral() {
 export function sanitizeFile(p) {
   const n = fileNeutral();
   const s = p && typeof p === 'object' ? p : {};
-  const live = sanitizeLive({ preEq: s.preEq, mbc: s.mbc, postEq: s.postEq });
+  const live = sanitizeLive({ preEq: s.preEq, mbc: s.mbc, postEq: s.postEq, peq: s.peq });
   const R = FILE_RANGES;
   return {
     trim: c(s.trim, R.trim, n.trim),
@@ -90,6 +91,7 @@ export function sanitizeFile(p) {
     matchEq: MATCH_FREQS.map((_, i) => ({ gain: c(s.matchEq?.[i]?.gain, R.matchGain, 0) })),
     mbc: live.mbc,
     postEq: live.postEq,
+    peq: live.peq,
     kickPunch: c(s.kickPunch, R.kickPunch, n.kickPunch),
     deEss: c(s.deEss, R.deEss, n.deEss),
     glitter: c(s.glitter, R.glitter, n.glitter),
@@ -118,7 +120,7 @@ export function sanitizeFile(p) {
  */
 export function liveToFile(liveParams, extra = {}) {
   const l = sanitizeLive(liveParams);
-  return sanitizeFile({ ...fileNeutral(), preEq: l.preEq, mbc: l.mbc, postEq: l.postEq, glue: { threshold: -16, ratio: 1.5, attack: 30, release: 200, makeup: 0 }, clip: 1.5, deEss: 25, glitter: 20, ...extra });
+  return sanitizeFile({ ...fileNeutral(), preEq: l.preEq, mbc: l.mbc, postEq: l.postEq, peq: l.peq, glue: { threshold: -16, ratio: 1.5, attack: 30, release: 200, makeup: 0 }, clip: 1.5, deEss: 25, glitter: 20, ...extra });
 }
 
 /** Målet som LUFS-värde (null = ingen automatisk nivå). */

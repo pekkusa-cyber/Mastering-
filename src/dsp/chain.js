@@ -6,6 +6,7 @@ import { Compressor, TransientShaper, softClip, coef } from './dynamics.js';
 import { TruePeakLimiter } from './limiter.js';
 import { deEsser, glitterFilter } from './splitdyn.js';
 import { EQ_CUTOFFS, MBC_CUTOFFS, MATCH_FREQS } from '../master.js';
+import { PEQ_BANDS } from '../chain.js';
 
 export const BLOCK = 1024;
 const SUB = 64; // EQ-ändringar sker i små steg var 64:e sampel
@@ -27,16 +28,25 @@ class EqBank {
     this.bands = defs.map((d) => ({ ...d, gain: 0, target: 0, filt: new Biquad(coeffs(d.type, fs, d.f, d.q, 0)) }));
   }
   setGains(gains) { this.bands.forEach((b, i) => { b.target = gains[i] ?? 0; }); }
+  /** Parametrisk: frekvens, Q och gain per band (ny frekvens/Q räknas in vid nästa delblock). */
+  setBands(list) {
+    this.bands.forEach((b, i) => {
+      const x = list[i] || {};
+      if (x.freq && (x.freq !== b.f || x.q !== b.q)) { b.f = x.freq; b.q = x.q; b.dirty = true; }
+      b.target = x.gain ?? 0;
+    });
+  }
   get idle() { return this.bands.every((b) => b.gain === 0 && b.target === 0); }
   run(L, R, n) {
     if (this.idle) return;
     for (let s = 0; s < n; s += SUB) {
       const e = Math.min(n, s + SUB);
       for (const b of this.bands) {
-        if (b.gain !== b.target) {
+        if (b.gain !== b.target || b.dirty) {
           const d = b.target - b.gain;
           b.gain = Math.abs(d) <= 0.25 ? b.target : b.gain + Math.sign(d) * 0.25;
           b.filt.set(coeffs(b.type, this.fs, b.f, b.q, b.gain));
+          b.dirty = false;
         }
         if (b.gain !== 0 || b.target !== 0) { b.filt.run(L, 0, s, e); b.filt.run(R, 1, s, e); }
       }
@@ -70,6 +80,7 @@ export class PreChain {
     this.comps = MBC_CUTOFFS.map(() => new Compressor(fs));
     this.kick = new TransientShaper(fs);
     this.post = new EqBank(fs, graphicBands(EQ_CUTOFFS));
+    this.peq = new EqBank(fs, PEQ_BANDS.map((b) => ({ type: b.type, f: b.freq, q: b.q })));
     this.deEss = deEsser(fs);
     this.glitter = glitterFilter(fs);
     this.glue = new Compressor(fs);
@@ -85,6 +96,7 @@ export class PreChain {
     this.pre.setGains(p.preEq.map((b) => b.gain));
     this.match.setGains(p.matchEq.map((b) => b.gain));
     this.post.setGains(p.postEq.map((b) => b.gain));
+    this.peq.setBands(p.peq || []);
     p.mbc.forEach((b, i) => this.comps[i].set(b));
     this.mbcActive = p.mbc.some((b) => b.ratio > 1.0001 || b.preGain !== 0 || b.postGain !== 0) || p.kickPunch !== 0;
     this.kick.set(p.kickPunch);
@@ -115,6 +127,7 @@ export class PreChain {
       }
     }
     this.post.run(L, R, n);
+    this.peq.run(L, R, n);
     this.deEss.run(L, R, n);
     this.glitter.run(L, R, n);
     if (this.width !== 1 || this.widthNow !== 1) {

@@ -5,7 +5,7 @@ import { ui, app } from './state.js';
 import { esc, showInfo, sheet } from './ui.js';
 import * as updater from './updater.js';
 import { loadRefs } from './refs.js';
-import { liveView, bindLive, initLive, changed, onButton, bindStatus, renderViz, renderSettings, openSettings, syncProfileFromStatus } from './views/live.js';
+import { liveView, bindLive, initLive, changed, onButton, bindStatus, renderViz, renderSettings, openSettings, syncProfileFromStatus, undo } from './views/live.js';
 import { analysView, bindAnalys, renderSpectrum, setMonitor } from './views/analys.js';
 import { filView, bindFil, renderFilePart, stopFilePlayback } from './views/fil.js';
 import { merView, bindMer, refreshPerms, debugCard, bindDebug } from './views/mer.js';
@@ -45,15 +45,17 @@ function apkBanner() {
 function confirmBar() {
   if (!LiveDsp || ui.view !== 'live') return '';
   const s = ui.status || {}, r = ui.report;
-  const recent = r && Date.now() - r.at < 2500 && r.user;
+  const recent = r && Date.now() - r.at < 6000 && r.user;
+  const undoBtn = ui.undo?.length ? '<button class="btn small undo" id="undo">↶ Ångra</button>' : '';
   if (s.running && s.control === false || r?.noControl > 0 && Date.now() - r.at < 60000 && s.control !== true) {
     return `<div class="confirm warn" id="confirm" role="status"><span>⚠ En annan app (t.ex. Wavelet) styr ljudet – dina ändringar hörs inte.</span><button class="btn small" id="takeControl">Ta tillbaka</button></div>`;
   }
   if (!recent) return '<div id="confirm" hidden></div>';
-  if (r.errors > 0) return `<div class="confirm bad" id="confirm" role="status">✕ Ändringen kunde inte läggas på (${r.errors} fel) – se Mer → Felsökning.</div>`;
-  if (!r.running || !r.total) return '<div class="confirm warn" id="confirm" role="status">Sparat – motorn är av. Slå PÅ för att höra ändringen.</div>';
-  if (!s.on && !s.agc?.on && !s.correction?.on) return '<div class="confirm" id="confirm" role="status">✓ Sparat – hörs när du slår PÅ.</div>';
-  return `<div class="confirm ok" id="confirm" role="status">✓ Ändringen ligger på ljudet – hörs nu.</div>`;
+  if (r.undone) return `<div class="confirm ok" id="confirm" role="status"><span>↶ Ångrat.</span>${undoBtn}</div>`;
+  if (r.errors > 0) return `<div class="confirm bad" id="confirm" role="status"><span>✕ Ändringen kunde inte läggas på (${r.errors} fel) – se Mer → Felsökning.</span>${undoBtn}</div>`;
+  if (!r.running || !r.total) return `<div class="confirm warn" id="confirm" role="status"><span>Sparat – motorn är av. Slå PÅ för att höra ändringen.</span>${undoBtn}</div>`;
+  if (!s.on && !s.agc?.on && !s.correction?.on) return `<div class="confirm" id="confirm" role="status"><span>✓ Sparat – hörs när du slår PÅ.</span>${undoBtn}</div>`;
+  return `<div class="confirm ok" id="confirm" role="status"><span>✓ Ändringen hörs nu.</span>${undoBtn}</div>`;
 }
 
 let confirmTimer = 0;
@@ -69,8 +71,10 @@ function renderConfirm() {
     ui.status = await LiveDsp.getStatus();
     renderConfirm();
   };
+  const u = root.querySelector('#undo');
+  if (u) u.onclick = () => undo();
   clearTimeout(confirmTimer);
-  confirmTimer = setTimeout(renderConfirm, 2600);
+  confirmTimer = setTimeout(renderConfirm, 6100);
 }
 
 function body() {
