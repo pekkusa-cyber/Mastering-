@@ -5,7 +5,7 @@ export const ui = {
   view: 'live',          // 'live' | 'analys' | 'fil' | 'mer'
   mode: 'simple',        // Live: 'simple' | 'advanced'
   presetId: 'mjuk-kick',
-  base: structuredClone(BUILTIN_PRESETS[0].params),
+  base: structuredClone(BUILTIN_PRESETS.find((p) => p.id === 'mjuk-kick').params),
   macros: noMacros(),
   userPresets: [],
   status: null,

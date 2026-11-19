@@ -7,14 +7,15 @@ import { BUILTIN_PRESETS, EQ_CUTOFFS, MBC_CUTOFFS, MBC_NAMES, RANGES, bandLabel 
 import { FILE_RANGES, MATCH_FREQS, TARGETS, applyFileEnables, fileNeutral, liveToFile, sanitizeFile } from '../master.js';
 import { compareProfiles, matchEqCurve, profileFromChannels, toFileMatchEq } from '../analysis.js';
 import { currentRef, selectRef } from '../refs.js';
-import { ask, bindSliders, esc, fmtDb, getPath, infoBtn, saveFile, setPath, slider, toggle } from '../ui.js';
+import { ask, bindPicker, bindSliders, esc, fmtDb, getPath, infoBtn, picker, saveFile, setPath, slider, toggle } from '../ui.js';
 import { spectrumSvg, bindSpectrum } from '../spectrum.js';
 import { eqCurveSvg, compCurvesSvg } from '../viz.js';
 import { decodeFile, mmss, resample } from '../audio.js';
 import { AbPlayer, RealtimePlayer, renderInWorker } from '../filemaster.js';
 import { encodeWav } from '../dsp/wav.js';
 import { truePeak } from '../dsp/truepeak.js';
-import { allPresets } from './live.js';
+import { allPresets, presetGroups } from './live.js';
+import { refGroups } from './analys.js';
 import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
 
@@ -35,7 +36,9 @@ const effective = () => applyFileEnables(F.params, F.enabled);
 /** ↺ och "Återställ alla" går tillbaka till: vald preset med valt mål. */
 function presetFileParams() {
   const p = presetOf(F.presetId);
-  return p ? liveToFile(p.params, { target: F.params.target }) : sanitizeFile({ ...fileNeutral(), target: F.params.target });
+  // Orörd: ingen bearbetning – bara målnivån och true-peak-taket (som alltid måste hållas för en exportfil)
+  if (!p || p.id === 'flat') return sanitizeFile({ ...fileNeutral(), target: F.params.target });
+  return liveToFile(p.params, { target: F.params.target });
 }
 const matchGain = () => {
   const r = F.result;
@@ -218,7 +221,7 @@ function analysisCard() {
   }
   return `<section class="card" id="fanalys">
     <div class="row"><h2>Klang mot referens ${infoBtn('verdict')}</h2></div>
-    <select id="f-ref" aria-label="Referens för filen"><option value="">Ingen referens</option>${ui.refs.map((r) => `<option value="${esc(r.id)}" ${r.id === ui.refId ? 'selected' : ''}>${esc(r.name)}</option>`).join('')}</select>
+    ${picker({ id: 'f-ref', label: 'Referens för filen', value: ui.refId, groups: refGroups(), placeholder: 'Ingen referens' })}
     ${spectrumSvg(series, { id: 'file', title: 'Spektrum för filen' })}
     ${verdict}
     ${ref ? `${slider({ id: 'f-matchamount', label: 'Hur mycket att matcha', value: F.matchAmount, range: [0, 100, 5, '%'], info: 'matchAmount', resetTo: 70, kind: 'amount', key: 'amount' })}
@@ -252,7 +255,6 @@ function albumCard() {
 }
 
 export function filView() {
-  const opt = (p) => `<option value="${esc(p.id)}" ${p.id === F.presetId ? 'selected' : ''}>${esc(p.name)}</option>`;
   return `
     <section class="card">
       <h2>Låt</h2>
@@ -264,11 +266,7 @@ export function filView() {
       <div class="row"><h2>Mål ${infoBtn('fileTarget')}</h2></div>
       <div class="seg">${TARGETS.map((t) => `<button data-target="${t.id}" class="${F.params.target === t.id ? 'sel' : ''}">${t.name}${t.lufs ? ` ${t.lufs}` : ''}</button>`).join('')}</div>
       <div class="row"><h2>Preset ${infoBtn('liveVsFile', 'Live och fil')}</h2></div>
-      <select id="f-preset" aria-label="Preset för filen">
-        <optgroup label="Inbyggda">${BUILTIN_PRESETS.filter((p) => p.id !== 'test').map(opt).join('')}</optgroup>
-        ${ui.userPresets.length ? `<optgroup label="Mina">${ui.userPresets.map(opt).join('')}</optgroup>` : ''}
-        ${!presetOf(F.presetId) ? '<option value="" selected>(egen inställning)</option>' : ''}
-      </select>
+      ${picker({ id: 'f-preset', label: 'Preset för filen', value: F.presetId, groups: presetGroups({ withTest: false }), placeholder: '(egen inställning)' })}
       <div class="seg" role="tablist" style="margin-top:12px">
         <button data-fmode="simple" class="${F.mode === 'simple' ? 'sel' : ''}">Enkelt</button>
         <button data-fmode="advanced" class="${F.mode === 'advanced' ? 'sel' : ''}">Avancerat</button>
@@ -362,14 +360,14 @@ export function bindFil(root) {
   root.querySelectorAll('[data-target]').forEach((b) => {
     b.onclick = () => { F.params.target = b.dataset.target; F.params = sanitizeFile(F.params); app.render(); paramsChanged(); };
   });
-  root.querySelector('#f-preset').onchange = (e) => {
-    F.presetId = e.target.value;
+  bindPicker(root, 'f-preset', () => ({ title: 'Preset för filen', value: F.presetId, groups: presetGroups({ withTest: false }) }), (v) => {
+    F.presetId = v;
     const matchEq = F.params.matchEq;
     F.params = { ...presetFileParams(), matchEq };
     F.versionId = '';
     app.render();
     paramsChanged();
-  };
+  });
   root.querySelectorAll('[data-fmode]').forEach((b) => { b.onclick = () => { F.mode = b.dataset.fmode; app.render(); }; });
   bindSliders(root, (kind, key, v) => {
     if (kind === 'fpath') { setPath(F.params, key, v); F.versionId = ''; paramsChanged(); }
@@ -437,8 +435,7 @@ export function bindFil(root) {
     if (F.result) series.orig = { label: 'Original', bands: F.profile.bands };
     bindSpectrum(root.querySelector('#fanalys'), series);
   }
-  const fr = root.querySelector('#f-ref');
-  if (fr) fr.onchange = async () => { await selectRef(fr.value); app.render(); };
+  bindPicker(root, 'f-ref', () => ({ title: 'Välj referens', value: ui.refId, groups: refGroups() }), async (v) => { await selectRef(v); app.render(); });
   const fm = root.querySelector('#f-match');
   if (fm) fm.onclick = () => {
     // Utgår från det mastrade resultatet om det finns – då räknas presetens EQ med och upprepade tryck förfinar

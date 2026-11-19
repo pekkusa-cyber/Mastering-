@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { pick, picked } from './helpers.js';
 
 const analyze = async (page) => {
   await page.getByRole('button', { name: '● Starta analys' }).click();
@@ -26,7 +27,7 @@ test('livespektrum, analys, spara referens och omdöme', async ({ page }) => {
   await page.locator('dialog.ask input').fill('Favoritlåt');
   await page.locator('dialog.ask').getByRole('button', { name: 'Spara' }).click();
   await expect(page.locator('#refs')).toContainText('Favoritlåt');
-  await expect(page.locator('#refsel')).toHaveValue(/^r-/);
+  await expect(picked(page, 'Referens')).toHaveText('Favoritlåt');
   // Samma låt mot sig själv: redo
   await expect(page.getByTestId('verdict')).toContainText('Redo för mastring');
 
@@ -43,7 +44,7 @@ test('livespektrum, analys, spara referens och omdöme', async ({ page }) => {
   const p = await page.evaluate(() => window.__simParams);
   expect(p.postEq[7].gain).toBeLessThan(-1);
   await page.locator('nav [data-view="live"]').click();
-  await expect(page.getByLabel('Preset', { exact: true }).locator('option:checked')).toHaveText('Match: Favoritlåt');
+  await expect(picked(page, 'Preset')).toHaveText('Match: Favoritlåt');
 });
 
 test('referenser: döp om, ta bort, exportera och importera', async ({ page }) => {

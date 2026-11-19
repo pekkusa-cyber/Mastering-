@@ -3,6 +3,7 @@ import { infoFor } from './info.js';
 
 export const esc = (t) => String(t ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 export const fmt = (v, step) => (step < 1 ? Number(v).toFixed(1) : String(Math.round(v)));
+const pct = (v, min, max) => Math.round(((Number(v) - min) / (max - min || 1)) * 1000) / 10;
 export const fmtDb = (v, d = 1) => (Number.isFinite(v) ? `${v > 0 ? '+' : ''}${v.toFixed(d)}` : '–');
 
 export const getPath = (obj, path) => path.split('.').reduce((o, k) => o?.[k], obj);
@@ -33,7 +34,7 @@ export function slider({ id, label, value, range, info, resetTo = null, kind, ke
     </div>
     <div class="slrow">
       <button type="button" class="step" data-step="${esc(id)}" data-dir="-1" aria-label="Minska ${esc(label)}">−</button>
-      <input type="range" id="${esc(id)}" min="${min}" max="${max}" step="${step}" value="${value}" data-kind="${esc(kind)}" data-key="${esc(key)}" data-unit="${esc(unit)}">
+      <input type="range" id="${esc(id)}" min="${min}" max="${max}" step="${step}" value="${value}" data-kind="${esc(kind)}" data-key="${esc(key)}" data-unit="${esc(unit)}" style="--p:${pct(value, min, max)}%">
       <button type="button" class="step" data-step="${esc(id)}" data-dir="1" aria-label="Öka ${esc(label)}">+</button>
     </div>
   </div>`;
@@ -46,6 +47,7 @@ export const toggle = (key, on, label) =>
 /** Kopplar alla reglage, ↺, −/+ och på/av i root. onChange(kind, key, value), onEnable(key, on). */
 export function bindSliders(root, onChange, onEnable) {
   const update = (el, v) => {
+    el.style.setProperty('--p', `${pct(v, Number(el.min), Number(el.max))}%`);
     const out = el.closest('.sl').querySelector('output');
     const unit = el.dataset.unit;
     out.textContent = `${fmt(v, Number(el.step))}${unit ? ` ${unit}` : ''}`;
@@ -150,4 +152,41 @@ export async function saveFile(name, data, mime, { isNative, Filesystem, Directo
   const uri = res?.uri || (await Filesystem.getUri({ path: name, directory: Directory.Cache })).uri;
   try { await Share.share({ title: name, files: [uri], dialogTitle: 'Spara eller skicka' }); } catch { /* användaren stängde */ }
   return 'shared';
+}
+
+// ---- Appens egen väljare (i stället för telefonens svarta rullgardin) ----
+
+/**
+ * En knapp som visar valt värde; tryck öppnar ett ark med alternativen.
+ * groups: [{ label, options: [{ value, label, desc?, icon? }] }]
+ */
+export function picker({ id, label, value, groups, placeholder = 'Välj' }) {
+  const cur = groups.flatMap((g) => g.options).find((o) => o.value === value);
+  return `<button type="button" class="picker" id="${esc(id)}" aria-label="${esc(label)}" aria-haspopup="listbox">
+    ${cur?.icon ? `<span class="pi">${cur.icon}</span>` : ''}<span class="pv">${esc(cur?.label || placeholder)}</span><span class="chev">▾</span></button>`;
+}
+
+/** Öppnar väljarens ark. Svarar valt värde, eller null om arket stängdes. */
+export function openPicker({ title, value, groups }) {
+  return new Promise((resolve) => {
+    let chosen = null;
+    const d = sheet(`<h2>${esc(title)}</h2><div class="plist" role="listbox" aria-label="${esc(title)}">${groups.map((g) => `
+      ${g.label ? `<div class="pgroup">${esc(g.label)}</div>` : ''}
+      ${g.options.map((o) => `<button type="button" role="option" class="popt ${o.value === value ? 'sel' : ''}" aria-selected="${o.value === value}" data-value="${esc(o.value)}">
+        ${o.icon ? `<span class="pi">${o.icon}</span>` : ''}<span class="pt"><b>${esc(o.label)}</b>${o.desc ? `<small>${esc(o.desc)}</small>` : ''}</span>${o.value === value ? '<span class="pcheck">✓</span>' : ''}
+      </button>`).join('')}`).join('')}</div>`, { cls: 'pickersheet', closeText: 'Avbryt' });
+    d.querySelectorAll('[data-value]').forEach((b) => { b.onclick = () => { chosen = b.dataset.value; d.close(); }; });
+    d.addEventListener('close', () => resolve(chosen));
+    d.querySelector('.popt.sel')?.scrollIntoView({ block: 'center' });
+  });
+}
+
+/** Kopplar en väljare. opts = { title, value, groups }, onChange(value). */
+export function bindPicker(root, id, opts, onChange) {
+  const b = root.querySelector(`#${CSS.escape(id)}`);
+  if (!b) return;
+  b.onclick = async () => {
+    const v = await openPicker(typeof opts === 'function' ? opts() : opts);
+    if (v !== null) onChange(v);
+  };
 }

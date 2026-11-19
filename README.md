@@ -121,7 +121,7 @@ Ingång → pre-EQ (8 band) → multiband-kompressor (4 band: 0–120 Hz kick, 1
 
 - **PÅ/AV** (stora knappen och i notisen) växlar mellan mastrat och original.
 - **Utgångsnivå** för att nivåmatcha själv, eller **Auto-nivåmatcha** (mäter med Visualizer, kräver mikrofonbehörighet).
-- **Presets:** Mjuk kick, Radio ljus, Silkeslen röst, Varm lim (+ Test från fas 1). Spara, döp om, ta bort,
+- **Presets (30):** Orörd (ingen bearbetning), Mjuk kick, Suno-fix, Radio ljus, Silkeslen röst, Varm lim, genrer och lyssningsmiljöer (bil, telefon, hörlurar) m.fl. Spara, döp om, ta bort,
   exportera/importera som JSON.
 - **Enkelt:** Kick mjukare, Ljusare, Tryck/limiter, Röst silkeslen (mitten = presetten som den är).
 - **Avancerat:** alla parametrar per band.

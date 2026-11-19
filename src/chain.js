@@ -104,6 +104,10 @@ function build(fn) {
 // Startvärden att justera med örat – inte facit.
 export const BUILTIN_PRESETS = [
   {
+    id: 'flat', name: 'Orörd', builtin: true, desc: 'Ingen bearbetning alls – inte ens limitern. Låten som den är: en ren grund att bygga från.',
+    params: build((p) => { p.limiter = { attack: 1, release: 60, ratio: 1, threshold: 0, postGain: 0 }; }),
+  },
+  {
     id: 'mjuk-kick', name: 'Mjuk kick', builtin: true, desc: 'Tämjer en hård kick: kick-bandet komprimeras snabbt, limitern tar topparna.',
     params: build((p) => {
       p.inputGain = 3;
@@ -256,6 +260,107 @@ export const BUILTIN_PRESETS = [
       p.mbc.forEach((b) => Object.assign(b, { threshold: -16, ratio: 1.3, attack: 15, release: 200 }));
       p.postEq[6].gain = -1.5;
       p.postEq[7].gain = -1;
+    }),
+  },
+  {
+    id: 'rnb-silke', name: 'R&B silke', builtin: true, desc: 'Len topp, varm botten och mjuk, jämn kompression – för sång i fokus.',
+    params: build((p) => {
+      p.inputGain = 3;
+      p.mbc.forEach((b) => Object.assign(b, { threshold: -20, ratio: 2, attack: 15, release: 200, knee: 10 }));
+      Object.assign(p.mbc[2], { threshold: -24, ratio: 2.5, attack: 4, release: 120 });
+      p.postEq[1].gain = 1.5; p.postEq[6].gain = -1.5; p.postEq[7].gain = 1;
+    }),
+  },
+  {
+    id: 'trap-808', name: 'Trap 808', builtin: true, desc: 'Djup 808 under kontroll, krispig hi-hat och tät limiter.',
+    params: build((p) => {
+      p.inputGain = 5;
+      Object.assign(p.mbc[0], { threshold: -20, ratio: 3, attack: 10, release: 120, postGain: 1.5 });
+      Object.assign(p.mbc[3], { threshold: -24, ratio: 2, attack: 3, release: 80 });
+      p.postEq[0].gain = 1.5; p.postEq[3].gain = -1; p.postEq[7].gain = 1.5;
+      p.limiter = { attack: 0.5, release: 40, ratio: 20, threshold: -1, postGain: 0 };
+    }),
+  },
+  {
+    id: 'schlager', name: 'Schlager/dansband', builtin: true, desc: 'Rak, tydlig och glad: rösten fram, tät mitt, glans i toppen.',
+    params: build((p) => {
+      p.inputGain = 4;
+      p.mbc.forEach((b) => Object.assign(b, { threshold: -20, ratio: 2.2, attack: 6, release: 120 }));
+      p.postEq[5].gain = 1.5; p.postEq[7].gain = 1.5; p.postEq[3].gain = -1;
+    }),
+  },
+  {
+    id: 'indie', name: 'Indie luftig', builtin: true, desc: 'Öppen och luftig med naturlig dynamik och lite värme.',
+    params: build((p) => {
+      p.inputGain = 2;
+      p.mbc.forEach((b) => Object.assign(b, { threshold: -16, ratio: 1.5, attack: 20, release: 220, knee: 10 }));
+      p.postEq[2].gain = 0.5; p.postEq[3].gain = -1; p.postEq[7].gain = 2;
+    }),
+  },
+  {
+    id: 'metal', name: 'Metal tight', builtin: true, desc: 'Tight bas, kontrollerad mitt och tydliga gitarrer utan fräs.',
+    params: build((p) => {
+      p.inputGain = 5;
+      Object.assign(p.mbc[0], { threshold: -22, ratio: 3, attack: 3, release: 80 });
+      Object.assign(p.mbc[1], { threshold: -20, ratio: 2.5, attack: 5, release: 100 });
+      Object.assign(p.mbc[2], { threshold: -22, ratio: 2, attack: 3, release: 90 });
+      p.postEq[3].gain = -1.5; p.postEq[5].gain = 1; p.postEq[7].gain = -1;
+      p.limiter = { attack: 0.5, release: 40, ratio: 15, threshold: -1, postGain: 0 };
+    }),
+  },
+  {
+    id: 'jazz', name: 'Jazz naturlig', builtin: true, desc: 'Nästan orörd dynamik, bara lite värme och luft.',
+    params: build((p) => {
+      p.inputGain = 1;
+      p.mbc.forEach((b) => Object.assign(b, { threshold: -12, ratio: 1.2, attack: 30, release: 300, knee: 12 }));
+      p.postEq[2].gain = 0.5; p.postEq[7].gain = 1;
+    }),
+  },
+  {
+    id: 'film', name: 'Film/orkester', builtin: true, desc: 'Varsam för stort och dynamiskt: bara toppskydd och lite lim.',
+    params: build((p) => {
+      p.mbc.forEach((b) => Object.assign(b, { threshold: -10, ratio: 1.3, attack: 30, release: 400, knee: 12 }));
+      p.limiter = { attack: 1, release: 120, ratio: 10, threshold: -1, postGain: 0 };
+    }),
+  },
+  {
+    id: 'reggaeton', name: 'Reggaeton/afro', builtin: true, desc: 'Studsig kick och bas, tydlig rytm och sång fram.',
+    params: build((p) => {
+      p.inputGain = 4;
+      Object.assign(p.mbc[0], { threshold: -18, ratio: 2, attack: 12, release: 90 });
+      Object.assign(p.mbc[2], { threshold: -20, ratio: 2, attack: 5, release: 110 });
+      p.postEq[1].gain = 1.5; p.postEq[5].gain = 1; p.postEq[7].gain = 1;
+    }),
+  },
+  {
+    id: 'bil', name: 'Bilstereo', builtin: true, desc: 'För bilen: lite mer bas (vägbruset äter den), mindre vass topp, jämnare nivå.',
+    params: build((p) => {
+      p.inputGain = 4;
+      p.mbc.forEach((b) => Object.assign(b, { threshold: -22, ratio: 2.5, attack: 8, release: 150 }));
+      p.postEq[0].gain = 2; p.postEq[1].gain = 1.5; p.postEq[6].gain = -1.5;
+    }),
+  },
+  {
+    id: 'telefon', name: 'Telefonhögtalare', builtin: true, desc: 'För telefonens högtalare: mindre djupbas (den hörs ändå inte), mer mitt och närvaro.',
+    params: build((p) => {
+      p.inputGain = 5;
+      p.mbc.forEach((b) => Object.assign(b, { threshold: -22, ratio: 2.5, attack: 5, release: 120 }));
+      p.postEq[0].gain = -6; p.postEq[1].gain = -2; p.postEq[4].gain = 1.5; p.postEq[5].gain = 2;
+    }),
+  },
+  {
+    id: 'gym', name: 'Gym/energi', builtin: true, desc: 'Maximalt tryck: mycket bas, glans och hård limiter.',
+    params: build((p) => {
+      p.inputGain = 8;
+      p.mbc.forEach((b) => Object.assign(b, { threshold: -22, ratio: 3, attack: 3, release: 70 }));
+      p.postEq[1].gain = 2; p.postEq[7].gain = 2;
+      p.limiter = { attack: 0.5, release: 35, ratio: 25, threshold: -1, postGain: 0 };
+    }),
+  },
+  {
+    id: 'demo-check', name: 'Demo-kontroll', builtin: true, desc: 'Avslöjar problem: höjer lågmellan och skärpa lite så att grumlighet och hårdhet hörs tydligt.',
+    params: build((p) => {
+      p.postEq[3].gain = 3; p.postEq[6].gain = 3;
     }),
   },
   {
@@ -416,8 +521,10 @@ export function presetEffects(params) {
   });
   eq('Post-EQ', p.postEq);
   const l = p.limiter;
-  if (l.threshold !== n.limiter.threshold || l.ratio !== n.limiter.ratio || l.attack !== n.limiter.attack || l.release !== n.limiter.release) {
+  if (l.ratio <= 1.0001) { if (out.length) out.push('Limiter av'); }
+  else if (l.threshold !== n.limiter.threshold || l.ratio !== n.limiter.ratio || l.attack !== n.limiter.attack || l.release !== n.limiter.release) {
     out.push(`Limiter ${+l.ratio.toFixed(1)}:1 vid ${fmtG(l.threshold)} dB`);
   }
-  return out.length ? out : ['Ingen bearbetning (bara skyddslimiter)'];
+  if (!out.length) return [l.ratio <= 1.0001 ? 'Ingen bearbetning alls – låten är orörd' : 'Ingen bearbetning (bara skyddslimiter)'];
+  return out;
 }

@@ -133,3 +133,14 @@ test('Påverkar: Mjuk kick ändrar kompression och limiter, inte EQ', async () =
   assert.deepEqual(presetEffects(neutral()), ['Ingen bearbetning (bara skyddslimiter)']);
   assert.ok(MACROS.every((m) => m.affects && m.group));
 });
+
+test('Orörd: allt neutralt och limitern av', async () => {
+  const { BUILTIN_PRESETS, presetEffects, neutral } = await import('../../src/chain.js');
+  const f = BUILTIN_PRESETS[0];
+  assert.equal(f.id, 'flat');
+  assert.equal(f.params.limiter.ratio, 1);
+  assert.equal(f.params.limiter.threshold, 0);
+  assert.deepEqual({ ...f.params, limiter: neutral().limiter }, neutral());
+  assert.deepEqual(presetEffects(f.params), ['Ingen bearbetning alls – låten är orörd']);
+  assert.ok(BUILTIN_PRESETS.length >= 30);
+});

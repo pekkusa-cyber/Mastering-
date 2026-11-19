@@ -253,3 +253,37 @@ nav.bottom button.sel { color: var(--accent); }
 /* Grupper i Enkelt läge */
 .grp h3 { display: flex; align-items: center; margin: 0 0 4px; font-size: 12px; letter-spacing: 1.5px; color: var(--dim); }
 .grp h3 .tog { margin: 0; }
+
+/* Appens egen väljare */
+.picker { width: 100%; display: flex; align-items: center; gap: 10px; text-align: left; padding: 12px 14px; border-radius: 14px; background: var(--card); border: 1px solid var(--line); color: var(--text); font: inherit; margin-top: 6px; }
+.picker .pv { flex: 1; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.picker .chev { color: var(--accent); font-size: 14px; }
+.picker .pi, .popt .pi { font-size: 20px; width: 26px; text-align: center; flex: 0 0 auto; }
+#refsel { width: auto; max-width: 58%; margin: 0; padding: 8px 12px; }
+dialog.sheet { background: linear-gradient(180deg, #13201f, #0d1416); border: 1px solid var(--line); color: var(--text); }
+dialog.sheet::backdrop { background: rgba(0,0,0,.6); backdrop-filter: blur(2px); }
+.plist { display: flex; flex-direction: column; gap: 6px; max-height: 62vh; overflow-y: auto; margin: 0 -4px; padding: 0 4px; }
+.pgroup { font-size: 12px; letter-spacing: 1.4px; text-transform: uppercase; color: var(--dim); margin: 10px 2px 2px; }
+.popt { display: flex; align-items: center; gap: 10px; text-align: left; padding: 10px 12px; border-radius: 14px; background: rgba(255,255,255,.04); border: 1px solid var(--line); color: var(--text); font: inherit; }
+.popt .pt { flex: 1; min-width: 0; }
+.popt b { display: block; font-size: 15px; }
+.popt small { display: block; color: var(--dim); font-size: 12px; line-height: 1.35; }
+.popt.sel { border-color: var(--accent); background: var(--accent-soft); }
+.pcheck { color: var(--accent); font-weight: 700; }
+dialog.ask { background: #13201f; border: 1px solid var(--line); color: var(--text); border-radius: 18px; }
+
+/* Appens egna kryssrutor (inte telefonens) */
+.switch input[type=checkbox], .perm input[type=checkbox] {
+  appearance: none; -webkit-appearance: none; width: 38px; height: 22px; border-radius: 11px; background: #3a4448; position: relative; flex: 0 0 auto; margin: 0 8px 0 0; cursor: pointer; transition: background .15s; }
+.switch input[type=checkbox]::after { content: ''; position: absolute; left: 3px; top: 3px; width: 16px; height: 16px; border-radius: 50%; background: #d6e3e6; transition: transform .15s; }
+.switch input[type=checkbox]:checked { background: var(--accent); }
+.switch input[type=checkbox]:checked::after { transform: translateX(16px); background: var(--accent-ink); }
+
+/* Appens egna skjutreglage */
+input[type=range] { -webkit-appearance: none; appearance: none; background: transparent; height: 28px; }
+input[type=range]::-webkit-slider-runnable-track { height: 4px; border-radius: 2px; background: linear-gradient(90deg, var(--accent) var(--p, 50%), #26353a var(--p, 50%)); }
+input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 20px; height: 20px; border-radius: 50%; background: #e9fffa; margin-top: -8px; box-shadow: 0 0 0 5px rgba(63,211,176,.22); }
+input[type=range]::-moz-range-track { height: 4px; border-radius: 2px; background: #26353a; }
+input[type=range]::-moz-range-progress { height: 4px; border-radius: 2px; background: var(--accent); }
+input[type=range]::-moz-range-thumb { width: 20px; height: 20px; border: 0; border-radius: 50%; background: #e9fffa; box-shadow: 0 0 0 5px rgba(63,211,176,.22); }
+.sl.off input[type=range]::-webkit-slider-runnable-track { background: #26353a; }

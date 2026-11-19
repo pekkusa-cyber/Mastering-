@@ -9,7 +9,7 @@ import {
   applyMacros, bandLabel, deletePreset, exportPresets, importPresets, neutral, noMacros, renamePreset, sanitize,
   savePreset, toNative,
 } from '../chain.js';
-import { ask, bindSliders, esc, fmtDb, getPath, infoBtn, setPath, sheet, slider, saveFile, toggle } from '../ui.js';
+import { ask, bindPicker, bindSliders, esc, fmtDb, getPath, infoBtn, picker, setPath, sheet, slider, saveFile, toggle } from '../ui.js';
 import { compensation, estimate, withCompensation } from '../level.js';
 import { eqCurveSvg, compCurvesSvg } from '../viz.js';
 import { BUILTIN_HEADPHONES, correctionFor, parseParametric } from '../headphones.js';
@@ -69,7 +69,8 @@ export async function initLive() {
 // ---- Delar ----
 
 const PRESET_ICONS = { 'mjuk-kick': '🥁', 'radio-ljus': '📻', 'silkeslen-rost': '🎤', 'varm-lim': '🧡', transparent: '◻️', 'suno-fix': '🛠️',
-  'bas-varm': '🔊', 'tat-pop': '✨', 'hiphop-punch': '👊', 'edm-hogt': '⚡', akustisk: '🎸', ballad: '🎙️', rock: '🤘', lofi: '📼', natt: '🌙', horlurar: '🎧', test: '🧪' };
+  'bas-varm': '🔊', 'tat-pop': '✨', 'hiphop-punch': '👊', 'edm-hogt': '⚡', akustisk: '🎸', ballad: '🎙️', rock: '🤘', lofi: '📼', natt: '🌙', horlurar: '🎧', test: '🧪',
+  flat: '⚪', 'rnb-silke': '🌙', 'trap-808': '🔈', schlager: '💃', indie: '🌿', metal: '🔥', jazz: '🎷', film: '🎬', reggaeton: '🌴', bil: '🚗', telefon: '📱', gym: '🏋️', 'demo-check': '🔍' };
 
 /** Original | Mastrad – stora växeln högst upp (design A). */
 export function onButton() {
@@ -111,8 +112,16 @@ export function agcRow() {
     ${s.profileApplied ? `<p class="hint small" id="profmsg">Profilen för ${esc(s.profileApplied)} används.</p>` : ''}`;
 }
 
+/** Alternativen i presetväljaren: mina först, sedan inbyggda – med ikon och beskrivning. */
+export function presetGroups({ withTest = true } = {}) {
+  const o = (p) => ({ value: p.id, label: p.name, desc: p.desc || 'Din egen preset', icon: PRESET_ICONS[p.id] || '⭐' });
+  return [
+    ...(ui.userPresets.length ? [{ label: 'Mina', options: ui.userPresets.map(o) }] : []),
+    { label: 'Inbyggda', options: BUILTIN_PRESETS.filter((p) => withTest || p.id !== 'test').map(o) },
+  ];
+}
+
 function presetCard() {
-  const opt = (p) => `<option value="${esc(p.id)}" ${p.id === ui.presetId ? 'selected' : ''}>${esc(p.name)}</option>`;
   const p = currentPreset();
   const card = (x) => `<button class="pc ${x.id === ui.presetId ? 'sel' : ''}" data-preset="${esc(x.id)}">
       <span class="ico">${PRESET_ICONS[x.id] || '⭐'}</span><b>${esc(x.name)}</b><small>${esc(x.desc || 'Din egen preset')}</small></button>`;
@@ -120,11 +129,7 @@ function presetCard() {
     <div class="row"><h2 class="sec-h">Preset ${infoBtn('presets')}</h2><span id="dirty" class="dim small" ${isDirty() ? '' : 'hidden'}>ändrad</span><span class="grow"></span>
       <button class="btn small" id="p-menu" aria-label="Hantera presets">⋯ Hantera</button></div>
     <div class="pcards" id="pcards">${[...ui.userPresets, ...BUILTIN_PRESETS].map(card).join('')}</div>
-    <select id="preset" aria-label="Preset">
-      <optgroup label="Inbyggda">${BUILTIN_PRESETS.map(opt).join('')}</optgroup>
-      ${ui.userPresets.length ? `<optgroup label="Mina">${ui.userPresets.map(opt).join('')}</optgroup>` : ''}
-      ${!p ? '<option value="" selected>(egen inställning)</option>' : ''}
-    </select>
+    ${picker({ id: 'preset', label: 'Preset', value: ui.presetId, groups: presetGroups(), placeholder: '(egen inställning)' })}
     <p class="hint small" id="pdesc">${esc(p?.desc || (p ? 'Din egen preset.' : 'Ändrad från en preset eller platt.'))}</p>
     <p class="affects" data-testid="affects"><b>Påverkar:</b> ${esc(presetEffects(p?.params ?? ui.base).join(' · '))}</p>
     ${ui.msg ? `<p class="hint" id="msg">${esc(ui.msg)}</p>` : ''}
@@ -397,7 +402,7 @@ export function bindLive(root) {
       app.render();
     };
   });
-  root.querySelector('#preset').onchange = (e) => selectPreset(e.target.value);
+  bindPicker(root, 'preset', () => ({ title: 'Välj preset', value: ui.presetId, groups: presetGroups() }), selectPreset);
   root.querySelectorAll('[data-preset]').forEach((b) => { b.onclick = () => selectPreset(b.dataset.preset); });
   root.querySelector('.pc.sel')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   root.querySelector('#p-menu').onclick = presetMenu;

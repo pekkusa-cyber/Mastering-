@@ -27,7 +27,8 @@ export const HELP = {
         byter appen själv.</li>
       </ul>
       <h3>Presets</h3>
-      <p>17 startpunkter som kort du sveper mellan – Mjuk kick, Suno-fix, Radio ljus, Silkeslen röst, Varm lim, Tät pop m.fl.
+      <p>30 startpunkter som kort du sveper mellan (eller väljer i listan) – <b>Orörd</b> (ingen bearbetning alls, en ren grund
+      att bygga från), Mjuk kick, Suno-fix, Radio ljus, Silkeslen röst, R&amp;B silke, Trap 808, Schlager, Bilstereo, Telefonhögtalare m.fl.
       Raden <b>Påverkar</b> visar exakt vad presetten gör, t.ex. att Mjuk kick bara arbetar med kompression av kickbandet och
       limitern – inte med EQ. Spara din egen under <b>⋯ Hantera</b> (spara, döp om, ta bort, exportera, importera).</p>
       <h3>Enkelt och Avancerat</h3>

@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { pick, picked } from './helpers.js';
 
 const sent = (page) => page.evaluate(() => window.__simParams);
 const setRange = (loc, v) => loc.evaluate((el, val) => { el.value = val; el.dispatchEvent(new Event('input', { bubbles: true })); }, String(v));
@@ -19,8 +20,12 @@ test('vald preset skickas till motorn med alla band, och det finns minst 16 pres
   await page.goto('/?sim=1');
   await expect.poll(async () => (await sent(page))?.mbc?.length).toBe(4);
   expect((await sent(page)).mbc[0]).toMatchObject({ cutoff: 120, threshold: -24, ratio: 4 });
-  expect(await page.locator('#preset option').count()).toBeGreaterThanOrEqual(16);
-  await page.getByLabel('Preset', { exact: true }).selectOption({ label: 'Suno-fix' });
+  expect(await page.locator('.pc').count()).toBeGreaterThanOrEqual(30);
+  await page.getByRole('button', { name: 'Preset', exact: true }).click();
+  expect(await page.locator('dialog.sheet [role=option]').count()).toBeGreaterThanOrEqual(30);
+  await expect(page.locator('dialog.sheet [role=option][aria-selected=true]')).toContainText('Mjuk kick');
+  await page.locator('dialog.sheet').getByRole('button', { name: 'Avbryt' }).click();
+  await pick(page, 'Preset', 'Suno-fix');
   await expect(page.locator('#pdesc')).toContainText('Suno');
   await expect.poll(async () => (await sent(page)).postEq[6].gain).toBe(-2);
 });
@@ -82,7 +87,7 @@ test('avancerat: varje parameter har ⓘ och ↺ (till presetens värde), Platt 
   await page.getByRole('button', { name: 'Platt' }).click();
   await expect.poll(async () => (await sent(page)).mbc[0].ratio).toBe(1);
   await expect(page.locator('#msg')).toContainText('Platt');
-  await page.getByLabel('Preset', { exact: true }).selectOption({ label: 'Radio ljus' });
+  await pick(page, 'Preset', 'Radio ljus');
   await setRange(page.locator('#p-inputGain'), -6);
   await page.getByRole('button', { name: 'Återställ alla' }).click();
   await expect.poll(async () => (await sent(page)).inputGain).toBe(5);
@@ -101,7 +106,7 @@ test('spara, döp om, ta bort, exportera och importera presets via Hantera', asy
   await page.getByRole('button', { name: 'Döp om' }).click();
   await page.locator('dialog.ask input').fill('Nattmix');
   await page.locator('dialog.ask').getByRole('button', { name: 'Döp om' }).click();
-  await expect(page.getByLabel('Preset', { exact: true }).locator('option:checked')).toHaveText('Nattmix');
+  await expect(picked(page, 'Preset')).toHaveText('Nattmix');
 
   await page.getByRole('button', { name: 'Hantera presets' }).click();
   const download = page.waitForEvent('download');
@@ -116,7 +121,10 @@ test('spara, döp om, ta bort, exportera och importera presets via Hantera', asy
   await page.getByRole('button', { name: 'Hantera presets' }).click();
   await page.locator('#p-import').setInputFiles(file);
   await expect(page.locator('#msg')).toHaveText('1 presets importerade.');
-  await expect(page.getByLabel('Preset', { exact: true }).locator('optgroup[label="Mina"] option')).toHaveText(['Nattmix']);
+  await page.getByRole('button', { name: 'Preset', exact: true }).click();
+  await expect(page.locator('dialog.sheet .pgroup').first()).toHaveText('Mina');
+  await expect(page.locator('dialog.sheet [role=option]').first()).toContainText('Nattmix');
+  await page.locator('dialog.sheet').getByRole('button', { name: 'Avbryt' }).click();
 });
 
 test('jämn volym kräver mikrofon, och då nivåmatchas PÅ/AV automatiskt', async ({ page }) => {

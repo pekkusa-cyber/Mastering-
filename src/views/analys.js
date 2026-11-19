@@ -6,7 +6,7 @@ import { save } from '../store.js';
 import { compareProfiles, finishProfile, matchEqCurve, applyLiveMatch, profileFromChannels } from '../analysis.js';
 import { savePreset, sanitize } from '../chain.js';
 import { addRef, currentRef, deleteRef, exportRefs, importRefs, renameRef, selectRef } from '../refs.js';
-import { ask, esc, fmtDb, infoBtn, saveFile } from '../ui.js';
+import { ask, bindPicker, esc, fmtDb, infoBtn, picker, saveFile } from '../ui.js';
 import { spectrumSvg, bindSpectrum } from '../spectrum.js';
 import { decodeFile, mmss } from '../audio.js';
 import { effective, changed } from './live.js';
@@ -30,11 +30,10 @@ export async function setMonitor(on) {
   }
 }
 
+/** Referensväljaren (appens egen, inte telefonens rullgardin). */
+export const refGroups = () => [{ label: '', options: [{ value: '', label: 'Ingen referens', icon: '○' }, ...ui.refs.map((r) => ({ value: r.id, label: r.name, desc: r.profile.source === 'fil' ? 'från fil' : 'live-analys', icon: '🎯' }))] }];
 function refSelect(id = 'refsel') {
-  return `<select id="${id}" aria-label="Referens">
-    <option value="">Ingen referens</option>
-    ${ui.refs.map((r) => `<option value="${esc(r.id)}" ${r.id === ui.refId ? 'selected' : ''}>${esc(r.name)}</option>`).join('')}
-  </select>`;
+  return picker({ id, label: 'Referens', value: ui.refId, groups: refGroups(), placeholder: 'Ingen referens' });
 }
 
 export function spectrumPart() {
@@ -147,7 +146,7 @@ export function bindAnalys(root) {
     if (ref) series.ref = { label: ref.name, bands: ref.profile.bands };
     bindSpectrum(root.querySelector('#result'), series);
   }
-  root.querySelector('#refsel').onchange = async (e) => { await selectRef(e.target.value); app.render(); };
+  bindPicker(root, 'refsel', () => ({ title: 'Välj referens', value: ui.refId, groups: refGroups() }), async (v) => { await selectRef(v); app.render(); });
   const start = root.querySelector('#an-start');
   if (start) start.onclick = async () => {
     try { ui.status = await LiveDsp.startAnalysis(); ui.analysis = null; ui.analysisMsg = ''; } catch (e) { ui.analysisMsg = e.message; ui.analysis = null; }

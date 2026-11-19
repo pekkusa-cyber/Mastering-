@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { pick, picked } from './helpers.js';
 
 const sent = (page) => page.evaluate(() => window.__simParams);
 const setRange = (loc, v) => loc.evaluate((el, val) => { el.value = val; el.dispatchEvent(new Event('input', { bubbles: true })); }, String(v));
@@ -36,7 +37,7 @@ test('bypass = helt original', async ({ page }) => {
 
 test('på/av per del: bara kicken mjukas upp, EQ och resten av', async ({ page }) => {
   await page.goto('/?sim=1');
-  await page.getByLabel('Preset', { exact: true }).selectOption({ label: 'Suno-fix' });
+  await pick(page, 'Preset', 'Suno-fix');
   await page.getByRole('button', { name: 'Avancerat' }).click();
   await page.getByLabel('Pre-EQ på/av').uncheck();
   await page.getByLabel('Post-EQ på/av').uncheck();
@@ -69,7 +70,7 @@ test('på/av och −/+ på enkla reglage', async ({ page }) => {
 
 test('konstant utnivå: mer ingång → lägre utgång, och kurvorna följer med', async ({ page }) => {
   await page.goto('/?sim=1');
-  await page.getByLabel('Preset', { exact: true }).selectOption({ label: 'Transparent' });
+  await pick(page, 'Preset', 'Transparent');
   const before = (await sent(page)).outputGain;
   await setRange(page.locator('#m-punch'), 100);
   await expect.poll(async () => (await sent(page)).outputGain).toBeLessThan(before - 1);
@@ -101,16 +102,16 @@ test('hörlurskorrigering: Liberty 4 Pro inbyggd, import från AutoEq', async ({
 
 test('profil per enhet: sparas och används när enheten ansluts', async ({ page }) => {
   await page.goto('/?sim=1');
-  await page.getByLabel('Preset', { exact: true }).selectOption({ label: 'Bas varm' });
+  await pick(page, 'Preset', 'Bas varm');
   await page.getByRole('button', { name: 'Spara nuvarande' }).click();
   await expect(page.getByTestId('profile')).toContainText('Bas varm');
   const key = await page.evaluate(() => Object.keys(window.__simProfiles)[0]);
   expect(key).toContain('Liberty 4 Pro');
   // Byt preset, koppla bort och anslut hörlurarna igen → profilen tas tillbaka
-  await page.getByLabel('Preset', { exact: true }).selectOption({ label: 'Rock' });
+  await pick(page, 'Preset', 'Rock');
   await page.evaluate(() => window.__sim.simOutput('speaker', 'Telefonens högtalare'));
   await page.evaluate((k) => window.__sim.simOutput(k, 'Soundcore Liberty 4 Pro'), key);
-  await expect(page.getByLabel('Preset', { exact: true }).locator('option:checked')).toHaveText('Bas varm');
+  await expect(picked(page, 'Preset')).toHaveText('Bas varm');
   await expect(page.locator('#profmsg')).toContainText('Soundcore Liberty 4 Pro');
 });
 
@@ -128,4 +129,17 @@ test('design A: presetkort med "Påverkar", grupper med gruppknapp', async ({ pa
   await page.getByLabel('Vokal på/av').uncheck();
   await expect(page.getByLabel('Röst silkeslen på/av')).not.toBeChecked();
   await expect(page.getByLabel('S-ljud på/av')).not.toBeChecked();
+});
+
+test('Orörd preset och inga telefonmenyer (allt är appens eget)', async ({ page }) => {
+  await page.goto('/?sim=1');
+  await pick(page, 'Preset', 'Orörd');
+  await expect(page.getByTestId('affects')).toContainText('Ingen bearbetning alls');
+  const p = await page.evaluate(() => window.__simParams);
+  expect(p.limiter.ratio).toBe(1);
+  expect(p.mbc.every((b) => b.ratio === 1)).toBe(true);
+  for (const view of ['live', 'analys', 'fil', 'mer']) {
+    await page.locator(`nav [data-view="${view}"]`).click();
+    await expect(page.locator('select')).toHaveCount(0);
+  }
 });
