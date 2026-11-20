@@ -594,3 +594,16 @@ main { padding-bottom: 8px; }
 .phead { flex-wrap: nowrap; white-space: nowrap; }
 .phead small { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .pick2 { flex: 0 1 auto; min-width: 0; }
+
+/* Prick i stället för ovanpå texten: ligger inline före undertexten */
+.blk .dot { position: static; display: inline-block; width: 6px; height: 6px; margin-right: 4px; vertical-align: middle; }
+.blk small { display: inline-flex; align-items: center; justify-content: center; white-space: nowrap; }
+/* ⓘ på fadrarna: centrerad rad överst, inte svävande vid sidan av plus-knappen */
+.sl.vf > .i { position: static; transform: none; order: -1; margin: 0 auto; width: 22px; height: 18px; font-size: 12px; line-height: 1; padding: 0; display: grid; place-items: center; }
+.pp small#dirty { font-size: 13px; }
+
+.pick2 { flex: 0 0 auto; padding: 4px 7px; }
+.stop .lblr .picker { width: auto; min-width: 0; max-width: 230px; }
+.stop .lblr .picker .pv { max-width: none; }
+.stop .lblr .picker { display: inline-flex; white-space: nowrap; }
+.stop .lblr .picker .pv { flex: 0 0 auto; overflow: visible; }

@@ -33,7 +33,7 @@ export async function setMonitor(on) {
 /** Referensväljaren (appens egen, inte telefonens rullgardin). */
 export const refGroups = () => [{ label: '', options: [{ value: '', label: 'Ingen referens', icon: '○' }, ...ui.refs.map((r) => ({ value: r.id, label: r.name, desc: r.profile.source === 'fil' ? 'från fil' : 'live-analys', icon: '🎯' }))] }];
 function refSelect(id = 'refsel') {
-  return picker({ id, label: 'Referens', value: ui.refId, groups: refGroups(), placeholder: 'Ingen referens' });
+  return picker({ id, label: 'Referens', value: ui.refId, groups: refGroups(), placeholder: 'Referens' });
 }
 
 export function spectrumPart() {

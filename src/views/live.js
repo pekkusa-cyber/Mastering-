@@ -219,7 +219,7 @@ function statusLine() {
   const s = ui.status || {};
   const hpOn = !!s.correction?.on, appOn = !s.bypass;
   const mode = !s.running && (s.on || hpOn) ? 'STARTAR…' : !appOn ? (hpOn ? 'BARA HÖRLURSKORRIGERING' : 'HELT ORIGINAL') : s.on ? 'MASTRAT' : s.agc?.on ? 'ORIGINAL · NIVÅMATCHAT' : 'ORIGINAL';
-  const motor = s.running ? (s.globalActive ? 'Bearbetar allt ljud' : `Bearbetar ${(s.sessions || []).filter((x) => x.attached).length} spelande appar`) : 'Motorn står still – slå på Efter eller 🎧';
+  const motor = s.running ? (s.globalActive ? 'Bearbetar allt ljud' : `Bearbetar ${(s.sessions || []).filter((x) => x.attached).length} spelande appar`) : 'Motorn står still';
   return `<span id="lstat"><b data-testid="mode">${mode}</b> · <span data-testid="motor">${motor}</span></span>${infoBtn('mains', 'Om huvudbrytarna')}`;
 }
 
@@ -227,7 +227,7 @@ function statusLine() {
 function subbar() {
   const p = currentPreset(), s = ui.status || {};
   return `<div class="subbar" id="subbar">
-    <button class="pp" id="preset" aria-label="Preset" aria-haspopup="listbox"><span class="ico">${PRESET_ICONS[p?.id] || (p ? '⭐' : '✎')}</span><b class="pv">${esc(p?.name || '(egen)')}</b><small id="dirty" ${isDirty() ? '' : 'hidden'}>ändrad</small>▾</button>
+    <button class="pp" id="preset" aria-label="Preset" aria-haspopup="listbox"><span class="ico">${PRESET_ICONS[p?.id] || (p ? '⭐' : '✎')}</span><b class="pv">${esc(p?.name || '(egen)')}</b><small id="dirty" title="Ändrad från presetten" ${isDirty() ? '' : 'hidden'}>✎</small>▾</button>
     <button class="abmini ${s.on ? 'on' : ''}" id="onoff" aria-pressed="${!!s.on}" aria-label="Mastrad på/av" ${s.bypass ? 'disabled' : ''}><span class="o">Före</span><span class="m">Efter</span></button>
     <button class="rb sm" id="undo" aria-label="↶ Ångra" ${ui.undo?.length ? '' : 'disabled'}>↶</button>
     <button class="rb sm" id="p-menu" aria-label="Hantera presets">⋯</button>
@@ -361,7 +361,7 @@ function panelComp() {
     <span class="bms"><label class="mbtn" title="Mute"><input type="checkbox" data-enable="mbc${i}" ${en(`mbc${i}`) ? 'checked' : ''} aria-label="Mute ${COMP_NAMES[i]}"><span>M</span></label>${solo(`mbc${i}`, MBC_NAMES[i])}</span></div>`;
   return `${phead({ title: 'Kompressor', enableKey: 'grp_comp', soloKey: 'mbc', mod: 'comp' })}${chips}
     ${frowN([fpath(`mbc.${i}.ratio`, 'Styrka (ratio)', 'Styrka', RANGES.ratio, `mbc.${i}.ratio`),
-      fpath(`mbc.${i}.threshold`, 'Startar vid (tröskel)', 'Startar vid', RANGES.threshold, `mbc.${i}.threshold`),
+      fpath(`mbc.${i}.threshold`, 'Startar vid (tröskel)', 'Startar', RANGES.threshold, `mbc.${i}.threshold`),
       fpath(`mbc.${i}.attack`, 'Reaktion (attack)', 'Reaktion', RANGES.attack, `mbc.${i}.attack`),
       fpath(`mbc.${i}.release`, 'Släpper (release)', 'Släpper', RANGES.release, `mbc.${i}.release`),
       fpath(`mbc.${i}.knee`, 'Mjukhet (knä)', 'Mjukhet', RANGES.knee, `mbc.${i}.knee`),
@@ -369,7 +369,7 @@ function panelComp() {
 }
 
 function panelLimiter() {
-  return `${phead({ title: 'Limiter', sub: 'skyddar toppar, ger volym', enableKey: 'limiter', soloKey: 'limiter', mod: 'limiter' })}
+  return `${phead({ title: 'Limiter', enableKey: 'limiter', soloKey: 'limiter', mod: 'limiter' })}
     ${frowN([fpath('limiter.threshold', 'Tak', 'Tak', RANGES.limThreshold), fpath('limiter.ratio', 'Styrka (ratio)', 'Styrka', RANGES.limRatio),
       fpath('limiter.attack', 'Reaktion (attack)', 'Reaktion', RANGES.limAttack), fpath('limiter.release', 'Släpper (release)', 'Släpper', RANGES.limRelease),
       fpath('limiter.postGain', 'Lyft efter', 'Lyft', RANGES.limPostGain)])}`;
