@@ -69,8 +69,8 @@ test('ⓘ förklarar ett reglage tydligt', async ({ page }) => {
 test('alla block i flödet: fadrar med ⓘ och nollställning, rätt graf överst, Platt och Återställ alla', async ({ page }) => {
   await page.goto('/?sim=1');
   // Flödet i ljudets ordning
-  await expect(page.locator('.blk b')).toHaveText(['Snabb', 'EQ', 'Kompr.', 'Limiter', 'Nivå']);
-  for (const [b, n] of [['eq', 3], ['comp', 6], ['limiter', 5], ['out', 2]]) {
+  await expect(page.locator('.blk b')).toHaveText(['Snabb', 'In', 'EQ 1', 'Kompr.', 'EQ 2', 'Limiter', 'Ut']);
+  for (const [b, n] of [['in', 1], ['eq1', 8], ['comp', 6], ['eq2', 3], ['limiter', 5], ['out', 1]]) {
     await block(page, b);
     await expect(page.locator('#spanel .sl.vf')).toHaveCount(n);
     await expect(page.locator('#spanel .sl [data-dblreset]')).toHaveCount(n);
@@ -89,8 +89,8 @@ test('alla block i flödet: fadrar med ⓘ och nollställning, rätt graf övers
   // man kan scrolla med fingret på en fader – bara handtaget griper
   expect(await page.locator('#spanel .vrow').first().evaluate((e) => getComputedStyle(e).touchAction)).toBe('pan-y');
   expect(await page.locator('#spanel .vthumb').first().evaluate((e) => getComputedStyle(e).touchAction)).toBe('none');
-  // EQ: 8 band
-  await block(page, 'eq');
+  // EQ 2: åtta band efter kompressorn
+  await block(page, 'eq2');
   await page.locator('[data-eqband="graphic"]').click();
   await expect(page.locator('#spanel .sl.vf')).toHaveCount(8);
   // Ut: Platt och Återställ alla
@@ -99,6 +99,7 @@ test('alla block i flödet: fadrar med ⓘ och nollställning, rätt graf övers
   await expect.poll(async () => (await sent(page)).mbc[0].ratio).toBe(1);
   await expect(page.locator('#msg')).toContainText('Platt');
   await pick(page, 'Preset', 'Radio ljus');
+  await block(page, 'in');
   await setRange(page.locator('#p-inputGain'), -6);
   await page.getByRole('button', { name: 'Återställ alla' }).click();
   await expect.poll(async () => (await sent(page)).inputGain).toBe(5);

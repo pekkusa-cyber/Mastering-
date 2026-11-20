@@ -30,7 +30,7 @@ test('solo på en fader i Mixern', async ({ page }) => {
 
 test('parametrisk EQ med Q går till motorn som 31 tersband', async ({ page }) => {
   await page.goto('/?sim=1');
-  await block(page, 'eq');
+  await block(page, 'eq2');
   await page.locator('[data-eqband="2"]').click();
   const mitt = page.locator('#spanel');
   await expect(mitt.locator('.sl.vf')).toHaveCount(3); // Frekvens, Höj/sänk, Bredd (Q) som fadrar
@@ -46,7 +46,7 @@ test('separata presets: EQ från en preset, limitern från en annan', async ({ p
   await page.goto('/?sim=1');
   await pick(page, 'Preset', 'Mjuk kick');
   const kick = await params(page);
-  await block(page, 'eq');
+  await block(page, 'eq2');
   await pick(page, 'EQ-preset', 'Radio ljus');
   await expect(page.locator('#mod-eq b')).toHaveText('Radio ljus');
   const p = await params(page);
@@ -61,13 +61,13 @@ test('separata presets: EQ från en preset, limitern från en annan', async ({ p
   await expect.poll(async () => (await params(page)).limiter.ratio).toBe(kick.limiter.ratio);
   // Byter man hela presetten nollställs delvalen
   await pick(page, 'Preset', 'Suno-fix');
-  await block(page, 'eq');
-  await expect(page.locator('#mod-eq b')).toHaveText('presettens');
+  await block(page, 'eq2');
+  await expect(page.locator('#mod-eq b')).toHaveCount(0); // ingen del vald från annan preset
 });
 
 test('EQ: dra en EQ-punkt i spektrumet ändrar frekvens och gain', async ({ page }) => {
   await page.goto('/?sim=1');
-  await block(page, 'eq');
+  await block(page, 'eq2');
   const box = await page.locator('.scrbox.edit svg').boundingBox();
   // punkt 3 (Mitt, 1 kHz, 0 dB) ligger vid x = log(1000/20)/log(1000) av bredden, mitt i höjd
   const x = box.x + box.width * (Math.log(50) / Math.log(1000)), y = box.y + box.height * ((6 + 0.5 * 222) / 240);
@@ -106,12 +106,21 @@ test('sakta drag uppåt hoppar inte: 30 px ger en liten ändring', async ({ page
   expect(v).toBeLessThan(20); // 30 px minus dödzonen (10 px) ≈ 20 px ⇒ några få steg, inte ett hopp på 20+
 });
 
-test('EQ-stegen står i ljudets ordning: Före kompressorn, sedan Efter kompressorn; blocken i flödesordning', async ({ page }) => {
+test('blocken står i kedjans ordning: In, EQ 1 (före), Kompr., EQ 2 (efter), Limiter, Ut', async ({ page }) => {
   await page.goto('/?sim=1');
-  await expect(page.locator('.blk b')).toHaveText(['Snabb', 'EQ', 'Kompr.', 'Limiter', 'Nivå']);
-  await block(page, 'eq');
+  await expect(page.locator('.blk b')).toHaveText(['Snabb', 'In', 'EQ 1', 'Kompr.', 'EQ 2', 'Limiter', 'Ut']);
+  await expect(page.locator('.blk small')).toHaveText(['genväg', 'först', 'före', 'tryck', 'efter', 'volym', 'sist']);
+  // EQ 1 ligger före kompressorn: dess fadrar är pre-EQ och påverkar bara preEq
+  await block(page, 'eq1');
+  await setRange(page.locator('#p-preEq-3-gain'), 6);
+  await expect.poll(async () => (await params(page)).preEq[3].gain).toBe(6);
+  expect((await params(page)).postEq.every((b) => b.gain === 0)).toBe(true);
+  // EQ 2 ligger efter: 8 band = postEq
+  await block(page, 'eq2');
   await page.locator('[data-eqband="graphic"]').click();
-  await expect(page.locator('[data-eqstage]')).toHaveText(['Före kompressorn', 'Efter kompressorn']);
+  await setRange(page.locator('#p-postEq-3-gain'), -4);
+  await expect.poll(async () => (await params(page)).postEq[3].gain).toBe(-4);
+  expect((await params(page)).preEq[3].gain).toBe(6);
 });
 
 test('vymenyn: rullgardin vid kugghjulet, ingen rad längst ner', async ({ page }) => {

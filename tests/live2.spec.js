@@ -52,8 +52,10 @@ test('huvudbrytare: Hörlurar och Masterlab var för sig', async ({ page }) => {
 test('på/av per del: bara kicken mjukas upp, EQ och resten av', async ({ page }) => {
   await page.goto('/?sim=1');
   await pick(page, 'Preset', 'Suno-fix');
-  await block(page, 'eq');
-  await page.getByLabel('EQ på/av').uncheck();
+  await block(page, 'eq1');
+  await page.getByLabel('EQ 1 på/av').uncheck();
+  await block(page, 'eq2');
+  await page.getByLabel('EQ 2 på/av').uncheck();
   await block(page, 'comp');
   for (const [i, n] of [[1, 'Mellan'], [2, 'Närvaro'], [3, 'Luft']]) { await page.locator(`[data-compband="${i}"]`).click(); await page.getByLabel(`Mute ${n}`).uncheck(); }
   await block(page, 'out');
@@ -148,14 +150,14 @@ test('layout B: runda brytare i rubriken, smal rad, fast graf och block utan scr
   await expect(page.getByTestId('affects')).not.toContainText('EQ');
   await page.locator('dialog.sheet').getByRole('button', { name: 'Stäng' }).click();
   // Inget i appen scrollar – skärmen är exakt fönstret
-  for (const b of ['quick', 'eq', 'comp', 'limiter', 'out']) {
+  for (const b of ['quick', 'in', 'eq1', 'comp', 'eq2', 'limiter', 'out']) {
     await block(page, b);
     expect(await page.evaluate(() => document.scrollingElement.scrollHeight - innerHeight)).toBeLessThanOrEqual(0);
     await expect(page.locator('#stop')).toBeInViewport();
     await expect(page.locator('#spanel')).toBeInViewport({ ratio: 1 }); // panelen når ända ner – ingen rad längst ner
   }
-  // svep i sidled i panelen = nästa block
-  await block(page, 'eq');
+  // svep i sidled i panelen = nästa block (EQ 1 → Kompressor)
+  await block(page, 'eq1');
   const box = await page.locator('#spanel .phead').boundingBox();
   await page.mouse.move(box.x + box.width * 0.9, box.y + 10); await page.mouse.down();
   await page.mouse.move(box.x + box.width * 0.1, box.y + 12, { steps: 8 }); await page.mouse.up();
@@ -190,7 +192,7 @@ for (const width of [360, 320]) test(`ingen vy är bredare än telefonen vid ${w
     expect(over, `${view} sticker ut ${over}px`).toBeLessThanOrEqual(0);
   }
   await go(page, 'live');
-  for (const b of ['eq', 'comp', 'limiter', 'out']) {
+  for (const b of ['in', 'eq1', 'comp', 'eq2', 'limiter', 'out']) {
     await page.locator(`[data-block="${b}"]`).click();
     expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
   }

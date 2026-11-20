@@ -579,3 +579,18 @@ nav.vmenu button.sel .ic { color: var(--accent); }
 #app { padding-bottom: var(--sab); }
 main { padding-bottom: 8px; }
 .top .info { width: 36px; height: 36px; }
+
+/* Sju block ska rymmas: tätare och med mindre text; Snabb står för sig */
+.blocks { gap: 1px; }
+.blocks .ar { font-size: 11px; width: 7px; text-align: center; flex: 0 0 auto; }
+.blk { padding: 6px 0 5px; }
+.blk b { font-size: 11.5px; }
+.blk small { font-size: 9px; }
+.blk .dot { right: 3px; top: 3px; width: 6px; height: 6px; }
+.blocks .ar:first-of-type { margin-left: 6px; }
+
+.blocks { gap: 3px; }
+.blocks .blk:nth-child(2) { margin-left: 7px; } /* Snabb står för sig – den är ingen del av kedjan */
+.phead { flex-wrap: nowrap; white-space: nowrap; }
+.phead small { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.pick2 { flex: 0 1 auto; min-width: 0; }
