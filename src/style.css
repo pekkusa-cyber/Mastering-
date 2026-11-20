@@ -441,3 +441,121 @@ dialog.settingssheet .sheet-body { max-height: none; }
 .vrow { touch-action: pan-y; }
 .vthumb { touch-action: none; }
 .vthumb::before { content: ''; position: absolute; inset: -16px -8px; }
+
+/* ===== Layout B: hela appen är en skärm i två fasta halvor – ingen sida scrollar ===== */
+html, body { height: 100%; overflow: hidden; }
+#app { height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
+.top { flex: 0 0 auto; padding: calc(var(--sat) + 6px) 12px 6px; gap: 8px; }
+.top h1 { font-size: 20px; flex: 1; }
+.hbtns { gap: 7px; align-items: center; }
+.rb { position: relative; width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; font-size: 17px; border: 1.5px solid #3a404b; color: #7d8794; background: #1a1d23; padding: 0; flex: 0 0 auto; cursor: pointer; }
+.rb input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; }
+.rb.on { border-color: var(--accent); background: #123a33; color: #c9fff1; box-shadow: 0 0 12px #3fd3b055; }
+.rb.off { filter: grayscale(1); opacity: .6; }
+.rb.sm { width: 34px; height: 34px; font-size: 15px; }
+.rb:disabled { opacity: .35; }
+.top .info { width: 34px; height: 34px; font-size: 15px; }
+main { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 0 12px 6px; width: 100%; max-width: 560px; margin: 0 auto; }
+main > :not(:first-child) { margin-top: 0; }
+main > .card { margin: 0 0 6px; }
+nav.bottom { position: static; flex: 0 0 auto; padding-bottom: var(--sab); }
+.sim { margin: 0 0 4px; font-size: 11px; }
+/* Smal rad: preset, Före/Efter, Ångra, Hantera */
+.subbar { flex: 0 0 auto; display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
+.pp { flex: 1; min-width: 0; display: flex; align-items: center; gap: 7px; height: 38px; padding: 0 10px; border-radius: 12px; background: var(--card); border: 1px solid var(--line); color: var(--text); font: inherit; font-size: 14px; text-align: left; }
+.pp .pv { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pp small { color: var(--accent); font-size: 11px; }
+.abmini { display: flex; height: 38px; padding: 3px; border-radius: 12px; background: var(--card); border: 1px solid var(--line); font: inherit; flex: 0 0 auto; }
+.abmini span { display: grid; place-items: center; padding: 0 9px; border-radius: 9px; font-size: 12.5px; font-weight: 600; color: var(--dim); }
+.abmini:not(.on) .o, .abmini.on .m { background: #1f4c46; color: #dffdf6; }
+.abmini:disabled { opacity: .4; }
+/* Delad skärm */
+.split { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 8px; }
+.stop { position: relative; flex: 0 0 34%; min-height: 0; border-radius: 16px; background: #0c0f12; border: 1px solid var(--line); overflow: hidden; }
+.stop.tall { flex-basis: 36%; }
+.stop.short { flex-basis: auto; max-height: 34%; }
+.stop .lbl { position: absolute; left: 10px; top: 7px; right: 10px; z-index: 2; display: flex; gap: 8px; align-items: center; font-size: 10.5px; color: var(--dim); letter-spacing: .4px; text-transform: uppercase; pointer-events: none; }
+.stop .lbl b { color: var(--text); font-weight: 600; }
+.stop .lbl .grow { flex: 1; }
+.stop .lbl button, .stop .lbl .i { pointer-events: auto; }
+.blocks { flex: 0 0 auto; display: flex; align-items: stretch; gap: 2px; }
+.blocks .ar { align-self: center; color: #4c5664; font-size: 13px; }
+.blk { flex: 1; min-width: 0; position: relative; padding: 7px 2px 6px; border-radius: 12px; background: var(--card); border: 1px solid var(--line); color: #cfd5dc; font: inherit; text-align: center; display: flex; flex-direction: column; align-items: center; }
+.blk b { font-size: 13px; font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.blk small { font-size: 10px; color: var(--dim); }
+.blk.on { border-color: var(--accent); background: #123a33; color: #eafff9; }
+.blk .dot { position: absolute; right: 6px; top: 6px; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); }
+.blk .dot.no { background: #555; }
+.spanel { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; border-radius: 16px; background: var(--card); border: 1px solid var(--line); padding: 10px 12px; display: flex; flex-direction: column; }
+.spanel > .card { background: none; border: 0; padding: 0; margin: 0 0 10px; }
+.phead { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
+.phead > b { font-size: 15px; }
+.phead small { color: var(--dim); font-size: 11.5px; }
+.phead .tog { margin: 0; }
+.pick2 { color: var(--accent); font: inherit; font-size: 12px; border: 1px solid var(--accent-line, #2c6e64); background: none; border-radius: 10px; padding: 4px 8px; max-width: 52%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bandrow { display: flex; gap: 4px; margin: 8px 0 0; flex: 0 0 auto; align-items: center; }
+.bandrow .chip { flex: 1; min-width: 0; padding: 6px 2px; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 12px; }
+.bandrow .chip.sel { border-color: var(--accent); color: #dffdf6; background: #123a33; }
+.bandrow .bms { display: flex; gap: 3px; flex: 0 0 auto; }
+.spanel .faders { flex: 1; min-height: 0; align-content: end; margin: 0; padding-top: 14px; }
+.spanel .faders .vrow { height: auto; min-height: 90px; flex: 1; width: 100%; }
+.spanel .faders .sl.vf { height: 100%; }
+.spanel .faders { grid-template-columns: repeat(var(--n, 6), minmax(0, 1fr)); }
+.pfoot { display: flex; gap: 6px; align-items: center; flex: 0 0 auto; margin-top: 6px; flex-wrap: wrap; }
+.pfoot .hint { margin: 0; font-size: 11px; flex: 1 1 100%; }
+/* Kortvarig bekräftelse uppe i grafen (ingen rad som täcker reglagen) */
+.toast { position: absolute; right: 8px; bottom: 8px; z-index: 3; max-width: 78%; display: flex; align-items: center; gap: 6px; padding: 5px 9px; border-radius: 10px; background: #1d2b29e6; border: 1px solid var(--accent-line, #2c6e64); color: #c9f7ea; font-size: 12px; }
+.toast.warn { background: #3a2f17ee; border-color: #7a5a1e; color: #f3d7a2; }
+.toast.bad { background: #3a1d1dee; border-color: #7a2e2e; color: #f3b9b9; }
+.toast .btn { padding: 3px 8px; font-size: 12px; }
+.solochip { position: absolute; left: 8px; bottom: 8px; z-index: 3; display: flex; gap: 6px; align-items: center; padding: 4px 8px; border-radius: 10px; background: #3a3015ee; border: 1px solid #a88a2e; color: #ffe9a8; font-size: 12px; }
+.solochip button { background: none; border: 0; color: inherit; font: inherit; padding: 0 2px; }
+/* Grafer i den övre halvan */
+.stop svg.screen-svg, .stop .full { position: absolute; inset: 0; width: 100%; height: 100%; }
+.stop .scrbox { position: absolute; inset: 0; }
+.stop .scrbox.edit { touch-action: none; user-select: none; -webkit-user-select: none; }
+.grwrap { position: absolute; inset: 26px 10px 8px; display: grid; grid-template-columns: repeat(4, 1fr) 1.2fr; gap: 8px; }
+.grb { display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 11px; color: var(--dim); min-height: 0; }
+.grb b { color: #ffcf8a; font-size: 12.5px; }
+.grb.sel span { color: var(--text); font-weight: 600; }
+.grb.off { opacity: .4; }
+.grt { flex: 1; width: 20px; border-radius: 6px; background: #1a2027; position: relative; overflow: hidden; }
+.grt em { position: absolute; left: 0; right: 0; top: 0; background: linear-gradient(#e0a03c, #a0601c); }
+.tfbox { display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 11px; color: var(--dim); min-height: 0; }
+.tfbox svg { flex: 1; width: 100%; min-height: 0; }
+.lvwrap { position: absolute; inset: 28px 14px 10px; display: grid; grid-template-columns: 1fr 1fr 1.3fr; gap: 14px; align-items: end; }
+.lvb { display: flex; flex-direction: column; align-items: center; gap: 4px; height: 100%; font-size: 11px; color: var(--dim); }
+.lvb .lvt { flex: 1; width: 34px; border-radius: 7px; background: #1a2027; position: relative; overflow: hidden; }
+.lvb .lvt em { position: absolute; left: 0; right: 0; bottom: 0; background: linear-gradient(0deg, #2f6fd0, #6aa5ff); }
+.lvb.after .lvt em { background: linear-gradient(0deg, #1f9e86, #3fd3b0); }
+.lvb b { color: var(--text); font-size: 13px; }
+.lvinfo { align-self: center; font-size: 12px; color: var(--dim); line-height: 1.4; }
+.lvinfo b { color: var(--text); font-size: 18px; display: block; }
+.ovw { position: absolute; inset: 28px 12px 10px; display: flex; flex-direction: column; gap: 6px; font-size: 13px; overflow: hidden; }
+.ovw .orow { display: flex; gap: 8px; align-items: center; }
+.ovw .orow span { flex: 1; color: var(--dim); }
+.okdot, .baddot { width: 9px; height: 9px; border-radius: 50%; background: var(--accent); flex: 0 0 auto; }
+.baddot { background: #e06060; }
+.hdt { display: flex; gap: 7px; }
+.stop .lbl { white-space: nowrap; overflow: hidden; }
+.stop .lbl #lstat { overflow: hidden; text-overflow: ellipsis; }
+.grwrap, .lvwrap { top: 30px; }
+.spanel .faders { flex: 1 1 0; min-height: 0; grid-template-rows: minmax(0, 1fr); align-content: stretch; padding-top: 16px; }
+.spanel .faders .sl.vf { height: 100%; min-height: 0; }
+.spanel .faders .vrow { flex: 1 1 0; min-height: 50px; height: auto; }
+.bandrow .chip { font-size: 11.5px; padding: 6px 1px; }
+.bandrow small.grow { flex: 1; font-size: 11.5px; }
+.stop .spwrap { position: absolute; inset: 24px 6px 2px; overflow: hidden; }
+.stop .spwrap svg { width: 100%; height: auto; max-height: 100%; }
+.stop .spwrap .hint { margin: 2px 4px; font-size: 11px; }
+.stop .lblr { position: absolute; right: 8px; top: 4px; z-index: 3; }
+.stop .lblr .picker { height: 28px; padding: 0 8px; font-size: 12px; min-width: 0; max-width: 170px; }
+.ovw .card { background: none; border: 0; padding: 0; margin: 0; }
+.ovw .card h2 { font-size: 14px; }
+.stop.short { flex: 0 0 22%; max-height: none; }
+.stop .lblr .picker { min-width: 150px; max-width: 210px; }
+.stop .lblr .picker .pv { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.spanel .perm { padding: 6px 0; border-bottom: 1px solid var(--line); border-radius: 0; }
+.spanel .perm h2 { font-size: 14px; margin: 0; }
+.spanel .perm .hint { font-size: 12px; margin: 4px 0; }
+.spanel .perm .btnrow { margin: 4px 0 0; }

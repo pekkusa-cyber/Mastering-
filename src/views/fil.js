@@ -7,7 +7,7 @@ import { BUILTIN_PRESETS, EQ_CUTOFFS, MBC_CUTOFFS, MBC_NAMES, RANGES, bandLabel 
 import { FILE_RANGES, MATCH_FREQS, TARGETS, applyFileEnables, fileNeutral, liveToFile, sanitizeFile } from '../master.js';
 import { compareProfiles, matchEqCurve, profileFromChannels, toFileMatchEq } from '../analysis.js';
 import { currentRef, selectRef } from '../refs.js';
-import { ask, bindPicker, bindSliders, esc, fmtDb, getPath, infoBtn, picker, saveFile, setPath, slider, toggle } from '../ui.js';
+import { ask, bindPicker, bindSliders, esc, fmtDb, getPath, infoBtn, picker, saveFile, setPath, slider, split, toggle } from '../ui.js';
 import { spectrumSvg, bindSpectrum } from '../spectrum.js';
 import { eqCurveSvg, compCurvesSvg } from '../viz.js';
 import { decodeFile, mmss, resample } from '../audio.js';
@@ -255,33 +255,46 @@ function albumCard() {
   </section>`;
 }
 
+const F_BLOCKS = () => [
+  { id: 'lat', label: 'Låt', sub: F.input ? 'vald' : 'välj' },
+  { id: 'klang', label: 'Klang', sub: 'preset' },
+  { id: 'mat', label: 'Mätare', sub: F.result ? `${F.result.metrics.integrated.toFixed(1)} LUFS` : '–' },
+  { id: 'export', label: 'Exportera', sub: 'WAV' },
+];
+const fBlock = () => (F_BLOCKS().some((b) => b.id === ui.blocks?.fil) ? ui.blocks.fil : 'lat');
+
+/** Överst: spelaren (A/B) – alltid där medan man ändrar, så att man hör och ser samma sak. */
+function filTop() {
+  if (!F.input) return `<div class="lbl"><b>Fil</b> · mastring för släpp</div><div class="ovw"><p class="hint">Välj en låt (MP3/WAV) i blocket <b>Låt</b>. Den mastras direkt med vald preset och mål – allt sker på telefonen.</p></div>`;
+  const r = F.result;
+  return `<div class="lbl"><b>${esc(F.name)}</b>${r ? `<span class="grow"></span>${r.metrics.integrated.toFixed(1)} LUFS · ${fmtDb(r.metrics.truePeak)} dBTP` : ''}</div><div class="ovw">${playerCard()}</div>`;
+}
+
 export function filView() {
-  return `
-    <section class="card">
-      <h2>Låt</h2>
+  const b = fBlock();
+  const panels = {
+    lat: () => `<section class="card">
+      <div class="phead"><b>Låt</b></div>
       <label class="btn wide file ${F.input ? '' : 'primary'}">${F.input ? 'Byt låt' : 'Välj låt (MP3/WAV)'}<input type="file" id="f-file" accept="audio/*,.mp3,.wav,.m4a,.flac,.ogg" hidden></label>
       ${F.input ? `<p class="hint" data-testid="fname">${esc(F.name)} · ${mmss(F.input.channels[0].length / F.input.fs)}</p>` : '<p class="hint small">Låten stannar på telefonen – inget laddas upp.</p>'}
-    </section>
-    ${playerCard()}
-    <section class="card">
-      <div class="row"><h2>Mål ${infoBtn('fileTarget')}</h2></div>
+    </section>${versionsCard()}${albumCard()}`,
+    klang: () => `<section class="card">
+      <div class="phead"><b>Mål</b>${infoBtn('fileTarget')}</div>
       <div class="seg">${TARGETS.map((t) => `<button data-target="${t.id}" class="${F.params.target === t.id ? 'sel' : ''}">${t.name}${t.lufs ? ` ${t.lufs}` : ''}</button>`).join('')}</div>
-      <div class="row"><h2>Preset ${infoBtn('liveVsFile', 'Live och fil')}</h2></div>
+      <div class="phead" style="margin-top:8px"><b>Preset</b>${infoBtn('liveVsFile', 'Live och fil')}</div>
       ${picker({ id: 'f-preset', label: 'Preset för filen', value: F.presetId, groups: presetGroups({ withTest: false }), placeholder: '(egen inställning)' })}
-      <div class="seg" role="tablist" style="margin-top:12px">
+      <div class="seg" role="tablist" style="margin-top:10px">
         <button data-fmode="simple" class="${F.mode === 'simple' ? 'sel' : ''}">Enkelt</button>
         <button data-fmode="advanced" class="${F.mode === 'advanced' ? 'sel' : ''}">Avancerat</button>
       </div>
       <div id="fcontrols">${F.mode === 'simple' ? simpleControls() : advancedControls()}</div>
       <div class="btnrow"><button class="btn small" id="f-reset-all">Återställ alla</button><button class="btn small" id="f-flat">Platt</button><button class="btn small" id="f-all-on">Slå på allt</button></div>
       <div id="fileStatus">${statusPart()}</div>
-    </section>
-    ${versionsCard()}
-    ${meters()}
-    ${monoCard()}
-    ${analysisCard()}
-    ${exportCard()}
-    ${albumCard()}`;
+    </section>${analysisCard()}`,
+    mat: () => (F.result ? `${meters()}${monoCard()}` : `<div class="phead"><b>Mätare</b></div><div id="fileStatus">${statusPart()}</div><p class="hint">Mätarna visas när låten är mastrad.</p>`),
+    export: () => (F.result ? exportCard() : '<div class="phead"><b>Exportera</b></div><p class="hint">Välj och mastra en låt först.</p>'),
+  };
+  return split({ view: 'fil', top: filTop(), blocks: F_BLOCKS(), active: b, panel: panels[b](), topCls: 'short' });
 }
 
 export function renderFilePart(root, part) {
@@ -352,7 +365,7 @@ async function runAlbum() {
 
 export function bindFil(root) {
   bindRender(root);
-  root.querySelector('#f-file').onchange = async (e) => {
+  (root.querySelector('#f-file') || {}).onchange = async (e) => {
     const f = e.target.files?.[0];
     if (!f) return;
     stopFilePlayback();
@@ -389,9 +402,9 @@ export function bindFil(root) {
     if (kind === 'fpath') { setPath(F.params, key, v); F.versionId = ''; paramsChanged(); }
     if (kind === 'amount') F.matchAmount = v;
   }, (key, on) => { F.enabled[key] = on; paramsChanged(); });
-  root.querySelector('#f-reset-all').onclick = () => { F.params = presetFileParams(); F.enabled = {}; app.render(); paramsChanged(); };
-  root.querySelector('#f-flat').onclick = () => { F.params = sanitizeFile({ ...fileNeutral(), target: F.params.target }); F.presetId = ''; app.render(); paramsChanged(); };
-  root.querySelector('#f-all-on').onclick = () => { F.enabled = {}; app.render(); paramsChanged(); };
+  (root.querySelector('#f-reset-all') || {}).onclick = () => { F.params = presetFileParams(); F.enabled = {}; app.render(); paramsChanged(); };
+  (root.querySelector('#f-flat') || {}).onclick = () => { F.params = sanitizeFile({ ...fileNeutral(), target: F.params.target }); F.presetId = ''; app.render(); paramsChanged(); };
+  (root.querySelector('#f-all-on') || {}).onclick = () => { F.enabled = {}; app.render(); paramsChanged(); };
 
   // Spelare
   root.querySelectorAll('[data-ab]').forEach((b) => {
@@ -483,7 +496,7 @@ export function bindFil(root) {
   };
 
   // Album
-  root.querySelector('#a-files').onchange = (e) => {
+  (root.querySelector('#a-files') || {}).onchange = (e) => {
     const files = [...(e.target.files || [])];
     F.album = files.map((file) => ({ name: file.name, file, status: 'väntar', lufs: null, tp: null }));
     F.albumMsg = '';

@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { pick, picked, openGroup, openSettings } from './helpers.js';
+import { pick, picked, openGroup, openSettings, block } from './helpers.js';
 
 const sent = (page) => page.evaluate(() => window.__simParams);
 const setRange = (loc, v) => loc.evaluate((el, val) => { el.value = val; el.dispatchEvent(new Event('input', { bubbles: true })); }, String(v));
@@ -25,13 +25,15 @@ test('vald preset skickas till motorn med alla band, och det finns minst 16 pres
   await expect(page.locator('dialog.sheet [role=option][aria-selected=true]')).toContainText('Mjuk kick');
   await page.locator('dialog.sheet').getByRole('button', { name: 'Avbryt' }).click();
   await pick(page, 'Preset', 'Suno-fix');
+  await page.getByRole('button', { name: 'Hantera presets' }).click();
   await expect(page.locator('#pdesc')).toContainText('Suno');
+  await page.locator('dialog.sheet').getByRole('button', { name: 'Stäng' }).click();
   await expect.poll(async () => (await sent(page)).postEq[6].gain).toBe(-2);
 });
 
-test('mixern: varje fader har ⓘ, M och S, dubbeltryck nollställer, och Återställ alla nollställer', async ({ page }) => {
+test('Snabb: varje fader har ⓘ, M och S, dubbeltryck nollställer, och Återställ alla nollställer', async ({ page }) => {
   await page.goto('/?sim=1');
-  await expect(page.locator('#mixer')).toBeVisible(); // Mixer är standardläget
+  await expect(page.locator('[data-block="quick"]')).toHaveClass(/\bon\b/); // Snabb är förvalt
   for (const id of ['m-kick', 'm-bright', 'm-punch', 'm-vocal', 'm-sibilance', 'm-glitter']) {
     const sl = page.locator(`[data-sl="${id}"]`);
     await expect(sl.locator('.i')).toHaveCount(1);
@@ -64,32 +66,35 @@ test('ⓘ förklarar ett reglage tydligt', async ({ page }) => {
   await expect(page.locator('dialog.sheet')).toHaveCount(0);
 });
 
-test('avancerat: varje parameter är en fader med ⓘ och nollställning (till presetens värde), Platt och Återställ alla', async ({ page }) => {
+test('alla block i flödet: fadrar med ⓘ och nollställning, rätt graf överst, Platt och Återställ alla', async ({ page }) => {
   await page.goto('/?sim=1');
-  await page.getByRole('button', { name: 'Avancerat' }).click();
-  // Alla reglage i avancerat läge är lodräta fadrar som i Mixern, med ⓘ och dubbeltryck = nollställ
-  const sliders = page.locator('#advanced .sl');
-  const n = await sliders.count();
-  expect(n).toBeGreaterThan(40);
-  await expect(page.locator('#advanced .sl.vf')).toHaveCount(n);
-  await expect(page.locator('#advanced .sl [data-dblreset]')).toHaveCount(n);
-  await expect(page.locator('#advanced .sl .i')).toHaveCount(n);
-  // man kan scrolla med fingret på en fader – bara handtaget griper
-  expect(await page.locator('#advanced .vrow').first().evaluate((e) => getComputedStyle(e).touchAction)).toBe('pan-y');
-  expect(await page.locator('#advanced .vthumb').first().evaluate((e) => getComputedStyle(e).touchAction)).toBe('none');
-  // Sektionerna har egna ⓘ
-  for (const s of ['input', 'preEq', 'mbc', 'postEq', 'limiter', 'output']) await expect(page.locator(`[data-sec="${s}"] > summary .i`)).toHaveCount(1);
-
-  await page.locator('[data-sec=mbc] > summary').click();
-  await page.locator('details.band > summary', { hasText: 'Kick' }).click({ position: { x: 70, y: 14 } });
+  // Flödet i ljudets ordning
+  await expect(page.locator('.blk b')).toHaveText(['Snabb', 'EQ', 'Kompr.', 'Limiter', 'Ut']);
+  for (const [b, n] of [['eq', 3], ['comp', 6], ['limiter', 5], ['out', 2]]) {
+    await block(page, b);
+    await expect(page.locator('#spanel .sl.vf')).toHaveCount(n);
+    await expect(page.locator('#spanel .sl [data-dblreset]')).toHaveCount(n);
+    await expect(page.locator('#spanel .sl .i')).toHaveCount(n);
+  }
+  // Kompressorn: grafen visar nedtryckningen per band
+  await block(page, 'comp');
+  await expect(page.locator('#stop .grb')).toHaveCount(4);
   await setRange(page.locator('#p-mbc-0-ratio'), 8);
   await expect.poll(async () => (await sent(page)).mbc[0].ratio).toBe(8);
   await page.locator('[data-dblreset="p-mbc-0-ratio"]').dblclick();
   await expect.poll(async () => (await sent(page)).mbc[0].ratio).toBe(4); // Mjuk kick
-  await page.locator('[data-sec=mbc] summary .i').first().click();
-  await expect(page.locator('dialog.sheet')).toContainText('fyra frekvensband');
-  await page.locator('dialog.sheet').getByRole('button', { name: 'Stäng' }).click();
-
+  // Bandväljare: Mellan
+  await page.locator('[data-compband="1"]').click();
+  await expect(page.locator('#p-mbc-1-ratio')).toHaveCount(1);
+  // man kan scrolla med fingret på en fader – bara handtaget griper
+  expect(await page.locator('#spanel .vrow').first().evaluate((e) => getComputedStyle(e).touchAction)).toBe('pan-y');
+  expect(await page.locator('#spanel .vthumb').first().evaluate((e) => getComputedStyle(e).touchAction)).toBe('none');
+  // EQ: 8 band
+  await block(page, 'eq');
+  await page.locator('[data-eqband="graphic"]').click();
+  await expect(page.locator('#spanel .sl.vf')).toHaveCount(8);
+  // Ut: Platt och Återställ alla
+  await block(page, 'out');
   await page.getByRole('button', { name: 'Platt' }).click();
   await expect.poll(async () => (await sent(page)).mbc[0].ratio).toBe(1);
   await expect(page.locator('#msg')).toContainText('Platt');

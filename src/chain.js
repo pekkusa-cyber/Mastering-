@@ -458,6 +458,8 @@ export function soloEnables(enabled = {}, solo = null) {
   if (!solo) return enabled;
   const e = Object.fromEntries(Object.keys(allEnabled()).map((k) => [k, false]));
   e.output = enabled.output !== false;
+  if (solo === 'eq') { e.preEq = enabled.preEq !== false; e.postEq = enabled.postEq !== false; e.peq = enabled.peq !== false;
+    PEQ_BANDS.forEach((_, i) => { e[`peq${i}`] = enabled[`peq${i}`] !== false; }); return e; }
   if (solo === 'mbc') { [0, 1, 2, 3].forEach((i) => { e[`mbc${i}`] = enabled[`mbc${i}`] !== false; }); return e; }
   if (/^peq\d$/.test(solo)) { PEQ_BANDS.forEach((_, i) => { e[`peq${i}`] = false; }); e.peq = true; e[solo] = true; } else {
     PEQ_BANDS.forEach((_, i) => { e[`peq${i}`] = enabled[`peq${i}`] !== false; });

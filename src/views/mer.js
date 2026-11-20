@@ -1,7 +1,7 @@
 // Mer: behörigheter, felsökning (ljud-sessioner, rapport), version och uppdatering.
 import { LiveDsp, isSim } from '../livedsp.js';
 import { ui, app } from '../state.js';
-import { esc, infoBtn } from '../ui.js';
+import { esc, infoBtn, split } from '../ui.js';
 import * as updater from '../updater.js';
 
 const GRANT_CMD = 'adb shell pm grant se.foric.masterlab android.permission.DUMP';
@@ -9,7 +9,7 @@ const GRANT_CMD = 'adb shell pm grant se.foric.masterlab android.permission.DUMP
 function permRow({ id, title, ok, text, actions = '' }) {
   return `<section class="card perm" data-perm="${id}">
     <div class="row"><h2>${esc(title)}</h2><span class="grow"></span><span class="${ok ? 'ok' : 'bad'}">${ok ? '✓ klart' : '✕ saknas'}</span></div>
-    <p class="hint">${text}</p>${actions ? `<div class="btnrow">${actions}</div>` : ''}
+    ${ok ? '' : `<p class="hint">${text}</p>`}${actions ? `<div class="btnrow">${actions}</div>` : ''}
   </section>`;
 }
 
@@ -28,7 +28,7 @@ function sessionRow(s) {
 export function debugCard() {
   const s = ui.status;
   const a = s?.agc;
-  return `<details class="card" id="debug"><summary>Felsökning</summary>
+  return `<details class="card" id="debug" open><summary>Felsökning</summary>
     <ul class="sessions" data-testid="sessions">${(s?.sessions || []).map(sessionRow).join('') || '<li class="empty">Inga sessioner. Slå PÅ och spela något.</li>'}</ul>
     <dl class="facts">
       <dt>Telefon</dt><dd>${esc(s?.device)} · Android ${esc(s?.android)} (API ${esc(s?.sdk)})</dd>
@@ -45,13 +45,36 @@ export function debugCard() {
   </details>`;
 }
 
+const M_BLOCKS = () => {
+  const p = ui.perms || {};
+  const missing = ['microphone', 'notifications', 'battery'].filter((k) => !p[k]).length + (ui.canInstall ? 0 : 1);
+  return [
+    { id: 'perm', label: 'Behörigheter', sub: missing ? `${missing} saknas` : 'klart', dot: !missing },
+    { id: 'debug', label: 'Felsökning', sub: ui.status?.running ? 'motor igång' : 'motor av' },
+    { id: 'app', label: 'Appen', sub: ui.update?.kind === 'apk' ? 'ny version' : 'version' },
+  ];
+};
+const mBlock = () => (M_BLOCKS().some((b) => b.id === ui.blocks?.mer) ? ui.blocks.mer : 'perm');
+
+/** Överst: överblick – är allt klart? */
+function merTop() {
+  const p = ui.perms || {}, s = ui.status || {};
+  const row = (ok, t) => `<div class="orow"><i class="${ok ? 'okdot' : 'baddot'}"></i><span>${t}</span></div>`;
+  return `<div class="lbl"><b>Överblick</b><span class="grow"></span>Version ${esc(ui.version)}</div><div class="ovw">
+    ${row(!!(p.globalActive ?? s.globalActive), 'Effekten på allt ljud (global session)')}
+    ${row(!!p.microphone, 'Ljudanalys (spektrum, jämn volym)')}
+    ${row(!!p.notifications, 'Notis med PÅ/AV')}
+    ${row(!!p.battery, 'Får köra i bakgrunden')}
+    ${row(!!ui.canInstall, 'Kan installera uppdateringar')}
+    ${row(!!s.running, s.running ? 'Motorn är igång' : 'Motorn står still')}</div>`;
+}
+
 export function merView() {
   const p = ui.perms || {};
   const s = ui.status || {};
   const globalOk = !!(p.globalActive ?? s.globalActive);
-  return `
-    ${ui.update?.kind === 'apk' ? '' : ''}
-    <h2 class="vh">Behörigheter</h2>
+  const b = mBlock();
+  const panel = b === 'perm' ? `
     ${permRow({ id: 'global', title: 'Global session (allt ljud)', ok: globalOk,
       text: s.globalWanted ? (globalOk ? 'Effekten ligger på allt ljud som spelas.' : (s.running ? 'Påslagen men fungerar inte – se Felsökning nedan.' : 'Påslagen. Aktiveras när motorn startar.')) : 'Avslagen – bara enskilda appar som hittas bearbetas.',
       actions: `<label class="switch"><input type="checkbox" id="global" ${s.globalWanted ? 'checked' : ''}> Använd global session</label>` })}
@@ -78,13 +101,14 @@ export function merView() {
       <p class="hint">Slå på USB-felsökning, anslut telefonen och kör:</p><pre id="cmd">${GRANT_CMD}</pre>
       <button class="btn small" id="copycmd">Kopiera kommandot</button></details>`}
     ${ui.msg ? `<p class="hint" id="msg">${esc(ui.msg)}</p>` : ''}
-    <h2 class="vh">Appen</h2>
+    ` : b === 'debug' ? debugCard() : `
     <section class="card">
       <p class="hint" data-testid="version">Version ${esc(ui.version)}</p>
       <button class="btn small" id="checkUpdate">Sök uppdatering</button>
       ${ui.update?.kind !== 'apk' && ui.updateMsg ? `<p class="hint" id="updateMsg">${esc(ui.updateMsg)}</p>` : ''}
     </section>
-    ${debugCard()}`;
+`;
+  return split({ view: 'mer', top: merTop(), blocks: M_BLOCKS(), active: b, panel, topCls: 'short' });
 }
 
 export async function refreshPerms() {
@@ -97,7 +121,7 @@ export function bindDebug(root) {
   const rep = root.querySelector('#report');
   if (!rep) return;
   rep.onclick = async () => { await LiveDsp.copyReport(); root.querySelector('#copied').hidden = false; };
-  root.querySelector('#motor').onclick = async () => {
+  (root.querySelector('#motor') || {}).onclick = async () => {
     ui.status = await (ui.status?.running ? LiveDsp.stop() : LiveDsp.start());
     app.render();
   };
@@ -111,7 +135,8 @@ export function bindMer(root) {
       app.render();
     };
   });
-  root.querySelector('#global').onchange = async (e) => {
+  const gl = root.querySelector('#global');
+  if (gl) gl.onchange = async (e) => {
     ui.status = await LiveDsp.setGlobal({ on: e.target.checked });
     await refreshPerms();
     app.render();

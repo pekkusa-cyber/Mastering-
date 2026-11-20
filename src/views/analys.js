@@ -6,7 +6,7 @@ import { save } from '../store.js';
 import { compareProfiles, finishProfile, fixVariants, profileFromChannels } from '../analysis.js';
 import { allEnabled, noMacros, savePreset, sanitize } from '../chain.js';
 import { addRef, currentRef, deleteRef, exportRefs, importRefs, renameRef, selectRef } from '../refs.js';
-import { ask, bindPicker, esc, fmtDb, infoBtn, picker, saveFile } from '../ui.js';
+import { ask, bindPicker, esc, fmtDb, infoBtn, picker, saveFile, split } from '../ui.js';
 import { spectrumSvg, bindSpectrum } from '../spectrum.js';
 import { decodeFile, mmss } from '../audio.js';
 import { effective, changed } from './live.js';
@@ -69,23 +69,27 @@ function verdictBlock(own, ref) {
     ${c.tips.length ? `<ul class="tips">${c.tips.map((t) => `<li>${esc(t)}</li>`).join('')}</ul>` : ''}`;
 }
 
-function resultCard() {
+/** Resultatet: grafen (låten mot referens) överst, siffror, omdöme och åtgärder i panelen. */
+function resultTop() {
+  const res = ui.analysis, ref = currentRef();
+  const series = { main: { label: 'Analyserad låt', bands: res.profile.bands } };
+  if (ref) series.ref = { label: ref.name, bands: ref.profile.bands };
+  return `<div class="lbl"><b>Analyserad låt</b>${ref ? ` mot ${esc(ref.name)}` : ''}</div><div class="spwrap" id="result">${spectrumSvg(series, { id: 'result', title: 'Analyserad låt mot referens' })}</div>`;
+}
+function resultPanel() {
   const res = ui.analysis;
-  if (!res) return '';
+  if (!res) return `<div class="phead"><b>Resultat</b></div><p class="hint">Inget resultat ännu – analysera en låt först (blocket Analysera).</p>`;
   const ref = currentRef();
   const p = res.profile;
-  const series = { main: { label: 'Analyserad låt', bands: p.bands } };
-  if (ref) series.ref = { label: ref.name, bands: ref.profile.bands };
-  return `<section class="card" id="result">
-    <h2>Resultat</h2>
+  return `<section class="card" id="resultp">
+    <div class="phead"><b>Resultat</b><span class="grow"></span>${refSelect('refsel2')}</div>
     <dl class="facts">
       <dt>Längd</dt><dd>${mmss(p.seconds)}</dd>
       <dt>Nivå ${infoBtn('level')}</dt><dd>${fmtDb(p.level)} dB</dd>
       <dt>Toppighet ${infoBtn('crest')}</dt><dd>${p.crest.toFixed(1)} dB</dd>
       <dt>Dynamik ${infoBtn('dynamics')}</dt><dd>${p.dynamics.toFixed(1)} dB</dd>
     </dl>
-    ${spectrumSvg(series, { id: 'result', title: 'Analyserad låt mot referens' })}
-    ${ref ? verdictBlock(p, ref.profile) : '<p class="hint">Välj en referens ovan för att se om låten håller.</p>'}
+    ${ref ? verdictBlock(p, ref.profile) : '<p class="hint">Välj en referens för att se om låten håller.</p>'}
     <div class="btnrow">
       <button class="btn small" id="an-saveref">Spara som referens</button>
       ${ref && !ui.fix ? `<button class="btn small primary" id="an-fix">Åtgärda – 3 förslag</button>${infoBtn('fix')}` : ''}
@@ -115,7 +119,7 @@ function fixCard() {
 
 function refsCard() {
   return `<section class="card" id="refs">
-    <h2>Referenser ${infoBtn('references')}</h2>
+    <div class="phead"><b>Referenser</b>${infoBtn('references')}<span class="grow"></span></div>
     ${ui.refs.length ? `<ul class="reflist">${ui.refs.map((r) => `<li data-ref="${esc(r.id)}" class="${r.id === ui.refId ? 'sel' : ''}">
         <div><b>${esc(r.name)}</b><div class="meta">${r.profile.source === 'fil' ? 'från fil' : 'live'} · ${mmss(r.profile.seconds || 0)}</div></div>
         <span class="grow"></span>
@@ -132,15 +136,21 @@ function refsCard() {
   </section>`;
 }
 
+const A_BLOCKS = () => [
+  { id: 'analysera', label: 'Analysera', sub: ui.status?.analysis?.running ? 'pågår' : 'en låt' },
+  { id: 'resultat', label: 'Resultat', sub: ui.analysis ? 'klart' : '–' },
+  { id: 'referenser', label: 'Referenser', sub: `${ui.refs.length} st` },
+];
+const aBlock = () => (A_BLOCKS().some((b) => b.id === ui.blocks?.analys) ? ui.blocks.analys : 'analysera');
+
 export function analysView() {
-  return `
-    <section class="card">
-      <div class="row"><h2>Spektrum ${infoBtn('spectrum')}</h2><span class="grow"></span>${refSelect()}</div>
-      <div id="specArea">${spectrumPart()}</div>
-    </section>
-    <section class="card"><div class="row"><h2>Analysera en låt ${infoBtn('analyze')}</h2></div><div id="anArea">${analysisPart()}</div></section>
-    ${resultCard()}
-    ${refsCard()}`;
+  const b = aBlock();
+  const showResult = b === 'resultat' && ui.analysis;
+  const top = showResult ? resultTop() : `<div class="lbl"><b>Spektrum nu</b>${infoBtn('spectrum')}<span class="grow"></span></div><div class="lblr">${refSelect()}</div><div class="spwrap" id="specArea">${spectrumPart()}</div>`;
+  const panel = b === 'resultat' ? resultPanel() : b === 'referenser' ? refsCard()
+    : `<div class="phead"><b>Analysera en låt</b>${infoBtn('analyze')}</div><div id="anArea">${analysisPart()}</div>
+       ${ui.analysisMsg && !ui.analysis ? `<p class="hint" id="anmsg">${esc(ui.analysisMsg)}</p>` : ''}`;
+  return split({ view: 'analys', top, blocks: A_BLOCKS(), active: b, panel, topCls: 'tall' });
 }
 
 export function renderSpectrum(root) {
@@ -176,9 +186,10 @@ export function bindAnalys(root) {
     const ref = currentRef();
     const series = { main: { label: 'Analyserad låt', bands: res.profile.bands } };
     if (ref) series.ref = { label: ref.name, bands: ref.profile.bands };
-    bindSpectrum(root.querySelector('#result'), series);
+    const el = root.querySelector('#result');
+    if (el) bindSpectrum(el, series);
   }
-  bindPicker(root, 'refsel', () => ({ title: 'Välj referens', value: ui.refId, groups: refGroups() }), async (v) => { await selectRef(v); app.render(); });
+  for (const id of ['refsel', 'refsel2']) bindPicker(root, id, () => ({ title: 'Välj referens', value: ui.refId, groups: refGroups() }), async (v) => { await selectRef(v); app.render(); });
   const start = root.querySelector('#an-start');
   if (start) start.onclick = async () => {
     try { ui.status = await LiveDsp.startAnalysis(); ui.analysis = null; ui.analysisMsg = ''; } catch (e) { ui.analysisMsg = e.message; ui.analysis = null; }
@@ -190,6 +201,7 @@ export function bindAnalys(root) {
       const { raw } = await LiveDsp.stopAnalysis();
       const profile = finishProfile(raw);
       ui.analysis = { profile };
+      ui.blocks = { ...ui.blocks, analys: 'resultat' };
       ui.analysisMsg = profile.seconds < 20 ? 'Kort analys – minst en hel refräng (helst hela låten) ger säkrare resultat.' : '';
     } catch (e) { ui.analysisMsg = e.message; }
     ui.status = await LiveDsp.getStatus();
@@ -265,17 +277,17 @@ export function bindAnalys(root) {
       app.render();
     };
   });
-  root.querySelector('#ref-export').onclick = async () => {
+  (root.querySelector('#ref-export') || {}).onclick = async () => {
     try { await saveFile('masterlab-referenser.json', exportRefs(), 'application/json', fileDeps()); ui.refMsg = `${ui.refs.length} referenser exporterade.`; } catch (e) { ui.refMsg = e.message; }
     app.render();
   };
-  root.querySelector('#ref-import').onchange = async (e) => {
+  (root.querySelector('#ref-import') || {}).onchange = async (e) => {
     const f = e.target.files?.[0];
     if (!f) return;
     try { ui.refMsg = `${await importRefs(await f.text())} referenser importerade.`; } catch (err) { ui.refMsg = err.message; }
     app.render();
   };
-  root.querySelector('#ref-audio').onchange = async (e) => {
+  (root.querySelector('#ref-audio') || {}).onchange = async (e) => {
     const f = e.target.files?.[0];
     if (!f) return;
     ui.refMsg = `Läser ${f.name}…`;

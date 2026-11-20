@@ -1,11 +1,13 @@
 import { test, expect } from '@playwright/test';
-import { pick, picked } from './helpers.js';
+import { pick, picked, block } from './helpers.js';
 
 const analyze = async (page) => {
+  await block(page, 'analysera');
   await page.getByRole('button', { name: '● Starta analys' }).click();
   await expect(page.getByTestId('antime')).toBeVisible();
   await page.getByRole('button', { name: '■ Stoppa analysen' }).click();
-  await expect(page.locator('#result')).toBeVisible();
+  await expect(page.locator('#result')).toBeVisible(); // grafen överst visar resultatet
+  await expect(page.locator('[data-block="resultat"]')).toHaveClass(/\bon\b/);
 };
 
 test('utan mikrofon förklaras varför och man hänvisas till behörigheter', async ({ page }) => {
@@ -23,12 +25,14 @@ test('livespektrum, analys, spara referens och omdöme', async ({ page }) => {
   await expect(page.locator('[data-spec="live"] .spec-read')).toContainText('1 k–1.3 k Hz');
 
   await analyze(page);
-  await expect(page.locator('#result')).toContainText('2:00');
+  await expect(page.locator('#resultp')).toContainText('2:00');
   await page.getByRole('button', { name: 'Spara som referens' }).click();
   await page.locator('dialog.ask input').fill('Favoritlåt');
   await page.locator('dialog.ask').getByRole('button', { name: 'Spara' }).click();
-  await expect(page.locator('#refs')).toContainText('Favoritlåt');
   await expect(picked(page, 'Referens')).toHaveText('Favoritlåt');
+  await block(page, 'referenser');
+  await expect(page.locator('#refs')).toContainText('Favoritlåt');
+  await block(page, 'resultat');
   // Samma låt mot sig själv: redo
   await expect(page.getByTestId('verdict')).toContainText('Redo för mastring');
 
@@ -37,7 +41,7 @@ test('livespektrum, analys, spara referens och omdöme', async ({ page }) => {
   await analyze(page);
   await expect(page.getByTestId('verdict')).not.toContainText('Redo');
   await expect(page.locator('[data-region="diskant"]')).toContainText('dB');
-  await expect(page.locator('#result .tips')).toContainText('Kick mjukare');
+  await expect(page.locator('#resultp .tips')).toContainText('Kick mjukare');
 
   // Åtgärda: tre förslag, växla och behåll
   await page.getByRole('button', { name: 'Åtgärda – 3 förslag' }).click();
@@ -64,6 +68,7 @@ test('referenser: döp om, ta bort, exportera och importera', async ({ page }) =
   await page.getByRole('button', { name: 'Spara som referens' }).click();
   await page.locator('dialog.ask input').fill('Ref A');
   await page.locator('dialog.ask').getByRole('button', { name: 'Spara' }).click();
+  await block(page, 'referenser');
   await page.getByRole('button', { name: 'Döp om Ref A' }).click();
   await page.locator('dialog.ask input').fill('Ref B');
   await page.locator('dialog.ask').getByRole('button', { name: 'Döp om' }).click();

@@ -252,3 +252,17 @@ export function bindPicker(root, id, opts, onChange) {
     if (v !== null) onChange(v);
   };
 }
+
+/**
+ * Samma upplägg i alla vyer: en fast del överst (graf/överblick), en rad block i flödesordning och under dem en
+ * panel för valt block. Inget scrollar – bara panelen kan, i nödfall, scrolla inuti sig själv.
+ * blocks: [{ id, label, sub, dot }] – dot: true = på (grön), false = av (grå), undefined = ingen prick.
+ */
+export function split({ view, top, blocks, active, panel, topCls = '' }) {
+  return `<div class="split" data-split="${esc(view)}">
+    <div class="stop ${topCls}" id="stop">${top}</div>
+    <div class="blocks" role="tablist">${blocks.map((b, i) => `${i ? '<span class="ar" aria-hidden="true">›</span>' : ''}<button type="button" role="tab" data-block="${esc(b.id)}" class="blk${b.id === active ? ' on' : ''}" aria-selected="${b.id === active}">
+      ${b.dot === undefined ? '' : `<i class="dot${b.dot ? '' : ' no'}"></i>`}<b>${esc(b.label)}</b>${b.sub ? `<small>${esc(b.sub)}</small>` : ''}</button>`).join('')}</div>
+    <div class="spanel" id="spanel">${panel}</div>
+  </div>`;
+}

@@ -17,15 +17,15 @@ riktig limiter, kompressor, EQ och presets. Två lägen:
 
 ## Gränssnittet
 
-Fyra flikar längst ner:
+Samma upplägg i alla vyer: skärmen är delad i två fasta halvor och scrollar aldrig – **grafen överst**, **block** i
+flödesordning och en **panel** för valt block. Rubriken har runda av/på-knappar för 🎧 Hörlurar och 🎚️ Masterlab
+(gröna = på), ⚙ och ⓘ. Under rubriken: preset, Före/Efter, ↶ Ångra och ⋯ (presetinfo och hantering).
 
-- **Live** – PÅ/AV, **Jämn volym** (samma nivå mellan appar och låtar, och mellan PÅ och AV), presets, Enkelt/Avancerat.
-  Varje reglage och sektion har **ⓘ** (förklaring) och **↺** (nollställ till presetens värde). **Återställ alla** och **Platt**.
-- **Analys** – livespektrum, analys av en hel låt i bakgrunden (t.ex. medan du lyssnar i Suno eller på YouTube),
-  referenser, omdöme "håller låten?" per frekvensområde, **Matcha EQ live**.
-- **Fil** – mastring för släpp: välj låt, mål (Streaming −14 / Hög −10 LUFS, −1 dBTP), preset, matcha klang mot
-  referens, A/B nivåmatchat, mätare (LUFS, short-term, true peak, LRA, GR), export WAV 24/16 bit, 44,1/48 kHz med dither.
-- **Mer** – behörigheter, felsökning, version och uppdatering.
+- **Live** – Snabb → EQ → Kompr. → Limiter → Ut. Lodräta fadrar med M (mute), S (solo) och ⓘ; dubbeltryck på namnet nollställer.
+  Grafen följer blocket: spektrum + klangkurva (EQ-punkterna går att dra), nedtryckning per kompressorband, limiterns in → ut, nivå Original/Efter.
+- **Analys** – Analysera → Resultat → Referenser, med spektrumet (eller resultatet mot referensen) överst.
+- **Fil** – Låt → Klang → Mätare → Exportera, med spelaren (A/B) överst.
+- **Mer** – Behörigheter → Felsökning → Appen, med en överblick överst.
 
 ## Hörlurskorrigering
 
@@ -35,8 +35,8 @@ Fler hörlurar: kopiera AutoEq:s `ParametricEQ.txt` och klistra in i appen.
 
 ## Designförslag
 
-`design/` innehåller tre förslag (A Studio, B En ratt, C Kurva först) som HTML och bilder. **A Studio är valt** och
-infört i appen: Original/Mastrad-växel, smarta funktioner som chips, preset-kort med "Påverkar", grupperade reglage.
+`design/` innehåller förslagen som HTML och bilder. **`s2-floede` (B, flödet som block) är valt** och infört i hela
+appen. Äldre förslag: A Studio, B En ratt, C Kurva först, `l1`–`l3` och `s1-delad`.
 Tre enklare layouter utan scroll (spektrum alltid synligt): `l1-flikar` (fasta flikar EQ/Kompr./Limiter), `l2-kurva`
 (dra punkter direkt i spektrumet, rattar för frekvens/gain/Q) och `l3-mixer` (lodräta fadrar med M/S).
 
@@ -125,11 +125,8 @@ Ingång → pre-EQ (8 band) → multiband-kompressor (4 band: 0–120 Hz kick, 1
 - **Utgångsnivå** för att nivåmatcha själv, eller **Auto-nivåmatcha** (mäter med Visualizer, kräver mikrofonbehörighet).
 - **Presets (30):** Orörd (ingen bearbetning), Mjuk kick, Suno-fix, Radio ljus, Silkeslen röst, Varm lim, genrer och lyssningsmiljöer (bil, telefon, hörlurar) m.fl. Spara, döp om, ta bort,
   exportera/importera som JSON.
-- **Mixer (standard):** lodräta fadrar med M (mute) och S (solo). Sidan Reglage: Kick, Ljus, Tryck, Röst, S-ljud, Topp
-  (mitten = presetten som den är). Sidan Kedjan: In, Pre-EQ, Kompressor, Post-EQ, PEQ (mängd 0–200 %), Limiter, Ut.
-- **Kurva:** dra de fem parametriska EQ-punkterna direkt i spektrumet, två fingrar = Q.
-- **Avancerat:** alla parametrar per band.
-- Skärmen med live-spektrum och klangkurva ligger fäst överst i Mixer och Kurva.
+- **Block:** Snabb (sex enkla reglage), EQ (fem band med frekvens, höj/sänk och bredd, plus 8 band), Kompr. (fyra band),
+  Limiter och Ut – alla med lodräta fadrar, M (mute) och S (solo).
 - **Solo (S) och mute (på/av)** på varje sektion, band och enkelt reglage – hör bara en del, resten neutralt.
 - **Byt bara en del:** EQ, kompressor eller limiter från en annan preset; resten ligger kvar.
 - **Skydd mot misstag:** reglagen ändras bara vid drag i sidled (svep upp/ner scrollar), **↶ Ångra** upp till 20 steg.

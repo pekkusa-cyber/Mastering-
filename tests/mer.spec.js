@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { block } from './helpers.js';
 
 test('behörigheter: tillåt allt och bevilja DUMP med Shizuku', async ({ page }) => {
   await page.goto('/?sim=1&view=mer');
@@ -23,17 +24,19 @@ test('global session förvald; felsökningen visar sessioner och rapport', async
   await page.goto('/?sim=1&dump=1');
   await page.locator('#onoff').click();
   await page.locator('nav [data-view="mer"]').click();
-  await page.locator('#debug summary').click();
+  await block(page, 'debug');
   await expect(page.locator('[data-session="0"]')).toContainText('kopplad, på');
   await expect(page.locator('[data-session="2345"]')).toContainText('via global');
   await page.getByRole('button', { name: 'Kopiera felsökningsrapport' }).click();
   await expect(page.getByText('Kopierad – klistra in')).toBeVisible();
+  await block(page, 'perm');
   await page.getByLabel('Använd global session').uncheck();
   await expect(page.locator('[data-perm="global"]')).toContainText('Avslagen');
 });
 
 test('version och sök uppdatering', async ({ page }) => {
   await page.goto('/?sim=1&view=mer');
+  await block(page, 'app');
   await expect(page.getByTestId('version')).toContainText('webb');
   await page.getByRole('button', { name: 'Sök uppdatering' }).click();
   await expect(page.locator('#updateMsg')).toContainText('senaste');

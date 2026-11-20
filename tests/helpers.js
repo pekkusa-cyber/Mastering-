@@ -10,10 +10,15 @@ export async function pick(page, label, name) {
 /** Det valda värdet som visas i väljaren. */
 export const picked = (page, label) => page.getByRole('button', { name: label, exact: true }).locator('.pv');
 
-/** Visar Mixerns sida: 'dynamik' → Kedjan (nivå, auto-nivåmatchning), annars Reglage (de sex enkla reglagen). */
+/** Öppnar ett block i nuvarande vy (samma upplägg i alla vyer). */
+export async function block(page, id) {
+  await page.locator(`[data-block="${id}"]`).click();
+  await expect(page.locator(`[data-block="${id}"]`)).toHaveClass(/\bon\b/);
+}
+
+/** Live: de enkla reglagen ligger i blocket Snabb, nivå och auto-nivåmatchning i blocket Ut. */
 export async function openGroup(page, id) {
-  if (!(await page.locator('#mixer').count())) await page.getByRole('button', { name: 'Mixer', exact: true }).click();
-  await page.locator(`[data-mixpage="${id === 'dynamik' ? 'chain' : 'macros'}"]`).click();
+  await block(page, id === 'dynamik' ? 'out' : 'quick');
 }
 
 /** Öppnar inställningarna (⚙). */

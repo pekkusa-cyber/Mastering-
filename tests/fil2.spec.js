@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { encodeWav } from '../src/dsp/wav.js';
+import { block } from './helpers.js';
 
 function wav(seconds = 3, { wide = false, gain = 1, seed = 7 } = {}) {
   const fs = 44100, n = seconds * fs, L = new Float32Array(n), R = new Float32Array(n);
@@ -14,8 +15,11 @@ function wav(seconds = 3, { wide = false, gain = 1, seed = 7 } = {}) {
 }
 
 const load = async (page, name = 'a.wav', buf = wav()) => {
+  await block(page, 'lat');
   await page.locator('#f-file').setInputFiles({ name, mimeType: 'audio/wav', buffer: buf });
+  await block(page, 'mat');
   await expect(page.getByTestId('meters')).toBeVisible({ timeout: 60000 });
+  await block(page, 'lat');
 };
 
 test('direktlyssning, monokontroll och på/av för delar', async ({ page }) => {
@@ -23,9 +27,11 @@ test('direktlyssning, monokontroll och på/av för delar', async ({ page }) => {
   await page.goto('/?sim=1&view=fil');
   await load(page, 'brett.wav', wav(3, { wide: true }));
   await expect(page.locator('#player')).toContainText('direkt');
+  await block(page, 'mat');
   await expect(page.getByTestId('mono')).toBeVisible();
   await expect(page.getByTestId('mono').locator('tr', { hasText: 'Mellan' })).toContainText('-3.0 dB');
   // S-ljud av → reglaget dämpas, inställningen ligger kvar
+  await block(page, 'klang');
   await page.getByLabel('S-ljud (de-esser) på/av').uncheck();
   await expect(page.locator('[data-sl="f-deEss"]')).toHaveClass(/off/);
   await page.getByRole('button', { name: 'Slå på allt' }).click();
@@ -42,14 +48,19 @@ test('versioner: spara A och B och växla', async ({ page }) => {
   await load(page);
   await page.getByRole('button', { name: 'Spara version' }).click();
   await page.locator('dialog.ask').getByRole('button', { name: 'Spara' }).click();
+  await block(page, 'klang');
   await page.locator('#f-clip').evaluate((el) => { el.value = '5'; el.dispatchEvent(new Event('input', { bubbles: true })); });
+  await block(page, 'lat');
   await page.getByRole('button', { name: 'Spara version' }).click();
   await page.locator('dialog.ask input').fill('Hårdare');
   await page.locator('dialog.ask').getByRole('button', { name: 'Spara' }).click();
   await expect(page.locator('[data-version]')).toHaveCount(2);
   await page.locator('[data-version]').first().click();
+  await block(page, 'klang');
   await expect(page.locator('#f-clip')).toHaveValue('1.5');
+  await block(page, 'lat');
   await page.getByRole('button', { name: /Hårdare/ }).first().click();
+  await block(page, 'klang');
   await expect(page.locator('#f-clip')).toHaveValue('5');
 });
 
@@ -76,6 +87,7 @@ test('live-mastringen pausas medan Fil spelar (ingen dubbelmastring)', async ({ 
   await page.locator('#onoff').click(); // live-motorn igång, mastrat
   await page.locator('nav [data-view="fil"]').click();
   await page.locator('#f-file').setInputFiles({ name: 'a.wav', mimeType: 'audio/wav', buffer: wav(3) });
+  await block(page, 'mat');
   await expect(page.getByTestId('meters')).toBeVisible({ timeout: 60000 });
   await page.getByRole('button', { name: 'Spela' }).click();
   await expect.poll(() => page.evaluate(async () => (await window.__sim.getStatus()).bypass)).toBe(true);

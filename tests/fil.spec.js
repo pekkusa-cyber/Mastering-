@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { encodeWav, decodeWav } from '../src/dsp/wav.js';
 import { measure } from '../src/dsp/loudness.js';
+import { block } from './helpers.js';
 
 /** En syntetisk "låt" som WAV (44,1 kHz, 16 bit): rosa brus, kick och en ton. */
 function songWav(seconds = 6, fs = 44100, gain = 1) {
@@ -22,6 +23,7 @@ test('mastra en fil: mål, mätare, A/B och export som håller taket', async ({ 
   await page.goto('/?sim=1&view=fil');
   await page.locator('#f-file').setInputFiles({ name: 'min-lat.wav', mimeType: 'audio/wav', buffer: songWav(6) });
   await expect(page.getByTestId('fname')).toContainText('min-lat.wav · 0:06');
+  await block(page, 'mat');
   await expect(page.getByTestId('meters')).toBeVisible({ timeout: 60000 });
   const lufs = Number((await page.getByTestId('meters').locator('tbody tr').first().locator('td').nth(1).textContent()).replace('+', ''));
   expect(Math.abs(lufs - -14)).toBeLessThan(0.6);
@@ -29,7 +31,9 @@ test('mastra en fil: mål, mätare, A/B och export som håller taket', async ({ 
   expect(tp).toBeLessThanOrEqual(-1);
 
   // Hög: −10 LUFS (mastras om automatiskt)
+  await block(page, 'klang');
   await page.getByRole('button', { name: 'Hög -10' }).click();
+  await block(page, 'mat');
   await expect.poll(async () => Number((await page.getByTestId('meters').locator('tbody tr').first().locator('td').nth(1).textContent()).replace('+', '')), { timeout: 60000 }).toBeGreaterThan(-10.7);
 
   // A/B och uppspelning
@@ -40,6 +44,7 @@ test('mastra en fil: mål, mätare, A/B och export som håller taket', async ({ 
   await page.getByRole('button', { name: 'Paus' }).click();
 
   // Export: 24 bit 44,1 kHz – läs filen och kontrollera taket
+  await block(page, 'export');
   const download = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Exportera WAV' }).click();
   const d = await download;
@@ -56,7 +61,9 @@ test('↺ per parameter, Återställ alla och info i filmastringen', async ({ pa
   test.setTimeout(120000);
   await page.goto('/?sim=1&view=fil');
   await page.locator('#f-file').setInputFiles({ name: 'a.wav', mimeType: 'audio/wav', buffer: songWav(3) });
+  await block(page, 'mat');
   await expect(page.getByTestId('meters')).toBeVisible({ timeout: 60000 });
+  await block(page, 'klang');
   await page.getByRole('button', { name: 'Avancerat' }).click();
   const n = await page.locator('#fcontrols .sl').count();
   expect(n).toBeGreaterThan(50);
@@ -73,13 +80,16 @@ test('↺ per parameter, Återställ alla och info i filmastringen', async ({ pa
 test('matcha klang mot en referensfil', async ({ page }) => {
   test.setTimeout(120000);
   await page.goto('/?sim=1&mic=1&view=analys');
+  await block(page, 'referenser');
   await page.locator('#ref-audio').setInputFiles({ name: 'referens.wav', mimeType: 'audio/wav', buffer: songWav(4) });
   await expect(page.locator('#refmsg')).toContainText('"referens" sparad som referens');
   await page.locator('nav [data-view="fil"]').click();
   await page.locator('#f-file').setInputFiles({ name: 'egen.wav', mimeType: 'audio/wav', buffer: songWav(4, 44100, 0.5) });
+  await block(page, 'klang');
   await expect(page.getByTestId('fverdict')).toBeVisible({ timeout: 60000 });
   await page.getByRole('button', { name: 'Matcha klang mot referensen' }).click();
   await expect(page.locator('[data-sec="f-match"]')).toBeVisible();
+  await block(page, 'mat');
   await expect(page.getByTestId('meters')).toBeVisible({ timeout: 60000 });
 });
 

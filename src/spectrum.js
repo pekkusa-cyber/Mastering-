@@ -52,6 +52,7 @@ export function spectrumSvg(series, { id = 'spec', title = 'Spektrum' } = {}) {
 
 /** Kopplar tryck på band → visa värdena under diagrammet. */
 export function bindSpectrum(root, series) {
+  if (!root) return;
   root.querySelectorAll('.spec').forEach((el) => {
     const read = el.querySelector('.spec-read');
     el.querySelectorAll('.hit').forEach((h) => {

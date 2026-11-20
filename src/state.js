@@ -4,7 +4,8 @@ import { BUILTIN_PRESETS, noMacros } from './chain.js';
 export const ui = {
   view: 'live',          // 'live' | 'analys' | 'fil' | 'mer'
   mode: 'mixer',         // Live: 'mixer' | 'curve' | 'advanced'
-  mixPage: 'macros',     // Mixer: 'macros' (enkla reglage) | 'chain' (kedjans delar)
+  liveBlock: 'quick',    // Live: valt block (quick, eq, comp, limiter, out)
+  blocks: {},            // valt block per vy (analys, fil, mer)
   amounts: { preEq: 100, comp: 100, postEq: 100, peq: 100 }, // Mixerns mängd per del (%)
   curveSel: 2,           // Kurva: valt PEQ-band
   presetId: 'mjuk-kick',

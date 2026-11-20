@@ -4,66 +4,58 @@ export const HELP = {
   live: {
     title: 'Live',
     html: `
-      <p>Live lägger Androids ljudeffekt <b>DynamicsProcessing</b> på allt ljud telefonen spelar – Suno-appen, Suno i
-      Chrome, YouTube – medan du lyssnar.</p>
-      <h3>Två huvudbrytare</h3>
+      <p>Live lägger Androids ljudeffekt <b>DynamicsProcessing</b> på allt ljud telefonen spelar – Suno, Spotify, YouTube –
+      medan du lyssnar.</p>
+      <h3>Samma upplägg i hela appen</h3>
+      <p>Skärmen är delad i två fasta halvor och scrollar aldrig: <b>grafen överst</b> visar alltid det du arbetar med,
+      <b>blocken</b> i mitten är flödet i ljudets ordning, och <b>panelen</b> under visar reglagen för valt block.
+      Tryck på ett block (eller svep i sidled i panelen) för att byta.</p>
+      <h3>Rubriken</h3>
       <ul>
-        <li><b>🎧 Hörlurar</b> – bara hörlurskorrigeringen (neutrala lurar). Fungerar helt för sig.</li>
-        <li><b>Masterlab</b> – allt annat: mastring, jämn volym, konstant nivå.</li>
+        <li><b>🎧</b> – hörlurskorrigeringen (neutrala lurar). Grön = på, grå = av. Fungerar helt för sig.</li>
+        <li><b>🎚️</b> – Masterlab: allt annat (mastring, jämn volym, konstant nivå). Grön = på, grå = av.</li>
+        <li><b>⚙</b> inställningar, <b>ⓘ</b> den här hjälpen.</li>
       </ul>
-      <p>Hörlurar på + Masterlab av = vanlig musik, bara neutral. Båda av = helt originalljud. Knapparna finns också i notisen.</p>
-      <h3>Original / Mastrad</h3>
-      <p>Med Masterlab på jämför växeln originalet med det mastrade ljudet (nivåmatchat med Jämn volym).</p>
+      <p>🎧 på + 🎚️ av = vanlig musik, bara neutral. Båda av = helt originalljud. Knapparna finns också i notisen.</p>
+      <h3>Raden under rubriken</h3>
+      <ul>
+        <li><b>Preset ▾</b> – välj bland 30 (Orörd, Mjuk kick, Suno-fix, Radio ljus …). "ändrad" = du har ändrat något.</li>
+        <li><b>Före / Efter</b> – jämför originalet med det mastrade ljudet (nivåmatchat).</li>
+        <li><b>↶</b> Ångra (upp till 20 steg). <b>⋯</b> visar vad presetten påverkar och låter dig spara, döpa om, ta bort, exportera och importera.</li>
+      </ul>
+      <h3>Flödet: Snabb → EQ → Kompr. → Limiter → Ut</h3>
+      <ul>
+        <li><b>Snabb</b> – sex reglage ovanpå presetten: Kick, Ljus, Tryck, Röst, S-ljud, Topp (mitten = presetten som den är).
+        Grafen visar spektrum och klangkurva.</li>
+        <li><b>EQ</b> (klang) – fem band: Bas, Lågmitt, Mitt, Närvaro, Diskant. Dra punkterna direkt i grafen eller använd
+        fadrarna <b>Frekvens</b>, <b>Höj / sänk</b> och <b>Bredd (Q)</b>. <b>8 band</b> visar den klassiska EQ:n före och efter kompressorn.</li>
+        <li><b>Kompr.</b> (tryck) – fyra band: Kick, Mellan, Närvaro, Luft. Grafen visar hur mycket varje band trycks ner.
+        Fadrar: Styrka, Startar vid, Reaktion, Släpper, Mjukhet, Lyft.</li>
+        <li><b>Limiter</b> (volym) – skyddar topparna: Tak, Styrka, Reaktion, Släpper, Lyft. Grafen visar in → ut.</li>
+        <li><b>Ut</b> (nivå) – In och Ut, Platt, Slå på allt och Återställ alla. Grafen jämför nivån Original och Efter.</li>
+      </ul>
+      <p>Pricken på ett block visar om det är på. I panelens rubrik: på/av för hela blocket, <b>S</b> (solo – hör bara blocket)
+      och <b>Preset ▾</b> – ta just den delen från en annan preset.</p>
+      <h3>Fadrarna</h3>
+      <ul>
+        <li>Dra handtaget uppåt/nedåt. Ett tryck flyttar inget, så inget ändras av misstag.</li>
+        <li><b>Dubbeltryck på namnet</b> under en fader = tillbaka till presetens värde.</li>
+        <li><b>M</b> = mute (av), <b>S</b> = solo. En gul ruta i grafen visar vad som är solat – ✕ avslutar.</li>
+        <li><b>ⓘ</b> vid varje fader förklarar vad den gör.</li>
+      </ul>
       <h3>Bekräftelse</h3>
-      <p>När du ändrar något visas en rad längst ner: <b>✓ Ändringen ligger på ljudet</b>, eller en varning om motorn är
-      av eller om en annan app (t.ex. Wavelet) har tagit kontrollen – tryck då <b>Ta tillbaka</b>.</p>
-      <h3>Hörlurskorrigering</h3>
-      <p>Gör dina hörlurar neutrala (AutoEq). Soundcore Liberty 4 Pro finns inbyggd; fler kan importeras under 🎧-knappen.
-      Ställ Soundcore-appens EQ på platt. Korrigeringen ligger efter mastringen, precis före slutlimitern (Androids effekt har alltid limitern sist), och sänker totalt så att den aldrig skapar nya toppar.</p>
+      <p>Efter en ändring visas en kort ruta nere till höger i grafen (t.ex. <b>✓ Ändringen hörs nu</b>) som försvinner av sig själv.
+      Tar en annan app (t.ex. Wavelet) kontrollen ligger en varning kvar tills du trycker <b>Ta tillbaka</b>.</p>
       <h3>Inställningar (⚙)</h3>
-      <p>Det man sällan ändrar ligger under kugghjulet: val av hörlurar och en graf över vad som kompenseras, <b>Samma volym</b>
-      för korrigeringen, Jämn volym, Konstant utnivå, Volymoberoende kompression och profil för enheten.</p>
-      <ul>
-        <li><b>Jämn volym</b> – samma nivå mellan appar och låtar (YouTube → Suno utan att röra volymen), och mellan PÅ och AV.
-        Kräver mikrofonbehörighet (inget spelas in).</li>
-        <li><b>Konstant utnivå</b> – varje ändring kompenseras direkt så att PÅ låter lika högt som originalet. Då hör du om
-        ändringen gör det bättre, inte bara högre. Siffran visar hur mycket som kompenseras just nu.</li>
-        <li><b>Volymoberoende kompression</b> – låter likadant vid låg och hög volym.</li>
-        <li><b>Profil för enheten</b> – spara nuvarande inställning för hörlurarna/högtalaren/bilen. När enheten ansluts
-        byter appen själv.</li>
-      </ul>
-      <h3>Presets</h3>
-      <p>Bara vald preset syns – tryck <b>Byt</b> för att välja bland 30 – <b>Orörd</b> (ingen bearbetning alls, en ren grund
-      att bygga från), Mjuk kick, Suno-fix, Radio ljus, Silkeslen röst, R&amp;B silke, Trap 808, Schlager, Bilstereo, Telefonhögtalare m.fl.
-      Raden <b>Påverkar</b> visar exakt vad presetten gör, t.ex. att Mjuk kick bara arbetar med kompression av kickbandet och
-      limitern – inte med EQ. Spara din egen under <b>⋯ Hantera</b> (spara, döp om, ta bort, exportera, importera).</p>
-      <h3>Mixer, Kurva och Avancerat</h3>
-      <p>Överst ligger <b>skärmen</b> med spektrum och klangkurva – den följer med när du scrollar så att du alltid ser den.</p>
-      <ul>
-        <li><b>Mixer</b> – lodräta fadrar med <b>M</b> (mute) och <b>S</b> (solo) under. Sidan <b>Reglage</b>: Kick, Ljus, Tryck, Röst,
-        S-ljud och Topp ovanpå presetten. Sidan <b>Kedjan</b>: In, Pre-EQ, Kompressor, Post-EQ, PEQ, Limiter och Ut.
-        Dra uppåt/nedåt, dubbeltryck på namnet = nollställ, svep i sidled = byt sida.</li>
-        <li><b>Kurva</b> – dra de fem EQ-punkterna direkt i spektrumet (frekvens och gain), två fingrar = Q. Reglagen under
-        finjusterar valt band.</li>
-        <li><b>Avancerat</b> – hela kedjan med alla parametrar, med samma fadrar som Mixern (en rad per sektion och band):
-      Ingång → Pre-EQ → Multiband → Post-EQ → <b>Parametrisk EQ</b> (5 band med frekvens, gain och <b>Q</b> = bredd) → Limiter → Utgång.</li>
-      </ul>
-      <ul>
-        <li><b>På/av</b> på varje reglage, sektion och band: slå bara på det du vill ha (t.ex. bara mjukare kick).
-        Av = neutralt, inställningen ligger kvar. <b>Slå på allt</b> tar tillbaka allt.</li>
-        <li><b>Fadrarna</b>: dra uppåt/nedåt i handtaget. Fingret på resten av fadern scrollar sidan, så inget ändras av misstag.</li>
-        <li><b>Kurvor</b>: klangkurvan visar hur EQ:n ändrar klangen; kompressionskurvorna visar hur varje band trycks ihop
-        (och ungefär hur mycket). De ritas om medan du drar.</li>
-        <li><b>ⓘ</b> vid varje reglage och sektion förklarar vad den gör.</li>
-        <li><b>Dubbeltryck på namnet</b> under en fader nollställer den (till presetens värde; enkla reglage till mitten).</li>
-        <li><b>Återställ alla</b> tar tillbaka hela presetten. <b>Platt</b> gör allt neutralt.</li>
-      </ul>
+      <p>Hörlurar (modell, styrka, samma volym, graf), Jämn volym, Konstant utnivå, Volymoberoende kompression och profil
+      för enheten (byter inställning själv när hörlurarna/bilen ansluts).</p>
       <p>Använd inte Wavelet samtidigt – apparna slåss om samma ljud.</p>`,
   },
   analys: {
     title: 'Analys – referenslyssning',
     html: `
-      <p>Här ser du vad som spelas och jämför din låt med låtar du vill låta som – utan att behöva ladda upp testversioner.</p>
+      <p>Här ser du vad som spelas och jämför din låt med låtar du vill låta som – utan att behöva ladda upp testversioner.
+      Samma upplägg som i Live: grafen överst, blocken <b>Analysera → Resultat → Referenser</b> och panelen under.</p>
       <h3>Spektrum</h3>
       <p>Staplarna visar energin per frekvensområde just nu. Linjen är vald referens. Kurvorna jämförs på formen,
       inte på volymen. Tryck på ett band för att se värdena.</p>
@@ -91,7 +83,8 @@ export const HELP = {
   fil: {
     title: 'Fil – mastring för släpp',
     html: `
-      <p>Mastrar en färdig låt (MP3/WAV) och exporterar en WAV för distribution. Allt sker på telefonen.</p>
+      <p>Mastrar en färdig låt (MP3/WAV) och exporterar en WAV för distribution. Allt sker på telefonen.
+      Samma upplägg som i Live: spelaren (A/B) ligger fast överst, blocken <b>Låt → Klang → Mätare → Exportera</b> och panelen under.</p>
       <ol>
         <li><b>Välj låt.</b> Den mastras direkt med vald preset och mål.</li>
         <li><b>Mål:</b> Streaming (−14 LUFS, −1 dBTP) eller Hög (−10 LUFS). Nivån räknas ut automatiskt.</li>
@@ -118,7 +111,8 @@ export const HELP = {
   mer: {
     title: 'Mer',
     html: `
-      <p>Behörigheter, felsökning och uppdateringar.</p>
+      <p>Behörigheter, felsökning och uppdateringar. Överst en överblick (grön = klart, röd = saknas), blocken
+      <b>Behörigheter → Felsökning → Appen</b> och panelen under.</p>
       <ul>
         <li><b>Global session</b> – lägger effekten på allt ljud. Fungerar på din telefon.</li>
         <li><b>Ljudanalys ("mikrofon")</b> – låter appen läsa det som spelas internt för spektrum, analys, jämn volym och

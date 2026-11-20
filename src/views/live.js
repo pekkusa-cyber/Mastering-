@@ -9,7 +9,8 @@ import {
   applyMacros, bandLabel, deletePreset, exportPresets, importPresets, neutral, noMacros, renamePreset, sanitize,
   savePreset, toNative,
 } from '../chain.js';
-import { ask, bindPicker, bindSliders, esc, fmtDb, getPath, infoBtn, picker, setPath, sheet, slider, saveFile, soloBtn, toggle, vfader } from '../ui.js';
+import { ask, bindPicker, bindSliders, esc, fmtDb, getPath, infoBtn, picker, setPath, sheet, slider, saveFile, soloBtn, split, toggle, vfader } from '../ui.js';
+import { gainComputer } from '../dsp/dynamics.js';
 import { compensation, estimate, withCompensation } from '../level.js';
 import { eqCurveSvg, compCurvesSvg, spectrumEqSvg, freqToX, xToFreq } from '../viz.js';
 import { BAND_EDGES } from '../analysis.js';
@@ -78,9 +79,11 @@ export function changed({ now = false, user = true, keepUndo = false, undone = f
   };
   if (now) send(); else sendTimer = setTimeout(send, 60);
   clearTimeout(saveTimer);
-  saveTimer = setTimeout(() => save('state', { presetId: ui.presetId, base: ui.base, macros: ui.macros, mode: ui.mode, enabled: ui.enabled, constant: ui.constant, mods: ui.mods, amounts: ui.amounts, mixPage: ui.mixPage }), 300);
+  saveTimer = setTimeout(() => save('state', { presetId: ui.presetId, base: ui.base, macros: ui.macros, mode: ui.mode, enabled: ui.enabled, constant: ui.constant, mods: ui.mods, amounts: ui.amounts, liveBlock: ui.liveBlock }), 300);
   const d = document.querySelector('#dirty');
   if (d) d.hidden = !isDirty();
+  const u = document.querySelector('#undo');
+  if (u) u.disabled = !ui.undo?.length;
   app.renderPart('viz');
 }
 
@@ -98,7 +101,7 @@ export async function initLive() {
     ui.macros = { ...noMacros(), ...st.macros };
     ui.mode = ['advanced', 'curve'].includes(st.mode) ? st.mode : 'mixer';
     ui.amounts = { ...noAmounts(), ...st.amounts };
-    ui.mixPage = st.mixPage === 'chain' ? 'chain' : 'macros';
+    ui.liveBlock = st.liveBlock || 'quick';
     ui.enabled = { ...allEnabled(), ...st.enabled };
     ui.constant = st.constant !== false;
     ui.mods = st.mods || {};
@@ -112,28 +115,6 @@ export async function initLive() {
 const PRESET_ICONS = { 'mjuk-kick': '🥁', 'radio-ljus': '📻', 'silkeslen-rost': '🎤', 'varm-lim': '🧡', transparent: '◻️', 'suno-fix': '🛠️',
   'bas-varm': '🔊', 'tat-pop': '✨', 'hiphop-punch': '👊', 'edm-hogt': '⚡', akustisk: '🎸', ballad: '🎙️', rock: '🤘', lofi: '📼', natt: '🌙', horlurar: '🎧', test: '🧪',
   flat: '⚪', 'rnb-silke': '🌙', 'trap-808': '🔈', schlager: '💃', indie: '🌿', metal: '🔥', jazz: '🎷', film: '🎬', reggaeton: '🌴', bil: '🚗', telefon: '📱', gym: '🏋️', 'demo-check': '🔍' };
-
-/**
- * Två huvudbrytare högst upp: 🎧 Hörlurar (bara korrigeringen) och Masterlab (allt annat). Med Masterlab på finns
- * växeln Original | Mastrad för att jämföra.
- */
-export function onButton() {
-  const s = ui.status || {};
-  const agc = s.agc?.on;
-  const hpOn = !!s.correction?.on, appOn = !s.bypass;
-  const mode = !s.running && (s.on || hpOn) ? 'STARTAR…' : !appOn ? (hpOn ? 'BARA HÖRLURSKORRIGERING' : 'HELT ORIGINAL') : s.on ? 'MASTRAT' : agc ? 'ORIGINAL · NIVÅMATCHAT' : 'ORIGINAL';
-  return `<div class="mains">
-      <label class="main ${hpOn ? 'on' : ''}"><input type="checkbox" id="corr" ${hpOn ? 'checked' : ''} aria-label="Hörlurskorrigering">
-        <span class="mi">🎧</span><span class="mt"><b>Hörlurar</b><small>${hpOn ? esc(headphones().find((h) => h.id === ui.corr?.id)?.name || 'neutralt') : 'av'}</small></span><i class="mtog"></i></label>
-      <label class="main ${appOn ? 'on' : ''}"><input type="checkbox" id="masterlab" ${appOn ? 'checked' : ''} aria-label="Masterlab (bearbetning)">
-        <span class="mi">🎚️</span><span class="mt"><b>Masterlab</b><small>${appOn ? 'mastring och smart' : 'av – gör inget'}</small></span><i class="mtog"></i></label>
-    </div>
-    ${appOn ? `<button class="abswitch ${s.on ? 'on' : ''}" id="onoff" aria-pressed="${!!s.on}" aria-label="Mastrad på/av">
-      <span class="o">Original</span><span class="m">Mastrad</span></button>` : ''}
-    <p class="status"><b data-testid="mode">${mode}</b> · <span data-testid="motor">${s.running
-      ? (s.globalActive ? 'Bearbetar allt ljud' : `Bearbetar ${s.sessions.filter((x) => x.attached).length} spelande appar`)
-      : 'Motorn står still – slå på Mastrad eller Hörlurar'}</span>${s.output?.name ? ` · ${esc(s.output.name)}` : ''}${infoBtn('mains', 'Om huvudbrytarna')}</p>`;
-}
 
 /** Korrigeringen som skickas till motorn: nivåkompenserad (samma volym) om det är valt. */
 export function correctionToSend(hp, corr = ui.corr) {
@@ -209,24 +190,6 @@ export function presetGroups({ withTest = true } = {}) {
   ];
 }
 
-/** Bara vald preset syns – tryck för att byta (appens egen lista). */
-function presetCard() {
-  const p = currentPreset();
-  return `<section class="card presetcard">
-    <button class="pselect" id="preset" aria-label="Preset" aria-haspopup="listbox">
-      <span class="ico">${PRESET_ICONS[p?.id] || (p ? '⭐' : '✎')}</span>
-      <span class="pt"><small class="lbl">PRESET <span id="dirty" ${isDirty() ? '' : 'hidden'}>· ändrad</span></small><b class="pv">${esc(p?.name || '(egen inställning)')}</b></span>
-      <span class="chev">Byt ▾</span>
-    </button>
-    <p class="affects" data-testid="affects"><b>Påverkar:</b> ${esc(presetEffects(p?.params ?? ui.base).join(' · '))}</p>
-    <div class="mods" aria-label="Byt en del">${Object.entries(MODULES).map(([k, m]) => `<button class="modbtn${ui.mods?.[k] ? ' set' : ''}" id="mod-${k}" aria-label="${m.name}-preset">
-      <small>${m.name}</small><b>${esc(ui.mods?.[k] || 'Byt ▾')}</b></button>`).join('')}${infoBtn('modules')}</div>
-    <div class="row prow"><span class="hint small" id="pdesc">${esc(p?.desc || (p ? 'Din egen preset.' : 'Ändrad från en preset eller platt.'))}</span>
-      <button class="btn small ghost" id="p-menu" aria-label="Hantera presets">⋯</button>${infoBtn('presets')}</div>
-    ${ui.msg ? `<p class="hint small" id="msg">${esc(ui.msg)}</p>` : ''}
-  </section>`;
-}
-
 /**
  * Ett reglage i Avancerat och Kurva: samma lodräta fader som i Mixern (dra uppåt/nedåt, dubbeltryck på namnet =
  * presetens värde). short = kort namn under fadern; label = hela namnet (skärmläsare, ⓘ).
@@ -238,163 +201,232 @@ const path = (key, label, range, info = key, enableKey = null, short = label) =>
 const frow = (items) => `<div class="faders adv" style="--n:${items.length}">${items.join('')}</div>`;
 const EQ_SHORT = ['60', '120', '250', '500', '1k', '3k', '8k', '20k'];
 
-function levelBlock() {
-  const agcOn = ui.status?.agc?.on;
-  return `${frow([path('outputGain', 'Utgångsnivå', RANGES.outputGain, 'outputGain', 'output', 'Ut')])}
-    ${agcOn || ui.constant ? '<p class="hint small">Nivån hålls automatiskt (Jämn volym / Konstant utnivå). Reglaget finjusterar.</p>'
-      : `<div class="btnrow"><button class="btn small" id="autolevel">Auto-nivåmatcha</button>${infoBtn('autolevel')}</div>`}
-    ${ui.levelMsg ? `<p class="hint" id="levelmsg">${esc(ui.levelMsg)}</p>` : ''}`;
+
+// ---- Layout B: rubrikrad, smal rad, graf överst, block i flödesordning, panel ----
+
+/** Runda av/på-knappar i rubriken: 🎧 Hörlurar (bara korrigeringen) och 🎚️ Masterlab (allt annat). Gröna = på. */
+export function headerToggles() {
+  if (!LiveDsp) return '';
+  const s = ui.status || {};
+  const hpOn = !!s.correction?.on, appOn = !s.bypass;
+  return `<span class="hdt" id="hdt">
+    <label class="rb ${hpOn ? 'on' : 'off'}" title="Hörlurar (korrigering)"><input type="checkbox" id="corr" ${hpOn ? 'checked' : ''} aria-label="Hörlurskorrigering">🎧</label>
+    <label class="rb ${appOn ? 'on' : 'off'}" title="Masterlab (bearbetning)"><input type="checkbox" id="masterlab" ${appOn ? 'checked' : ''} aria-label="Masterlab (bearbetning)">🎚️</label></span>`;
 }
 
-/** Kurvorna: klangkurva + kompression. Ritas om medan du drar (app.renderPart('viz')). */
-export function vizPart(kind = 'all') {
-  const p = heard();
-  const e = estimate(p);
-  const hp = headphones().find((h) => h.id === ui.corr?.id);
-  const corr = ui.status?.correction?.on && hp ? correctionToSend(hp) : null;
-  const eq = kind !== 'comp' ? eqCurveSvg({ pre: p.preEq.map((b) => b.gain), post: p.postEq.map((b) => b.gain), peq: p.peq, corr }) : '';
-  const comp = kind !== 'eq' ? compCurvesSvg({ mbc: p.mbc, limiter: p.limiter, gr: e.mbcGr, limGr: e.limGr, enabled: ui.enabled }) : '';
-  return eq + comp;
+/** Läget i klartext (överst i grafen). */
+function statusLine() {
+  const s = ui.status || {};
+  const hpOn = !!s.correction?.on, appOn = !s.bypass;
+  const mode = !s.running && (s.on || hpOn) ? 'STARTAR…' : !appOn ? (hpOn ? 'BARA HÖRLURSKORRIGERING' : 'HELT ORIGINAL') : s.on ? 'MASTRAT' : s.agc?.on ? 'ORIGINAL · NIVÅMATCHAT' : 'ORIGINAL';
+  const motor = s.running ? (s.globalActive ? 'Bearbetar allt ljud' : `Bearbetar ${(s.sessions || []).filter((x) => x.attached).length} spelande appar`) : 'Motorn står still – slå på Efter eller 🎧';
+  return `<span id="lstat"><b data-testid="mode">${mode}</b> · <span data-testid="motor">${motor}</span></span>${infoBtn('mains', 'Om huvudbrytarna')}`;
 }
 
+/** Smal rad: preset, Före/Efter, Ångra, Hantera. */
+function subbar() {
+  const p = currentPreset(), s = ui.status || {};
+  return `<div class="subbar" id="subbar">
+    <button class="pp" id="preset" aria-label="Preset" aria-haspopup="listbox"><span class="ico">${PRESET_ICONS[p?.id] || (p ? '⭐' : '✎')}</span><b class="pv">${esc(p?.name || '(egen)')}</b><small id="dirty" ${isDirty() ? '' : 'hidden'}>ändrad</small>▾</button>
+    <button class="abmini ${s.on ? 'on' : ''}" id="onoff" aria-pressed="${!!s.on}" aria-label="Mastrad på/av" ${s.bypass ? 'disabled' : ''}><span class="o">Före</span><span class="m">Efter</span></button>
+    <button class="rb sm" id="undo" aria-label="↶ Ångra" ${ui.undo?.length ? '' : 'disabled'}>↶</button>
+    <button class="rb sm" id="p-menu" aria-label="Hantera presets">⋯</button>
+  </div>`;
+}
+
+/** Kort bekräftelse uppe i grafen – försvinner av sig själv. En annan app med kontrollen visas tills det är löst. */
+export function toast() {
+  if (!LiveDsp) return '<div id="confirm" hidden></div>';
+  const s = ui.status || {}, r = ui.report;
+  if (s.running && s.control === false || r?.noControl > 0 && Date.now() - r.at < 60000 && s.control !== true) {
+    return `<div class="toast warn" id="confirm" role="status"><span>⚠ En annan app (t.ex. Wavelet) styr ljudet.</span><button class="btn small" id="takeControl">Ta tillbaka</button></div>`;
+  }
+  if (ui.msg && Date.now() - (ui.msgAt || 0) < 3500) return `<div class="toast" id="confirm" role="status"><span id="msg">${esc(ui.msg)}</span></div>`;
+  if (!(r && Date.now() - r.at < 3000 && r.user)) return '<div id="confirm" hidden></div>';
+  if (r.undone) return '<div class="toast" id="confirm" role="status">↶ Ångrat.</div>';
+  if (r.errors > 0) return `<div class="toast bad" id="confirm" role="status">✕ Kunde inte läggas på (${r.errors} fel)</div>`;
+  if (!r.running || !r.total) return '<div class="toast warn" id="confirm" role="status">Sparat – motorn är av</div>';
+  if (!s.on && !s.agc?.on && !s.correction?.on) return '<div class="toast" id="confirm" role="status">✓ Sparat – hörs på Efter</div>';
+  return '<div class="toast" id="confirm" role="status">✓ Ändringen hörs nu</div>';
+}
+
+const SOLO_LABEL = () => ({ ...SOLO_NAMES(), eq: 'EQ', mbc: 'Kompressor' });
+const soloChip = () => (ui.solo ? `<div class="solochip" data-testid="solobar"><b>S</b> Solo: ${esc(SOLO_LABEL()[ui.solo] || ui.solo)}<button id="solo-off" aria-label="Avsluta solo">✕</button></div>` : '');
+
+const BLOCKS = [
+  { id: 'quick', label: 'Snabb', sub: 'enkla' },
+  { id: 'eq', label: 'EQ', sub: 'klang' },
+  { id: 'comp', label: 'Kompr.', sub: 'tryck' },
+  { id: 'limiter', label: 'Limiter', sub: 'volym' },
+  { id: 'out', label: 'Ut', sub: 'nivå' },
+];
+const block = () => (BLOCKS.some((b) => b.id === ui.liveBlock) ? ui.liveBlock : 'quick');
+const anyOn = (keys) => keys.some((k) => en(k));
+const blockOn = (id) => ({ quick: anyOn(MACROS.map((m) => `m_${m.key}`)), eq: anyOn(['preEq', 'postEq', 'peq']), comp: anyOn(['mbc0', 'mbc1', 'mbc2', 'mbc3']), limiter: en('limiter'), out: en('output') }[id]);
 const SHORT_MACRO = { kick: 'Kick', bright: 'Ljus', punch: 'Tryck', vocal: 'Röst', sibilance: 'S-ljud', glitter: 'Topp' };
+const PEQ_NAMES = ['Bas', 'Lågmitt', 'Mitt', 'Närvaro', 'Diskant'];
+const COMP_NAMES = ['Kick', 'Mellan', 'Närvaro', 'Luft'];
+const eqSel = () => (ui.eqSel ?? 2);
+const compSel = () => Math.max(0, Math.min(3, ui.compSel ?? 0));
 
-/** Skärmen överst i Mixer: spektrum (om analysen går) och klangkurvan – alltid synlig (fäst när man scrollar). */
-function screenPart(kind) {
+/** Den övre halvan: alltid grafen för det block som är öppet. */
+function topPart(b = block()) {
   const p = heard();
-  const sel = ui.curveSel ?? 2;
-  const handles = kind === 'curve' ? p.peq.map((b, i) => ({ f: b.freq, gain: b.gain, sel: i === sel, off: !en('peq') || !en(`peq${i}`) })) : [];
-  return spectrumEqSvg({ bands: ui.spectrum?.bands, edges: BAND_EDGES, p, handles, H: kind === 'curve' ? 230 : 110 })
-    + (ui.spectrum?.bands ? '' : '<small class="dim scrhint">Spektrum visas när ljudanalysen är tillåten (Mer → Behörigheter).</small>');
+  let g = '';
+  if (b === 'quick' || b === 'eq') {
+    const handles = b === 'eq' && ui.eqView !== 'graphic' ? p.peq.map((x, i) => ({ f: x.freq, gain: x.gain, sel: i === eqSel(), off: !en('peq') || !en(`peq${i}`) })) : [];
+    g = `<div class="scrbox${handles.length ? ' edit' : ''}" data-screen="${b}">${spectrumEqSvg({ bands: ui.spectrum?.bands, edges: BAND_EDGES, p, handles, H: 240, W: 380 })}</div>`;
+  } else if (b === 'comp') {
+    const e = estimate(p);
+    const sel = compSel(), m = p.mbc[sel];
+    g = `<div class="grwrap">${p.mbc.map((x, i) => `<div class="grb${i === sel ? ' sel' : ''}${en(`mbc${i}`) ? '' : ' off'}"><b>${x.ratio > 1.0001 ? `−${(e.mbcGr[i] || 0).toFixed(1)}` : '0.0'}</b><div class="grt"><em style="height:${Math.min(100, (e.mbcGr[i] || 0) * 8)}%"></em></div><span>${COMP_NAMES[i]}</span></div>`).join('')}
+      <div class="tfbox">${transferSvg({ threshold: m.threshold, ratio: m.ratio, knee: m.knee, preGain: m.preGain, postGain: m.postGain })}${COMP_NAMES[sel]}: in → ut</div></div>`;
+  } else if (b === 'limiter') {
+    const e = estimate(p), l = p.limiter;
+    g = `<div class="lvwrap" style="grid-template-columns:1.4fr 1fr"><div class="tfbox">${transferSvg({ threshold: l.threshold, ratio: l.ratio, knee: 0, postGain: l.postGain })}in → ut</div>
+      <div class="lvinfo"><b>${l.ratio <= 1.0001 ? 'av' : `−${e.limGr.toFixed(1)} dB`}</b>uppskattad sänkning av topparna<br><br><b>${fmtDb(l.threshold)} dB</b>tak</div></div>`;
+  } else {
+    const before = estimate(neutral()).level, after = estimate(sendParams()).level;
+    const h = (v) => Math.max(4, Math.min(100, (v - before + 18) / 30 * 100));
+    g = `<div class="lvwrap"><div class="lvb"><b>${fmtDb(0)}</b><div class="lvt"><em style="height:${h(before)}%"></em></div>Original</div>
+      <div class="lvb after"><b>${fmtDb(after - before)}</b><div class="lvt"><em style="height:${h(after)}%"></em></div>Efter</div>
+      <div class="lvinfo">${ui.constant ? `<b data-testid="compread2">${fmtDb(compensation(effective()))} dB</b>kompenseras så att Efter låter lika högt som Original (Konstant utnivå)` : '<b>av</b>Konstant utnivå – ställ nivån själv med Ut'}</div></div>`;
+  }
+  return `<div class="lbl">${statusLine()}<span class="grow"></span></div>${g}${soloChip()}${toast()}`;
 }
 
-/** Mixer: lodräta fadrar med M och S. Två sidor – Reglage (de sex enkla) och Kedjan (varje del). Svep i sidled byter. */
-function mixerCard() {
-  const page = ui.mixPage === 'chain' ? 'chain' : 'macros';
-  const macros = MACROS.map((m) => vfader({ id: `m-${m.key}`, label: m.label, short: SHORT_MACRO[m.key] || m.label, value: ui.macros[m.key] ?? 0, range: [-100, 100, 1, ''],
-    kind: 'macro', key: m.key, resetTo: 0, enable: { key: `m_${m.key}`, on: en(`m_${m.key}`) }, soloKey: `m_${m.key}`, soloOn: ui.solo === `m_${m.key}`, info: m.key })).join('');
-  const am = (k, label, short, en1, soloKey, info, on = en(en1)) => vfader({ info, id: `a-${k}`, label: `${label} mängd`, short, value: ui.amounts?.[k] ?? 100, range: [0, 200, 5, '%'], kind: 'amount', key: k,
-    resetTo: 100, enable: { key: en1, on }, soloKey, soloOn: ui.solo === soloKey });
-  const pb = presetBase();
-  const chain = [
-    vfader({ id: 'p-inputGain', label: 'Ingång', short: 'In', value: ui.base.inputGain, range: RANGES.inputGain, kind: 'path', key: 'inputGain', resetTo: pb.inputGain, enable: { key: 'input', on: en('input') }, soloKey: 'input', soloOn: ui.solo === 'input', info: 'inputGain' }),
-    am('preEq', 'Pre-EQ', 'Pre-EQ', 'preEq', 'preEq', 'sec_preEq'),
-    am('comp', 'Kompressor', 'Kompr.', 'grp_comp', 'mbc', 'sec_mbc', [0, 1, 2, 3].some((i) => en(`mbc${i}`))),
-    am('postEq', 'Post-EQ', 'Post-EQ', 'postEq', 'postEq', 'sec_postEq'),
-    am('peq', 'Parametrisk EQ', 'PEQ', 'peq', 'peq', 'sec_peq'),
-    vfader({ id: 'p-limiter-threshold', label: 'Limiterns tak', short: 'Limiter', value: ui.base.limiter.threshold, range: RANGES.limThreshold, kind: 'path', key: 'limiter.threshold', resetTo: pb.limiter.threshold, enable: { key: 'limiter', on: en('limiter') }, soloKey: 'limiter', soloOn: ui.solo === 'limiter', info: 'limiter.threshold' }),
-    vfader({ id: 'p-outputGain', label: 'Utgångsnivå', short: 'Ut', value: ui.base.outputGain, range: RANGES.outputGain, kind: 'path', key: 'outputGain', resetTo: pb.outputGain, enable: { key: 'output', on: en('output') }, info: 'outputGain' }),
-  ].join('');
-  return `<section class="card mixer" id="mixer">
-    <div class="mixtabs" role="tablist"><button data-mixpage="macros" class="${page === 'macros' ? 'sel' : ''}" role="tab">Reglage</button><button data-mixpage="chain" class="${page === 'chain' ? 'sel' : ''}" role="tab">Kedjan</button>
-      <span class="grow"></span>${infoBtn(page === 'macros' ? 'mixer' : 'mixerChain')}</div>
-    <div class="faders ${page}" id="faders">${page === 'macros' ? macros : chain}</div>
-    <p class="hint small mixhint">Dra uppåt/nedåt. Dubbeltryck på namnet = nollställ. M = av, S = hör bara den. Svep i sidled = byt sida.</p>
-    ${page === 'chain' ? (ui.status?.agc?.on || ui.constant ? '<p class="hint small">Nivån hålls automatiskt (Jämn volym / Konstant utnivå). Ut finjusterar.</p>'
-      : `<div class="btnrow"><button class="btn small" id="autolevel">Auto-nivåmatcha</button>${infoBtn('autolevel')}</div>`) : ''}
-    ${ui.levelMsg ? `<p class="hint" id="levelmsg">${esc(ui.levelMsg)}</p>` : ''}
-    <div class="row bottomrow"><span class="grow"></span><button class="btn small" id="reset-all">Återställ alla</button></div>
-  </section>`;
+/** Liten in/ut-kurva för en kompressor eller limiter. */
+function transferSvg({ threshold, ratio, knee = 0, preGain = 0, postGain = 0 }) {
+  const S = 100, P = 6;
+  const x = (v) => P + ((v + 60) / 66) * (S - 2 * P);
+  const y = (v) => S - P - ((Math.max(-60, Math.min(6, v)) + 60) / 66) * (S - 2 * P);
+  const ins = Array.from({ length: 67 }, (_, i) => -60 + i);
+  const pts = ins.map((v) => `${x(v).toFixed(1)},${y(v + preGain + gainComputer(v + preGain, threshold, ratio, knee) + postGain).toFixed(1)}`).join(' ');
+  return `<svg viewBox="0 0 ${S} ${S}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="In → ut"><rect x="${P}" y="${P}" width="${S - 2 * P}" height="${S - 2 * P}" rx="5" fill="none" stroke="#262b33"/>
+    <line x1="${x(-60)}" y1="${y(-60)}" x2="${x(6)}" y2="${y(6)}" stroke="#3a424d" stroke-dasharray="2 3"/>
+    <polyline fill="none" stroke="#3fd3b0" stroke-width="2.2" points="${pts}"/>${ratio > 1.0001 ? `<circle cx="${x(threshold - preGain)}" cy="${y(threshold + postGain)}" r="3" fill="#e0a03c"/>` : ''}</svg>`;
 }
 
-/** Kurva: dra de fem EQ-punkterna direkt i spektrumet (två fingrar = Q), finjustera med reglagen under. */
-function curveCard() {
-  const sel = ui.curveSel ?? 2, b = PEQ_BANDS[sel];
-  return `<section class="card curve" id="curve">
-    <div class="chips" role="tablist">${PEQ_BANDS.map((x, i) => `<button class="chip${i === sel ? ' sel' : ''}${en(`peq${i}`) ? '' : ' off'}" data-band="${i}" role="tab" aria-selected="${i === sel}">${i + 1} ${esc(x.name.replace(/ \(hylla\)/, ''))}</button>`).join('')}</div>
-    <div class="row cbhead"><label class="mbtn big" title="Mute"><input type="checkbox" data-enable="peq${sel}" ${en(`peq${sel}`) ? 'checked' : ''} aria-label="Mute ${esc(b.name)}"><span>M</span></label>
-      ${solo(`peq${sel}`, b.name)}<b class="grow">${esc(b.name)}</b><small class="dim">${b.type === 'peaking' ? 'klocka' : 'hylla'}</small>${infoBtn('sec_peq')}</div>
-    ${frow([path(`peq.${sel}.freq`, 'Frekvens', b.range, 'peqFreq', null, 'Frekv.'), path(`peq.${sel}.gain`, 'Gain', RANGES.peqGain, 'peqGain'),
-      path(`peq.${sel}.q`, b.type === 'peaking' ? 'Q (bredd)' : 'Q (branthet)', RANGES.peqQ, 'peqQ', null, 'Q')])}
-    <div class="row bottomrow"><button class="btn small" id="peq-flat">Platta ut kurvan</button><span class="grow"></span><button class="btn small" id="reset-all">Återställ alla</button></div>
-  </section>`;
+/** Rubrik i panelen: på/av (mute), namn, solo och delpreset. */
+function phead({ title, sub = '', enableKey = null, soloKey = null, mod = null }) {
+  const modBtn = mod ? `<button class="pick2" id="mod-${mod}" aria-label="${MODULES[mod].name}-preset">Preset: <b>${esc(ui.mods?.[mod] || 'presettens')}</b> ▾</button>` : '';
+  return `<div class="phead">${enableKey ? toggle(enableKey, enableKey.startsWith('grp_') ? blockOn(enableKey.slice(4)) : en(enableKey), title) : ''}<b>${esc(title)}</b>${soloKey ? solo(soloKey, title) : ''}
+    ${sub ? `<small>${esc(sub)}</small>` : ''}<span class="grow"></span>${modBtn}</div>`;
+}
+const frowN = (items) => `<div class="faders" style="--n:${items.length}">${items.join('')}</div>`;
+const fpath = (key, label, short, range, info = key, opts = {}) => vfader({ id: `p-${key.replace(/\./g, '-')}`, label, short, value: getPath(ui.base, key), range, info,
+  resetTo: getPath(presetBase(), key), kind: 'path', key, buttons: false, ...opts });
+
+function panelQuick() {
+  const f = MACROS.map((m) => vfader({ id: `m-${m.key}`, label: m.label, short: SHORT_MACRO[m.key] || m.label, value: ui.macros[m.key] ?? 0, range: [-100, 100, 1, ''],
+    kind: 'macro', key: m.key, resetTo: 0, enable: { key: `m_${m.key}`, on: en(`m_${m.key}`) }, soloKey: `m_${m.key}`, soloOn: ui.solo === `m_${m.key}`, info: m.key }));
+  return `<div class="phead"><b>Snabb</b><small>ovanpå presetten</small>${infoBtn('mixer')}<span class="grow"></span><button class="btn small" id="reset-all">Återställ alla</button></div>${frowN(f)}`;
 }
 
-const section = (id, title, info, body, { open = false, enableKey = null, soloKey = enableKey } = {}) =>
-  `<details class="sec${enableKey && !en(enableKey) ? ' off' : ''}" data-sec="${id}" ${open ? 'open' : ''}><summary>${enableKey ? toggle(enableKey, en(enableKey), title) : ''}${esc(title)}${infoBtn(info, `Om ${title}`)}${soloKey ? `<span class="grow"></span>${solo(soloKey, title)}` : ''}</summary><div class="secbody">${body}</div></details>`;
-
-function advancedCard() {
-  const eq = (k) => frow(EQ_CUTOFFS.map((_, i) => path(`${k}.${i}.gain`, bandLabel(EQ_CUTOFFS, i), RANGES.eqGain, `${k}.${i}.gain`, null, EQ_SHORT[i])));
-  const mbc = MBC_CUTOFFS.map((_, i) => `<details class="band${en(`mbc${i}`) ? '' : ' off'}"><summary>${toggle(`mbc${i}`, en(`mbc${i}`), MBC_NAMES[i])}${esc(MBC_NAMES[i])}${infoBtn(`mbcBand${i}`)}<span class="grow"></span>${solo(`mbc${i}`, MBC_NAMES[i])}</summary>
-      ${frow([path(`mbc.${i}.threshold`, 'Tröskel', RANGES.threshold, `mbc.${i}.threshold`, null, 'Tröskel'),
-        path(`mbc.${i}.ratio`, 'Ratio', RANGES.ratio), path(`mbc.${i}.attack`, 'Attack', RANGES.attack),
-        path(`mbc.${i}.release`, 'Release', RANGES.release), path(`mbc.${i}.knee`, 'Knä', RANGES.knee),
-        path(`mbc.${i}.preGain`, 'Förstärkning före', RANGES.preGain, `mbc.${i}.preGain`, null, 'Före'),
-        path(`mbc.${i}.postGain`, 'Förstärkning efter', RANGES.postGain, `mbc.${i}.postGain`, null, 'Efter')])}
-    </details>`).join('');
-  const peq = PEQ_BANDS.map((b, i) => `<details class="band${en(`peq${i}`) ? '' : ' off'}"><summary>${toggle(`peq${i}`, en(`peq${i}`), b.name)}${esc(b.name)}
-      <small class="dim pqsum">${ui.base.peq[i].gain ? `${fmtDb(ui.base.peq[i].gain)} dB` : 'platt'}</small><span class="grow"></span>${solo(`peq${i}`, b.name)}</summary>
-      ${frow([path(`peq.${i}.freq`, 'Frekvens', b.range, 'peqFreq', null, 'Frekv.'), path(`peq.${i}.gain`, 'Gain', RANGES.peqGain, 'peqGain'),
-        path(`peq.${i}.q`, b.type === 'peaking' ? 'Q (bredd)' : 'Q (branthet)', RANGES.peqQ, 'peqQ', null, 'Q')])}
-    </details>`).join('');
-  return `<section class="card" id="advanced">
-    <div class="vizbox" data-vizbox="eq">${vizPart('eq')}</div>
-    ${section('input', 'Ingång', 'sec_input', frow([path('inputGain', 'Ingångsförstärkning', RANGES.inputGain, 'inputGain', null, 'In')]), { open: true, enableKey: 'input' })}
-    ${section('preEq', 'Pre-EQ', 'sec_preEq', eq('preEq'), { enableKey: 'preEq' })}
-    ${section('mbc', 'Multiband-kompressor', 'sec_mbc', `<div class="vizbox" data-vizbox="comp">${vizPart('comp')}</div>${mbc}`, { soloKey: 'mbc' })}
-    ${section('postEq', 'Post-EQ', 'sec_postEq', eq('postEq'), { enableKey: 'postEq' })}
-    ${section('peq', 'Parametrisk EQ (Q)', 'sec_peq', peq, { enableKey: 'peq' })}
-    ${section('limiter', 'Limiter', 'sec_limiter', `
-      ${frow([path('limiter.threshold', 'Tak', RANGES.limThreshold), path('limiter.ratio', 'Ratio', RANGES.limRatio),
-        path('limiter.attack', 'Attack', RANGES.limAttack), path('limiter.release', 'Release', RANGES.limRelease),
-        path('limiter.postGain', 'Efterförstärkning', RANGES.limPostGain, 'limiter.postGain', null, 'Efter')])}`, { enableKey: 'limiter' })}
-    ${section('output', 'Utgång', 'sec_output', levelBlock())}
-    <div class="btnrow"><button class="btn small" id="reset-all">Återställ alla</button><button class="btn small" id="flat">Platt</button><button class="btn small" id="all-on">Slå på allt</button></div>
-  </section>`;
+function panelEq() {
+  const graphic = ui.eqView === 'graphic';
+  const sel = eqSel(), b = PEQ_BANDS[sel];
+  const chips = `<div class="bandrow">${PEQ_NAMES.map((n, i) => `<button class="chip${!graphic && i === sel ? ' sel' : ''}${en(`peq${i}`) ? '' : ' off'}" data-eqband="${i}">${n}</button>`).join('')}
+    <button class="chip${graphic ? ' sel' : ''}" data-eqband="graphic">8 band</button></div>`;
+  let body;
+  if (graphic) {
+    const k = ui.eqStage === 'preEq' ? 'preEq' : 'postEq';
+    body = `<div class="bandrow"><button class="chip${k === 'postEq' ? ' sel' : ''}" data-eqstage="postEq">Efter kompressorn</button><button class="chip${k === 'preEq' ? ' sel' : ''}" data-eqstage="preEq">Före kompressorn</button>
+      <span class="bms">${toggle(k, en(k), k === 'preEq' ? 'Pre-EQ' : 'Post-EQ')}</span></div>
+      ${frowN(EQ_CUTOFFS.map((_, i) => fpath(`${k}.${i}.gain`, bandLabel(EQ_CUTOFFS, i), EQ_SHORT[i], RANGES.eqGain, `${k}.${i}.gain`)))}`;
+  } else {
+    body = `<div class="bandrow"><small class="dim grow">${esc(PEQ_NAMES[sel])} – ${b.type === 'peaking' ? 'höjer/sänker runt frekvensen' : sel === 0 ? 'höjer/sänker allt under frekvensen' : 'höjer/sänker allt över frekvensen'}</small>
+      <button class="btn small" id="peq-flat">Platta ut</button><span class="bms"><label class="mbtn" title="Mute"><input type="checkbox" data-enable="peq${sel}" ${en(`peq${sel}`) ? 'checked' : ''} aria-label="Mute ${esc(PEQ_NAMES[sel])}"><span>M</span></label>${solo(`peq${sel}`, PEQ_NAMES[sel])}</span></div>
+      ${frowN([fpath(`peq.${sel}.freq`, 'Frekvens', 'Frekvens', b.range, 'peqFreq'), fpath(`peq.${sel}.gain`, 'Höj / sänk', 'Höj / sänk', RANGES.peqGain, 'peqGain'),
+        fpath(`peq.${sel}.q`, 'Bredd (Q)', 'Bredd (Q)', RANGES.peqQ, 'peqQ')])}
+`;
+  }
+  return `${phead({ title: 'EQ', enableKey: 'grp_eq', soloKey: 'eq', mod: 'eq' })}${chips}${body}`;
 }
 
-/** Så länge något är solat: tydlig rad med knapp för att sluta. */
-function soloBar() {
-  if (!ui.solo) return '';
-  return `<div class="solobar" role="status" data-testid="solobar"><span><b>S</b> Solo: bara <b>${esc(SOLO_NAMES()[ui.solo] || ui.solo)}</b> hörs – resten av kedjan är neutral.${infoBtn('solo')}</span>
-    <button class="btn small" id="solo-off">Avsluta solo</button></div>`;
+function panelComp() {
+  const i = compSel();
+  const chips = `<div class="bandrow">${COMP_NAMES.map((n, k) => `<button class="chip${k === i ? ' sel' : ''}${en(`mbc${k}`) ? '' : ' off'}" data-compband="${k}">${n}</button>`).join('')}
+    <span class="bms"><label class="mbtn" title="Mute"><input type="checkbox" data-enable="mbc${i}" ${en(`mbc${i}`) ? 'checked' : ''} aria-label="Mute ${COMP_NAMES[i]}"><span>M</span></label>${solo(`mbc${i}`, MBC_NAMES[i])}</span></div>`;
+  return `${phead({ title: 'Kompressor', enableKey: 'grp_comp', soloKey: 'mbc', mod: 'comp' })}${chips}
+    ${frowN([fpath(`mbc.${i}.ratio`, 'Styrka (ratio)', 'Styrka', RANGES.ratio, `mbc.${i}.ratio`),
+      fpath(`mbc.${i}.threshold`, 'Startar vid (tröskel)', 'Startar vid', RANGES.threshold, `mbc.${i}.threshold`),
+      fpath(`mbc.${i}.attack`, 'Reaktion (attack)', 'Reaktion', RANGES.attack, `mbc.${i}.attack`),
+      fpath(`mbc.${i}.release`, 'Släpper (release)', 'Släpper', RANGES.release, `mbc.${i}.release`),
+      fpath(`mbc.${i}.knee`, 'Mjukhet (knä)', 'Mjukhet', RANGES.knee, `mbc.${i}.knee`),
+      fpath(`mbc.${i}.postGain`, 'Lyft efter', 'Lyft', RANGES.postGain, `mbc.${i}.postGain`)])}`;
+}
+
+function panelLimiter() {
+  return `${phead({ title: 'Limiter', sub: 'skyddar toppar, ger volym', enableKey: 'limiter', soloKey: 'limiter', mod: 'limiter' })}
+    ${frowN([fpath('limiter.threshold', 'Tak', 'Tak', RANGES.limThreshold), fpath('limiter.ratio', 'Styrka (ratio)', 'Styrka', RANGES.limRatio),
+      fpath('limiter.attack', 'Reaktion (attack)', 'Reaktion', RANGES.limAttack), fpath('limiter.release', 'Släpper (release)', 'Släpper', RANGES.limRelease),
+      fpath('limiter.postGain', 'Lyft efter', 'Lyft', RANGES.limPostGain)])}`;
+}
+
+function panelOut() {
+  const agcOn = ui.status?.agc?.on;
+  return `${phead({ title: 'In och ut', sub: 'nivå före och efter kedjan' })}
+    ${frowN([vfader({ id: 'p-inputGain', label: 'Ingångsförstärkning', short: 'In', value: ui.base.inputGain, range: RANGES.inputGain, kind: 'path', key: 'inputGain', resetTo: presetBase().inputGain, info: 'inputGain', enable: { key: 'input', on: en('input') }, soloKey: 'input', soloOn: ui.solo === 'input' }),
+      vfader({ id: 'p-outputGain', label: 'Utgångsnivå', short: 'Ut', value: ui.base.outputGain, range: RANGES.outputGain, kind: 'path', key: 'outputGain', resetTo: presetBase().outputGain, info: 'outputGain', enable: { key: 'output', on: en('output') } })])}
+    <div class="pfoot">${agcOn || ui.constant ? '<span class="hint">Nivån hålls automatiskt (Jämn volym / Konstant utnivå). Ut finjusterar.</span>'
+      : `<button class="btn small" id="autolevel">Auto-nivåmatcha</button>${infoBtn('autolevel')}`}
+      ${ui.levelMsg ? `<span class="hint" id="levelmsg">${esc(ui.levelMsg)}</span>` : ''}
+      <button class="btn small" id="flat">Platt</button><button class="btn small" id="all-on">Slå på allt</button><button class="btn small" id="reset-all">Återställ alla</button></div>`;
 }
 
 export function liveView() {
-  const m = ui.mode;
-  const screen = m === 'advanced' ? '' : `<div class="screen ${m}" id="screen"><div class="scrbox" data-screen="${m}">${screenPart(m)}</div></div>`;
-  return `
-    <section class="hero" id="statusArea">${onButton()}</section>
-    ${presetCard()}
-    ${soloBar()}
-    <div class="seg seg3" role="tablist">
-      <button data-mode="mixer" class="${m === 'mixer' ? 'sel' : ''}">Mixer</button>
-      <button data-mode="curve" class="${m === 'curve' ? 'sel' : ''}">Kurva</button>
-      <button data-mode="advanced" class="${m === 'advanced' ? 'sel' : ''}">Avancerat</button>
-      ${infoBtn(m === 'mixer' ? 'mixer' : m === 'curve' ? 'curveMode' : 'advanced')}
-    </div>
-    ${screen}
-    ${m === 'mixer' ? mixerCard() : m === 'curve' ? curveCard() : advancedCard()}`;
+  const b = block();
+  const panel = { quick: panelQuick, eq: panelEq, comp: panelComp, limiter: panelLimiter, out: panelOut }[b]();
+  return `${subbar()}${split({ view: 'live', top: topPart(b), blocks: BLOCKS.map((x) => ({ ...x, dot: blockOn(x.id) })), active: b, panel, topCls: 'tall' })}`;
 }
 
-/** Ritar om kurvorna (och nivåkompensationen) utan att röra reglagen. */
+/** Ritar om grafen och raden (vid nytt spektrum, ändring eller ny status) utan att röra fadrarna. */
+let curveDrag = false;
 export function renderViz(root) {
-  root.querySelectorAll('[data-vizbox]').forEach((el) => { el.innerHTML = vizPart(el.dataset.vizbox); });
-  renderScreen(root);
-  root.querySelectorAll('[data-gsum]').forEach((el) => {
-    const ms = MACROS.filter((m) => m.group === el.dataset.gsum);
-    el.textContent = ms.map((m) => `${m.label} ${en(`m_${m.key}`) ? (ui.macros[m.key] > 0 ? '+' : '') + (ui.macros[m.key] || 0) : 'av'}`).join(' · ');
-  });
+  const st = root.querySelector('#stop');
+  if (st && ui.view === 'live') {
+    const box = st.querySelector('.scrbox.edit');
+    if (curveDrag && box) { // mitt i ett drag: byt bara bilden, inte elementet som tar emot fingret
+      const tmp = document.createElement('div'); tmp.innerHTML = topPart();
+      box.innerHTML = tmp.querySelector('.scrbox').innerHTML;
+    } else { st.innerHTML = topPart(); bindTop(root); }
+  }
+  root.querySelectorAll('.blk[data-block]').forEach((el) => { const d = el.querySelector('.dot'); if (d) d.classList.toggle('no', !blockOn(el.dataset.block)); });
   renderSettings();
 }
-
-/** Ritar om skärmen (spektrum + kurva) – vid nytt spektrum och vid varje ändring. */
-export function renderScreen(root) {
-  root.querySelectorAll('[data-screen]').forEach((el) => { el.innerHTML = screenPart(el.dataset.screen); });
+export const renderScreen = renderViz;
+/** Live vill ha spektrum när grafen visar det. */
+export const wantsSpectrum = () => ui.view === 'live' && ['quick', 'eq'].includes(block());
+/** Status ändrades: rubrikens knappar, raden och grafens statustext. */
+export function refreshStatus(root) {
+  const h = root.querySelector('#hdt');
+  if (h) { h.outerHTML = headerToggles(); bindStatus(root); }
+  const sb = root.querySelector('#subbar');
+  if (sb && ui.view === 'live') { sb.outerHTML = subbar(); bindSubbar(root); }
+  if (ui.view === 'live') renderViz(root);
 }
-/** Live-vyn vill ha spektrum i Mixer och Kurva. */
-export const wantsSpectrum = () => ui.view === 'live' && ui.mode !== 'advanced';
 
-/** Bakar in enkla reglage och mängder i grunden (när man går från Mixer till Kurva/Avancerat). */
-function bakeMixer() {
-  ui.base = applyMacros(withAmounts(), activeMacros(ui.macros, ui.enabled));
-  ui.macros = noMacros();
-  ui.amounts = noAmounts();
+function bindTop(root) {
+  const so = root.querySelector('#solo-off');
+  if (so) so.onclick = () => { ui.solo = null; changed({ now: true, keepUndo: true }); app.render(); };
+  const t = root.querySelector('#takeControl');
+  if (t) t.onclick = async () => {
+    t.textContent = 'Tar tillbaka…';
+    const r = await LiveDsp.takeControl();
+    ui.report = { ...r, at: Date.now(), user: true };
+    ui.status = await LiveDsp.getStatus();
+    renderViz(root);
+  };
+  bindCurve(root);
+  clearTimeout(toastTimer);
+  if (root.querySelector('.toast:not(.warn)')) toastTimer = setTimeout(() => { const c = root.querySelector('#confirm.toast:not(.warn)'); if (c) c.outerHTML = '<div id="confirm" hidden></div>'; }, 3100);
 }
+let toastTimer = 0;
 
 /** Kurvredigeraren: dra en punkt (frekvens i sidled, gain i höjdled), två fingrar = Q. Ett tryck väljer punkten. */
 function bindCurve(root) {
-  const box = root.querySelector('.scrbox[data-screen="curve"]');
+  const box = root.querySelector('.scrbox.edit');
   if (!box) return;
   const pts = new Map();
   let drag = null;
@@ -402,7 +434,7 @@ function bindCurve(root) {
   const toFG = (e) => {
     const r = rect();
     const x = (e.clientX - r.left) / r.width, yy = (e.clientY - r.top) / r.height;
-    const H = 230, range = 12;
+    const H = 240, range = 12;
     const gain = range - ((yy * H - 6) / (H - 18)) * 2 * range;
     return { f: xToFreq(x), gain };
   };
@@ -419,9 +451,10 @@ function bindCurve(root) {
     // närmaste punkt i sidled (inom en tiondel av bredden), annars vald punkt
     let best = -1, bd = 0.1;
     ui.base.peq.forEach((b, i) => { const d = Math.abs(freqToX(b.freq) - x); if (d < bd) { bd = d; best = i; } });
-    const i = best >= 0 ? best : (ui.curveSel ?? 2);
-    if (ui.curveSel !== i) { ui.curveSel = i; renderScreen(root); }
+    const i = best >= 0 ? best : (eqSel());
+    if (ui.eqSel !== i) { ui.eqSel = i; }
     drag = { i, x: e.clientX, y: e.clientY, active: false };
+    curveDrag = true;
   });
   box.addEventListener('pointermove', (e) => {
     if (!drag || !pts.has(e.pointerId)) return;
@@ -448,6 +481,7 @@ function bindCurve(root) {
     if (pts.size) return;
     const moved = drag && (drag.active || drag.pinch);
     drag = null;
+    curveDrag = false;
     app.render(); // reglagen under följer med (och vald punkt)
     if (!moved) return;
   };
@@ -490,14 +524,18 @@ function selectModule(mod, id) {
   if (!p) return;
   ui.base = applyModule(ui.base, p.params, mod);
   ui.mods = { ...ui.mods, [mod]: p.name };
-  ui.msg = `${MODULES[mod].name} från "${p.name}" – resten är kvar.`;
+  say(`${MODULES[mod].name} från "${p.name}" – resten är kvar.`);
   changed({ now: true });
   app.render();
 }
 
 async function presetMenu() {
   const user = ui.userPresets.some((p) => p.id === ui.presetId);
-  const d = sheet(`<h2>Presets</h2>
+  const cur = currentPreset();
+  const d = sheet(`<h2>${esc(cur?.name || 'Egen inställning')}</h2>
+    <p class="hint small" id="pdesc">${esc(cur?.desc || (cur ? 'Din egen preset.' : 'Ändrad från en preset eller platt.'))}</p>
+    <p class="affects small" data-testid="affects"><b>Påverkar:</b> ${esc(presetEffects(cur?.params ?? ui.base).join(' · '))}</p>
+    <h2 style="margin-top:10px">Presets</h2>
     <div class="menu">
       <button class="btn wide" data-act="save">Spara som…</button>
       <button class="btn wide" data-act="rename" ${user ? '' : 'disabled'}>Döp om</button>
@@ -519,7 +557,7 @@ async function presetMenu() {
     ui.base = structuredClone(r.preset.params);
     ui.macros = noMacros();
     ui.enabled = allEnabled();
-    ui.msg = `Sparad som "${r.preset.name}".`;
+    say(`Sparad som "${r.preset.name}".`);
     changed();
     app.render();
   };
@@ -539,12 +577,12 @@ async function presetMenu() {
     ui.userPresets = deletePreset(ui.userPresets, p.id);
     await save('presets', ui.userPresets);
     ui.presetId = '';
-    ui.msg = `"${p.name}" borttagen.`;
+    say(`"${p.name}" borttagen.`);
     changed();
     app.render();
   };
   d.querySelector('[data-act=export]').onclick = async () => {
-    try { await saveFile('masterlab-presets.json', exportPresets(ui.userPresets), 'application/json', fileDeps()); ui.msg = `${ui.userPresets.length} presets exporterade.`; } catch (e) { ui.msg = `Exporten misslyckades: ${e.message}`; }
+    try { await saveFile('masterlab-presets.json', exportPresets(ui.userPresets), 'application/json', fileDeps()); say(`${ui.userPresets.length} presets exporterade.`); } catch (e) { say(`Exporten misslyckades: ${e.message}`); }
     done();
   };
   d.querySelector('#p-import').onchange = async (e) => {
@@ -554,8 +592,8 @@ async function presetMenu() {
       const before = ui.userPresets.length;
       ui.userPresets = importPresets(ui.userPresets, await f.text());
       await save('presets', ui.userPresets);
-      ui.msg = `${ui.userPresets.length - before} presets importerade.`;
-    } catch (err) { ui.msg = err.message; }
+      say(`${ui.userPresets.length - before} presets importerade.`);
+    } catch (err) { say(err.message); }
     done();
   };
 }
@@ -625,74 +663,66 @@ export function syncProfileFromStatus(prevKey) {
 
 export function bindLive(root) {
   bindStatus(root);
+  bindSubbar(root);
+  bindTop(root);
   bindSliders(root, (kind, key, v) => {
     if (kind === 'path') setPath(ui.base, key, v);
     if (kind === 'macro') ui.macros[key] = v;
-    if (kind === 'amount') ui.amounts = { ...ui.amounts, [key]: v };
     changed();
   }, (key, on) => {
-    if (key === 'grp_comp') { [0, 1, 2, 3].forEach((i) => { ui.enabled[`mbc${i}`] = on; }); changed(); return; }
-    if (key.startsWith('grp_')) { // gruppknappen slår av/på alla reglage i gruppen
-      MACROS.filter((m) => m.group === key.slice(4)).forEach((m) => { ui.enabled[`m_${m.key}`] = on; });
-      changed();
-      app.render();
-      return;
-    }
-    ui.enabled[key] = on;
+    if (key === 'grp_comp') [0, 1, 2, 3].forEach((i) => { ui.enabled[`mbc${i}`] = on; });
+    else if (key === 'grp_eq') ['preEq', 'postEq', 'peq'].forEach((k) => { ui.enabled[k] = on; });
+    else ui.enabled[key] = on;
     changed();
+    app.render();
   });
-  root.querySelectorAll('[data-mode]').forEach((b) => {
-    b.onclick = () => {
-      if (b.dataset.mode === ui.mode) return;
-      if (ui.mode === 'mixer') bakeMixer(); // enkla reglage och mängder bakas in i grunden
-      ui.mode = b.dataset.mode;
-      changed();
-      app.render();
-      setSpectrum(wantsSpectrum());
-    };
-  });
-  bindPicker(root, 'preset', () => ({ title: 'Välj preset', value: ui.presetId, groups: presetGroups() }), selectPreset);
   for (const mod of Object.keys(MODULES)) {
     bindPicker(root, `mod-${mod}`, () => ({ title: `${MODULES[mod].name}-preset – bara ${MODULES[mod].name.toLowerCase()} byts`, value: '', groups: moduleGroups(mod) }), (id) => selectModule(mod, id));
   }
-  root.querySelectorAll('[data-solo]').forEach((b) => {
+  root.querySelectorAll('#spanel [data-solo]').forEach((b) => {
     b.onclick = (e) => {
-      e.preventDefault(); e.stopPropagation(); // i en <summary>: fäll inte ut
+      e.preventDefault(); e.stopPropagation();
       ui.solo = ui.solo === b.dataset.solo ? null : b.dataset.solo;
       changed({ now: true, keepUndo: true });
       app.render();
     };
   });
-  const so = root.querySelector('#solo-off');
-  if (so) so.onclick = () => { ui.solo = null; changed({ now: true, keepUndo: true }); app.render(); };
-  root.querySelectorAll('[data-mixpage]').forEach((b) => { b.onclick = () => { ui.mixPage = b.dataset.mixpage; changed({ keepUndo: true, user: false }); app.render(); }; });
-  const mixer = root.querySelector('#mixer');
-  if (mixer) { // svep i sidled = byt sida
-    let sw = null;
-    mixer.addEventListener('pointerdown', (e) => { sw = { x: e.clientX, y: e.clientY }; });
-    mixer.addEventListener('pointerup', (e) => {
-      if (!sw) return;
-      const dx = e.clientX - sw.x, dy = e.clientY - sw.y; sw = null;
-      if (Math.abs(dx) > 60 && Math.abs(dx) > 2 * Math.abs(dy)) { ui.mixPage = dx < 0 ? 'chain' : 'macros'; app.render(); }
-    });
-  }
-  root.querySelectorAll('[data-band]').forEach((b) => { b.onclick = () => { ui.curveSel = Number(b.dataset.band); app.render(); }; });
+  root.querySelectorAll('[data-eqband]').forEach((b) => { b.onclick = () => {
+    if (b.dataset.eqband === 'graphic') ui.eqView = 'graphic'; else { ui.eqView = 'peq'; ui.eqSel = Number(b.dataset.eqband); }
+    app.render();
+  }; });
+  root.querySelectorAll('[data-eqstage]').forEach((b) => { b.onclick = () => { ui.eqStage = b.dataset.eqstage; app.render(); }; });
+  root.querySelectorAll('[data-compband]').forEach((b) => { b.onclick = () => { ui.compSel = Number(b.dataset.compband); app.render(); }; });
   const pf = root.querySelector('#peq-flat');
   if (pf) pf.onclick = () => { ui.base.peq.forEach((b) => { b.gain = 0; }); changed({ now: true }); app.render(); };
-  bindCurve(root);
-  root.querySelector('#p-menu').onclick = presetMenu;
-  root.querySelector('#reset-all').onclick = () => {
+  // svep i sidled i panelen = nästa/föregående block
+  const panel = root.querySelector('#spanel');
+  if (panel) {
+    let sw = null;
+    panel.addEventListener('pointerdown', (e) => { sw = { x: e.clientX, y: e.clientY }; });
+    panel.addEventListener('pointerup', (e) => {
+      if (!sw) return;
+      const dx = e.clientX - sw.x, dy = e.clientY - sw.y; sw = null;
+      if (Math.abs(dx) < 70 || Math.abs(dx) < 2 * Math.abs(dy)) return;
+      const i = BLOCKS.findIndex((x) => x.id === block()) + (dx < 0 ? 1 : -1);
+      if (i < 0 || i >= BLOCKS.length) return;
+      ui.liveBlock = BLOCKS[i].id;
+      app.render();
+      setSpectrum(wantsSpectrum());
+    });
+  }
+  root.querySelectorAll('#reset-all').forEach((el) => { el.onclick = () => {
     ui.base = presetBase(); ui.macros = noMacros(); ui.amounts = noAmounts();
     ui.enabled = allEnabled();
     ui.mods = {}; ui.solo = null;
-    ui.msg = currentPreset() ? `Återställd till "${currentPreset().name}".` : 'Återställd.';
+    say(currentPreset() ? `Återställd till "${currentPreset().name}".` : 'Återställd.');
     changed({ now: true });
     app.render();
-  };
+  }; });
   const flat = root.querySelector('#flat');
   if (flat) flat.onclick = () => {
     ui.base = neutral(); ui.macros = noMacros(); ui.amounts = noAmounts(); ui.presetId = ''; ui.mods = {};
-    ui.msg = 'Platt: all bearbetning neutral (limitern skyddar fortfarande vid −1 dB).';
+    say('Platt: all bearbetning neutral (limitern skyddar fortfarande vid −1 dB).');
     changed({ now: true });
     app.render();
   };
@@ -711,13 +741,24 @@ export function bindLive(root) {
   };
 }
 
+/** Ett kort meddelande uppe i grafen. */
+export function say(msg) { ui.msg = msg; ui.msgAt = Date.now(); }
+
+function bindSubbar(root) {
+  bindPicker(root, 'preset', () => ({ title: 'Välj preset', value: ui.presetId, groups: presetGroups() }), selectPreset);
+  const o = root.querySelector('#onoff');
+  if (o) o.onclick = toggleOn;
+  const u = root.querySelector('#undo');
+  if (u) u.onclick = () => undo();
+  const m = root.querySelector('#p-menu');
+  if (m) m.onclick = presetMenu;
+}
+
 export function bindStatus(root) {
   const m = root.querySelector('#masterlab');
   if (m) m.onchange = async () => { ui.status = await LiveDsp.setBypass({ on: !m.checked }); app.render(); };
   const c = root.querySelector('#corr');
   if (c) c.onchange = async () => { await sendCorrection(c.checked); app.render(); };
-  const o = root.querySelector('#onoff');
-  if (o) o.onclick = toggleOn;
 }
 
 /** Kopplar inställningsarket. */
