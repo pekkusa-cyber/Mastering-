@@ -230,8 +230,9 @@ object LiveDspEngine {
      */
     fun refreshEffects(): JSONObject {
         val a = applied()
-        var total = 0; var ok = 0; var noControl = 0; var errors = 0
-        for (s in sessions.values) s.effect?.let { dp ->
+        var total = 0; var ok = 0; var noControl = 0; var errors = 0; var dropped = 0
+        var firstError = ""
+        for (s in sessions.values.toList()) s.effect?.let { dp ->
             total++
             val control = try { dp.hasControl() } catch (_: Throwable) { false }
             s.control = control
@@ -241,9 +242,17 @@ object LiveDspEngine {
                 applyEnabled(s)
                 if (s.error?.startsWith("parametrar") == true) s.error = null
                 ok++
-            } catch (t: Throwable) { s.error = "parametrar: ${t.javaClass.simpleName}: ${t.message}"; errors++ }
+            } catch (t: Throwable) {
+                val msg = "${t.javaClass.simpleName}: ${t.message}"
+                if (firstError.isEmpty()) firstError = msg
+                // En session som spelaren redan stängt (död effekt) är inget fel för användaren – släpp den
+                if (t is IllegalStateException || t is android.os.DeadObjectException || t.message?.contains("dead", true) == true) {
+                    sessions.remove(s.id); release(s); total--; dropped++
+                } else { s.error = "parametrar: $msg"; errors++ }
+            }
         }
         lastReport = JSONObject().put("total", total).put("ok", ok).put("noControl", noControl).put("errors", errors)
+            .put("dropped", dropped).put("firstError", firstError)
             .put("running", running).put("time", System.currentTimeMillis())
         return lastReport
     }

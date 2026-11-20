@@ -213,8 +213,8 @@ test('skydd mot misstag: tryck och vågrätt svep ändrar inte en fader, drag up
   const my = box.y + box.height / 2;
   await page.mouse.move(cx, my); await page.mouse.down(); await page.mouse.move(cx + 40, my + 3, { steps: 6 }); await page.mouse.up();
   await expect(el).toHaveValue('0');
-  // Drag uppåt: relativt – en fjärdedel av höjden ≈ +50
-  await page.mouse.move(cx, my); await page.mouse.down(); await page.mouse.move(cx, my - box.height / 4, { steps: 8 }); await page.mouse.up();
+  // Drag uppåt: relativt och dämpat – 100 px ≈ +45 (inget hopp när greppet tar)
+  await page.mouse.move(cx, my); await page.mouse.down(); await page.mouse.move(cx, my - 100, { steps: 8 }); await page.mouse.up();
   const v = Number(await el.inputValue());
   expect(v).toBeGreaterThan(35);
   expect(v).toBeLessThan(65);

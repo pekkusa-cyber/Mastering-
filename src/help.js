@@ -38,7 +38,8 @@ export const HELP = {
       och <b>Preset ▾</b> – ta just den delen från en annan preset.</p>
       <h3>Fadrarna</h3>
       <ul>
-        <li>Dra handtaget uppåt/nedåt. Ett tryck flyttar inget, så inget ändras av misstag.</li>
+        <li>Dra handtaget uppåt/nedåt – långsamt och finkänsligt, det hoppar inte när du tar tag. Ett tryck flyttar inget, så inget ändras av misstag.</li>
+        <li><b>+ / −</b> över och under fadern ändrar exakt ett steg per tryck.</li>
         <li><b>Dubbeltryck på namnet</b> under en fader = tillbaka till presetens värde.</li>
         <li><b>M</b> = mute (av), <b>S</b> = solo. En gul ruta i grafen visar vad som är solat – ✕ avslutar.</li>
         <li><b>ⓘ</b> vid varje fader förklarar vad den gör.</li>

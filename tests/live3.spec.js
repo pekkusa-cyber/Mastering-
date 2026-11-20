@@ -83,3 +83,25 @@ test('EQ: dra en EQ-punkt i spektrumet ändrar frekvens och gain', async ({ page
   await page.getByRole('button', { name: 'Platta ut' }).click();
   await expect.poll(async () => (await params(page)).post31.every((g) => g === 0)).toBe(true);
 });
+
+test('± på en fader ändrar exakt ett steg åt gången', async ({ page }) => {
+  await page.goto('/?sim=1');
+  const el = page.locator('#m-bright');
+  await page.getByRole('button', { name: 'Öka Ljusare' }).click();
+  await expect(el).toHaveValue('1');
+  await page.getByRole('button', { name: 'Öka Ljusare' }).click();
+  await expect(el).toHaveValue('2');
+  await page.getByRole('button', { name: 'Minska Ljusare' }).click();
+  await expect(el).toHaveValue('1');
+});
+
+test('sakta drag uppåt hoppar inte: 30 px ger en liten ändring', async ({ page }) => {
+  await page.goto('/?sim=1');
+  const row = page.locator('[data-sl="m-bright"] .vrow');
+  const box = await row.boundingBox();
+  const cx = box.x + box.width / 2, my = box.y + box.height / 2;
+  await page.mouse.move(cx, my); await page.mouse.down(); await page.mouse.move(cx, my - 30, { steps: 10 }); await page.mouse.up();
+  const v = Number(await page.locator('#m-bright').inputValue());
+  expect(v).toBeGreaterThan(0);
+  expect(v).toBeLessThan(20); // 30 px minus dödzonen (10 px) ≈ 20 px ⇒ några få steg, inte ett hopp på 20+
+});

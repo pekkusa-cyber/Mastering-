@@ -244,7 +244,8 @@ export function toast() {
   if (ui.msg && Date.now() - (ui.msgAt || 0) < 3500) return `<div class="toast" id="confirm" role="status"><span id="msg">${esc(ui.msg)}</span></div>`;
   if (!(r && Date.now() - r.at < 3000 && r.user)) return '<div id="confirm" hidden></div>';
   if (r.undone) return '<div class="toast" id="confirm" role="status">↶ Ångrat.</div>';
-  if (r.errors > 0) return `<div class="toast bad" id="confirm" role="status">✕ Kunde inte läggas på (${r.errors} fel)</div>`;
+  if (r.errors > 0 && r.ok > 0) return `<div class="toast warn" id="confirm" role="status">Hörs, men ${r.errors} av ${r.total} appar kunde inte nås</div>`;
+  if (r.errors > 0) return `<div class="toast bad" id="confirm" role="status">✕ Kunde inte läggas på${r.firstError ? `: ${esc(String(r.firstError).slice(0, 60))}` : ''}</div>`;
   if (!r.running || !r.total) return '<div class="toast warn" id="confirm" role="status">Sparat – motorn är av</div>';
   if (!s.on && !s.agc?.on && !s.correction?.on) return '<div class="toast" id="confirm" role="status">✓ Sparat – hörs på Efter</div>';
   return '<div class="toast" id="confirm" role="status">✓ Ändringen hörs nu</div>';

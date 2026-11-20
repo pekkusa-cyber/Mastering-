@@ -559,3 +559,11 @@ nav.bottom { position: static; flex: 0 0 auto; padding-bottom: var(--sab); }
 .spanel .perm h2 { font-size: 14px; margin: 0; }
 .spanel .perm .hint { font-size: 12px; margin: 4px 0; }
 .spanel .perm .btnrow { margin: 4px 0 0; }
+/* ± på fadrar: exakt ett steg per tryck */
+.vs { width: 100%; max-width: 40px; height: 24px; border-radius: 8px; border: 1px solid var(--line); background: transparent; color: #cfeee7; font-size: 16px; line-height: 1; padding: 0; flex: 0 0 auto; }
+.vs:active { background: #2a3a38; }
+.sl.vf { gap: 4px; }
+/* Små skärmar: fadrarna får en lägsta höjd, panelen scrollar i stället för att kläma ihop dem */
+.spanel .faders { flex: 1 0 auto; min-height: 140px; }
+.spanel .faders .vrow { min-height: 80px; }
+@media (max-height: 800px) { .stop.tall { flex-basis: 28%; } }

@@ -50,9 +50,11 @@ export function vfader({ id, label, short = label, value, range, kind, key, rese
   const p = pct(value, min, max);
   const z = pct(Math.min(max, Math.max(min, resetTo)), min, max);
   return `<div class="sl vf${off ? ' off' : ''}" data-sl="${esc(id)}" style="--p:${p}%;--z:${z}%">
+    <button type="button" class="vs" data-step="${esc(id)}" data-dir="1" data-fine="1" aria-label="Öka ${esc(label)}">+</button>
     <output for="${esc(id)}">${fmt(value, step)}</output>${unit && !buttons ? `<small class="vu">${esc(unit)}</small>` : ''}
     <div class="vrow" aria-hidden="false"><div class="vtrack"><i class="vfill"></i><i class="vthumb"></i></div>
       <input type="range" id="${esc(id)}" min="${min}" max="${max}" step="${step}" value="${value}" data-kind="${esc(kind)}" data-key="${esc(key)}" data-unit="" aria-label="${esc(label)}" style="--p:${p}%"></div>
+    <button type="button" class="vs" data-step="${esc(id)}" data-dir="-1" data-fine="1" aria-label="Minska ${esc(label)}">−</button>
     ${buttons ? `<div class="vbtns">${enable ? `<label class="mbtn" title="Mute"><input type="checkbox" data-enable="${esc(enable.key)}" ${enable.on ? 'checked' : ''} aria-label="Mute ${esc(label)}"><span>M</span></label>` : '<span class="mbtn ghost"></span>'}
       ${soloKey ? soloBtn(soloKey, soloOn, label) : '<span class="solo ghost"></span>'}</div>` : ''}
     <button type="button" class="vname" data-dblreset="${esc(id)}" data-to="${resetTo}" title="Dubbeltryck = nollställ">${esc(short)}</button>
@@ -104,13 +106,16 @@ export function bindSliders(root, onChange, onEnable) {
         if (Math.abs(dy) > 8 && Math.abs(dy) > Math.abs(dx)) { g = null; return; } // scroll – rör inte reglaget
         if (Math.abs(dx) < 10 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
         g.active = true;
+        g.ax = dx; g.ay = dy; // dragets nollpunkt: reglaget hoppar inte när det "tar" – det följer fingret därifrån
         row.classList.add('dragging');
         try { row.setPointerCapture(e.pointerId); } catch { /* */ }
       }
       e.preventDefault();
       const min = Number(el.min), max = Number(el.max), st = Number(el.step);
-      const w = (vert ? row.getBoundingClientRect().height : el.getBoundingClientRect().width) || 1;
-      const v = Math.min(max, Math.max(min, Math.round((g.v + (dx / w) * (max - min)) / st) * st));
+      const w = Math.max(vert ? 200 : 0, (vert ? row.getBoundingClientRect().height : el.getBoundingClientRect().width) || 1); // korta fadrar blir inte grövre
+      // Lodräta fadrar går hälften så fort (fin kontroll); en fader kan alltid greppas om för längre sträcka
+      const k = vert ? 0.5 : 1;
+      const v = Math.min(max, Math.max(min, Math.round((g.v + ((dx - g.ax) / w) * (max - min) * k) / st) * st));
       if (v !== Number(el.value)) set(el, v);
     });
     const end = () => { if (g?.active) row.classList.remove('dragging'); g = null; };
@@ -127,7 +132,7 @@ export function bindSliders(root, onChange, onEnable) {
     b.onclick = () => {
       const el = root.querySelector(`#${CSS.escape(b.dataset.step)}`);
       const st = Number(el.step), range = Number(el.max) - Number(el.min);
-      const inc = Math.max(st, Math.round(range / 40 / st) * st);
+      const inc = b.dataset.fine ? st : Math.max(st, Math.round(range / 40 / st) * st); // ± på fadrar = exakt ett steg
       const v = Math.min(Number(el.max), Math.max(Number(el.min), Number(el.value) + Number(b.dataset.dir) * inc));
       set(el, Math.round(v / st) * st);
     };
