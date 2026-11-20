@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { pick, picked, block } from './helpers.js';
+import { pick, picked, block, go } from './helpers.js';
 
 const analyze = async (page) => {
   await block(page, 'analysera');
@@ -58,7 +58,7 @@ test('livespektrum, analys, spara referens och omdöme', async ({ page }) => {
   await page.locator('[data-fix="B"]').click();
   await page.getByRole('button', { name: /Behåll B/ }).click();
   await expect(page.locator('#anmsg')).toContainText('Åtgärd B: Favoritlåt');
-  await page.locator('nav [data-view="live"]').click();
+  await go(page, 'live');
   await expect(picked(page, 'Preset')).toHaveText('Åtgärd B: Favoritlåt');
 });
 

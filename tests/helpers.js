@@ -27,3 +27,9 @@ export async function openSettings(page) {
   await page.getByRole('button', { name: 'Inställningar' }).click();
   await expect(page.locator('dialog.settingssheet')).toBeVisible();
 }
+
+/** Byter vy via menyn (☰ vid kugghjulet). */
+export async function go(page, view) {
+  if (await page.locator('#vmenu').isHidden()) await page.getByRole('button', { name: 'Meny' }).click();
+  await page.locator(`#vmenu [data-view="${view}"]`).click();
+}

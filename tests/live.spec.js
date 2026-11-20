@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { pick, picked, openGroup, openSettings, block } from './helpers.js';
+import { pick, picked, openGroup, openSettings, block, go } from './helpers.js';
 
 const sent = (page) => page.evaluate(() => window.__simParams);
 const setRange = (loc, v) => loc.evaluate((el, val) => { el.value = val; el.dispatchEvent(new Event('input', { bubbles: true })); }, String(v));
@@ -69,7 +69,7 @@ test('ⓘ förklarar ett reglage tydligt', async ({ page }) => {
 test('alla block i flödet: fadrar med ⓘ och nollställning, rätt graf överst, Platt och Återställ alla', async ({ page }) => {
   await page.goto('/?sim=1');
   // Flödet i ljudets ordning
-  await expect(page.locator('.blk b')).toHaveText(['Snabb', 'EQ', 'Kompr.', 'Limiter', 'Ut']);
+  await expect(page.locator('.blk b')).toHaveText(['Snabb', 'EQ', 'Kompr.', 'Limiter', 'Nivå']);
   for (const [b, n] of [['eq', 3], ['comp', 6], ['limiter', 5], ['out', 2]]) {
     await block(page, b);
     await expect(page.locator('#spanel .sl.vf')).toHaveCount(n);
@@ -177,7 +177,7 @@ test('ny app-version visas som banner', async ({ page }) => {
 test('hjälptexten för varje vy', async ({ page }) => {
   await page.goto('/?sim=1');
   for (const [view, text] of [['live', 'Jämn volym'], ['analys', 'referens'], ['fil', 'Exportera'], ['mer', 'Shizuku']]) {
-    await page.locator(`nav [data-view="${view}"]`).click();
+    await go(page, view);
     await page.getByRole('button', { name: 'Hjälp' }).click();
     await expect(page.locator('dialog.sheet')).toContainText(text);
     await page.locator('dialog.sheet').getByRole('button', { name: 'Stäng' }).click();

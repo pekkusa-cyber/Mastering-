@@ -14,7 +14,7 @@ export const HELP = {
       <ul>
         <li><b>🎧</b> – hörlurskorrigeringen (neutrala lurar). Grön = på, grå = av. Fungerar helt för sig.</li>
         <li><b>🎚️</b> – Masterlab: allt annat (mastring, jämn volym, konstant nivå). Grön = på, grå = av.</li>
-        <li><b>⚙</b> inställningar, <b>ⓘ</b> den här hjälpen.</li>
+        <li><b>☰</b> menyn: byt mellan Live, Analys, Fil och Mer. <b>⚙</b> inställningar, <b>ⓘ</b> den här hjälpen.</li>
       </ul>
       <p>🎧 på + 🎚️ av = vanlig musik, bara neutral. Båda av = helt originalljud. Knapparna finns också i notisen.</p>
       <h3>Raden under rubriken</h3>
@@ -23,16 +23,20 @@ export const HELP = {
         <li><b>Före / Efter</b> – jämför originalet med det mastrade ljudet (nivåmatchat).</li>
         <li><b>↶</b> Ångra (upp till 20 steg). <b>⋯</b> visar vad presetten påverkar och låter dig spara, döpa om, ta bort, exportera och importera.</li>
       </ul>
-      <h3>Flödet: Snabb → EQ → Kompr. → Limiter → Ut</h3>
+      <h3>Så arbetar ljudet (i den här ordningen)</h3>
+      <p><b>In</b> → <b>EQ före kompressorn</b> → <b>Kompressor</b> (4 band) → <b>EQ efter kompressorn</b> (8 band, sedan de 5 EQ-punkterna)
+      → <b>hörlurskorrigering</b> → <b>Limiter</b> → <b>Ut</b>. Det är Androids fasta ordning, så blocken under följer den.
+      <b>Snabb</b> är en genväg som styr flera delar samtidigt.</p>
+      <h3>Flödet: Snabb → EQ → Kompr. → Limiter → Nivå</h3>
       <ul>
         <li><b>Snabb</b> – sex reglage ovanpå presetten: Kick, Ljus, Tryck, Röst, S-ljud, Topp (mitten = presetten som den är).
         Grafen visar spektrum och klangkurva.</li>
         <li><b>EQ</b> (klang) – fem band: Bas, Lågmitt, Mitt, Närvaro, Diskant. Dra punkterna direkt i grafen eller använd
-        fadrarna <b>Frekvens</b>, <b>Höj / sänk</b> och <b>Bredd (Q)</b>. <b>8 band</b> visar den klassiska EQ:n före och efter kompressorn.</li>
+        fadrarna <b>Frekvens</b>, <b>Höj / sänk</b> och <b>Bredd (Q)</b> – de ligger efter kompressorn. <b>8 band</b> är den klassiska EQ:n: först <b>Före kompressorn</b>, sedan <b>Efter kompressorn</b>.</li>
         <li><b>Kompr.</b> (tryck) – fyra band: Kick, Mellan, Närvaro, Luft. Grafen visar hur mycket varje band trycks ner.
         Fadrar: Styrka, Startar vid, Reaktion, Släpper, Mjukhet, Lyft.</li>
         <li><b>Limiter</b> (volym) – skyddar topparna: Tak, Styrka, Reaktion, Släpper, Lyft. Grafen visar in → ut.</li>
-        <li><b>Ut</b> (nivå) – In och Ut, Platt, Slå på allt och Återställ alla. Grafen jämför nivån Original och Efter.</li>
+        <li><b>Nivå</b> (in · ut) – In (längst fram i kedjan) och Ut (längst bak), Platt, Slå på allt och Återställ alla. Grafen jämför nivån Original och Efter.</li>
       </ul>
       <p>Pricken på ett block visar om det är på. I panelens rubrik: på/av för hela blocket, <b>S</b> (solo – hör bara blocket)
       och <b>Preset ▾</b> – ta just den delen från en annan preset.</p>

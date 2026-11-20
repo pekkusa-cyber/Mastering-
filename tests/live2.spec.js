@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { pick, picked, openGroup, openSettings, block } from './helpers.js';
+import { pick, picked, openGroup, openSettings, block, go } from './helpers.js';
 
 const sent = (page) => page.evaluate(() => window.__simParams);
 const setRange = (loc, v) => loc.evaluate((el, val) => { el.value = val; el.dispatchEvent(new Event('input', { bubbles: true })); }, String(v));
@@ -152,7 +152,7 @@ test('layout B: runda brytare i rubriken, smal rad, fast graf och block utan scr
     await block(page, b);
     expect(await page.evaluate(() => document.scrollingElement.scrollHeight - innerHeight)).toBeLessThanOrEqual(0);
     await expect(page.locator('#stop')).toBeInViewport();
-    await expect(page.locator('nav.bottom')).toBeInViewport({ ratio: 1 });
+    await expect(page.locator('#spanel')).toBeInViewport({ ratio: 1 }); // panelen når ända ner – ingen rad längst ner
   }
   // svep i sidled i panelen = nästa block
   await block(page, 'eq');
@@ -176,7 +176,7 @@ test('Orörd preset och inga telefonmenyer (allt är appens eget)', async ({ pag
   expect(p.limiter.ratio).toBe(1);
   expect(p.mbc.every((b) => b.ratio === 1)).toBe(true);
   for (const view of ['live', 'analys', 'fil', 'mer']) {
-    await page.locator(`nav [data-view="${view}"]`).click();
+    await go(page, view);
     await expect(page.locator('select')).toHaveCount(0);
   }
 });
@@ -185,11 +185,11 @@ for (const width of [360, 320]) test(`ingen vy är bredare än telefonen vid ${w
   await page.setViewportSize({ width, height: 740 });
   await page.goto('/?sim=1&mic=1');
   for (const view of ['live', 'analys', 'fil', 'mer']) {
-    await page.locator(`nav [data-view="${view}"]`).click();
+    await go(page, view);
     const over = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
     expect(over, `${view} sticker ut ${over}px`).toBeLessThanOrEqual(0);
   }
-  await page.locator('nav [data-view="live"]').click();
+  await go(page, 'live');
   for (const b of ['eq', 'comp', 'limiter', 'out']) {
     await page.locator(`[data-block="${b}"]`).click();
     expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);

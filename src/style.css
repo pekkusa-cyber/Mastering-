@@ -567,3 +567,15 @@ nav.bottom { position: static; flex: 0 0 auto; padding-bottom: var(--sab); }
 .spanel .faders { flex: 1 0 auto; min-height: 140px; }
 .spanel .faders .vrow { min-height: 80px; }
 @media (max-height: 800px) { .stop.tall { flex-basis: 28%; } }
+
+/* Vymenyn som rullgardin vid kugghjulet – ingen rad längst ner */
+.top { position: relative; }
+nav.vmenu { position: absolute; right: 12px; top: calc(var(--sat) + 54px); z-index: 30; min-width: 170px; display: flex; flex-direction: column; padding: 6px; border-radius: 14px; background: #1b2024; border: 1px solid var(--accent-line, #2c6e64); box-shadow: 0 10px 30px #000a; }
+nav.vmenu[hidden] { display: none; }
+nav.vmenu button { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 0; border-radius: 10px; background: none; color: var(--text); font: inherit; font-size: 16px; text-align: left; }
+nav.vmenu button .ic { width: 22px; text-align: center; color: var(--dim); }
+nav.vmenu button.sel { background: #123a33; color: #dffdf6; }
+nav.vmenu button.sel .ic { color: var(--accent); }
+#app { padding-bottom: var(--sab); }
+main { padding-bottom: 8px; }
+.top .info { width: 36px; height: 36px; }

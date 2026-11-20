@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { block } from './helpers.js';
+import { block, go } from './helpers.js';
 
 test('behörigheter: tillåt allt och bevilja DUMP med Shizuku', async ({ page }) => {
   await page.goto('/?sim=1&view=mer');
@@ -23,7 +23,7 @@ test('Shizuku som inte är igång ger en tydlig förklaring', async ({ page }) =
 test('global session förvald; felsökningen visar sessioner och rapport', async ({ page }) => {
   await page.goto('/?sim=1&dump=1');
   await page.locator('#onoff').click();
-  await page.locator('nav [data-view="mer"]').click();
+  await go(page, 'mer');
   await block(page, 'debug');
   await expect(page.locator('[data-session="0"]')).toContainText('kopplad, på');
   await expect(page.locator('[data-session="2345"]')).toContainText('via global');

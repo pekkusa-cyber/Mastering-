@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { encodeWav, decodeWav } from '../src/dsp/wav.js';
 import { measure } from '../src/dsp/loudness.js';
-import { block } from './helpers.js';
+import { block, go } from './helpers.js';
 
 /** En syntetisk "låt" som WAV (44,1 kHz, 16 bit): rosa brus, kick och en ton. */
 function songWav(seconds = 6, fs = 44100, gain = 1) {
@@ -83,7 +83,7 @@ test('matcha klang mot en referensfil', async ({ page }) => {
   await block(page, 'referenser');
   await page.locator('#ref-audio').setInputFiles({ name: 'referens.wav', mimeType: 'audio/wav', buffer: songWav(4) });
   await expect(page.locator('#refmsg')).toContainText('"referens" sparad som referens');
-  await page.locator('nav [data-view="fil"]').click();
+  await go(page, 'fil');
   await page.locator('#f-file').setInputFiles({ name: 'egen.wav', mimeType: 'audio/wav', buffer: songWav(4, 44100, 0.5) });
   await block(page, 'klang');
   await expect(page.getByTestId('fverdict')).toBeVisible({ timeout: 60000 });
@@ -96,6 +96,6 @@ test('matcha klang mot en referensfil', async ({ page }) => {
 test('i en vanlig webbläsare öppnas Fil direkt (live kräver Android)', async ({ page }) => {
   await page.goto('/');
   await expect(page.locator('h1')).toHaveText('Fil');
-  await page.locator('nav [data-view="live"]').click();
+  await go(page, 'live');
   await expect(page.getByText('finns bara i Android-appen')).toBeVisible();
 });

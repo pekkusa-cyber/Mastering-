@@ -105,3 +105,24 @@ test('sakta drag uppåt hoppar inte: 30 px ger en liten ändring', async ({ page
   expect(v).toBeGreaterThan(0);
   expect(v).toBeLessThan(20); // 30 px minus dödzonen (10 px) ≈ 20 px ⇒ några få steg, inte ett hopp på 20+
 });
+
+test('EQ-stegen står i ljudets ordning: Före kompressorn, sedan Efter kompressorn; blocken i flödesordning', async ({ page }) => {
+  await page.goto('/?sim=1');
+  await expect(page.locator('.blk b')).toHaveText(['Snabb', 'EQ', 'Kompr.', 'Limiter', 'Nivå']);
+  await block(page, 'eq');
+  await page.locator('[data-eqband="graphic"]').click();
+  await expect(page.locator('[data-eqstage]')).toHaveText(['Före kompressorn', 'Efter kompressorn']);
+});
+
+test('vymenyn: rullgardin vid kugghjulet, ingen rad längst ner', async ({ page }) => {
+  await page.goto('/?sim=1');
+  await expect(page.locator('#vmenu')).toBeHidden();
+  await page.getByRole('button', { name: 'Meny' }).click();
+  await expect(page.locator('#vmenu button')).toHaveText(['◉Live', '▤Analys', '♫Fil', '⋯Mer']);
+  await page.mouse.click(10, 400); // tryck utanför stänger
+  await expect(page.locator('#vmenu')).toBeHidden();
+  await page.getByRole('button', { name: 'Meny' }).click();
+  await page.locator('#vmenu [data-view="analys"]').click();
+  await expect(page.locator('h1')).toHaveText('Analys');
+  await expect(page.locator('nav.bottom')).toHaveCount(0);
+});

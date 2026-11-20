@@ -22,12 +22,13 @@ function header() {
   const v = VIEWS.find((x) => x.id === ui.view);
   return `<header class="top">
     <h1>${ui.view === 'live' ? 'Masterlab' : esc(v.label)}</h1>
-    <span class="hbtns">${headerToggles()}${LiveDsp ? '<button class="info" id="settings" aria-label="Inställningar">⚙</button>' : ''}<button class="info" data-help="${ui.view}" aria-label="Hjälp">ⓘ</button></span>
+    <span class="hbtns">${headerToggles()}${LiveDsp ? '<button class="info" id="settings" aria-label="Inställningar">⚙</button>' : ''}<button class="info" id="menu" aria-label="Meny" aria-haspopup="menu" aria-expanded="false">☰</button><button class="info" data-help="${ui.view}" aria-label="Hjälp">ⓘ</button></span>${nav()}
   </header>`;
 }
 
+/** Vymenyn: en rullgardin vid kugghjulet i stället för en rad längst ner (mer plats åt reglagen). */
 function nav() {
-  return `<nav class="bottom" aria-label="Vyer">${VIEWS.map((v) => `<button data-view="${v.id}" class="${ui.view === v.id ? 'sel' : ''}" aria-current="${ui.view === v.id ? 'page' : 'false'}"><span class="ic">${v.icon}</span>${v.label}</button>`).join('')}</nav>`;
+  return `<nav class="vmenu" id="vmenu" aria-label="Vyer" role="menu" hidden>${VIEWS.map((v) => `<button type="button" role="menuitem" data-view="${v.id}" class="${ui.view === v.id ? 'sel' : ''}" aria-current="${ui.view === v.id ? 'page' : 'false'}"><span class="ic">${v.icon}</span>${v.label}</button>`).join('')}</nav>`;
 }
 
 function apkBanner() {
@@ -49,7 +50,7 @@ function body() {
 function render() {
   const scroll = window.scrollY;
   const open = [...root.querySelectorAll('details[data-sec], details.band, details#debug')].map((d) => [d.dataset.sec || d.id || d.querySelector('summary')?.textContent, d.open]);
-  root.innerHTML = `${header()}<main>${isSim ? '<p class="sim">Simulator – inget riktigt ljud</p>' : ''}${apkBanner()}${body()}</main>${nav()}`;
+  root.innerHTML = `${header()}<main>${isSim ? '<p class="sim">Simulator – inget riktigt ljud</p>' : ''}${apkBanner()}${body()}</main>`;
   const map = new Map(open);
   root.querySelectorAll('details[data-sec], details.band, details#debug').forEach((d) => {
     const k = d.dataset.sec || d.id || d.querySelector('summary')?.textContent;
@@ -61,6 +62,8 @@ function render() {
 
 function bind() {
   bindStatus(root);
+  const menu = root.querySelector('#menu'), vm = root.querySelector('#vmenu');
+  if (menu && vm) menu.onclick = (e) => { e.stopPropagation(); vm.hidden = !vm.hidden; menu.setAttribute('aria-expanded', String(!vm.hidden)); };
   // Blocken (samma i alla vyer): välj vilken del som visas i panelen
   root.querySelectorAll('[data-block]').forEach((b) => {
     b.onclick = () => {
@@ -119,6 +122,12 @@ function renderPart(part) {
 
 app.render = render;
 app.renderPart = renderPart;
+
+// Tryck utanför menyn stänger den
+document.addEventListener('click', (e) => {
+  const vm = document.getElementById('vmenu');
+  if (vm && !vm.hidden && !e.target.closest('#vmenu')) { vm.hidden = true; document.getElementById('menu')?.setAttribute('aria-expanded', 'false'); }
+}, true);
 
 // Klick på ⓘ (förklaring av ett reglage/sektion) och på vyns hjälp
 document.addEventListener('click', (e) => {

@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { encodeWav } from '../src/dsp/wav.js';
-import { block } from './helpers.js';
+import { block, go } from './helpers.js';
 
 function wav(seconds = 3, { wide = false, gain = 1, seed = 7 } = {}) {
   const fs = 44100, n = seconds * fs, L = new Float32Array(n), R = new Float32Array(n);
@@ -85,7 +85,7 @@ test('live-mastringen pausas medan Fil spelar (ingen dubbelmastring)', async ({ 
   test.setTimeout(120000);
   await page.goto('/?sim=1');
   await page.locator('#onoff').click(); // live-motorn igång, mastrat
-  await page.locator('nav [data-view="fil"]').click();
+  await go(page, 'fil');
   await page.locator('#f-file').setInputFiles({ name: 'a.wav', mimeType: 'audio/wav', buffer: wav(3) });
   await block(page, 'mat');
   await expect(page.getByTestId('meters')).toBeVisible({ timeout: 60000 });

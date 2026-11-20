@@ -255,11 +255,11 @@ const SOLO_LABEL = () => ({ ...SOLO_NAMES(), eq: 'EQ', mbc: 'Kompressor' });
 const soloChip = () => (ui.solo ? `<div class="solochip" data-testid="solobar"><b>S</b> Solo: ${esc(SOLO_LABEL()[ui.solo] || ui.solo)}<button id="solo-off" aria-label="Avsluta solo">✕</button></div>` : '');
 
 const BLOCKS = [
-  { id: 'quick', label: 'Snabb', sub: 'enkla' },
+  { id: 'quick', label: 'Snabb', sub: 'genväg' },
   { id: 'eq', label: 'EQ', sub: 'klang' },
   { id: 'comp', label: 'Kompr.', sub: 'tryck' },
   { id: 'limiter', label: 'Limiter', sub: 'volym' },
-  { id: 'out', label: 'Ut', sub: 'nivå' },
+  { id: 'out', label: 'Nivå', sub: 'in · ut' },
 ];
 const block = () => (BLOCKS.some((b) => b.id === ui.liveBlock) ? ui.liveBlock : 'quick');
 const anyOn = (keys) => keys.some((k) => en(k));
@@ -332,11 +332,11 @@ function panelEq() {
   let body;
   if (graphic) {
     const k = ui.eqStage === 'preEq' ? 'preEq' : 'postEq';
-    body = `<div class="bandrow"><button class="chip${k === 'postEq' ? ' sel' : ''}" data-eqstage="postEq">Efter kompressorn</button><button class="chip${k === 'preEq' ? ' sel' : ''}" data-eqstage="preEq">Före kompressorn</button>
+    body = `<div class="bandrow"><button class="chip${k === 'preEq' ? ' sel' : ''}" data-eqstage="preEq">Före kompressorn</button><button class="chip${k === 'postEq' ? ' sel' : ''}" data-eqstage="postEq">Efter kompressorn</button>
       <span class="bms">${toggle(k, en(k), k === 'preEq' ? 'Pre-EQ' : 'Post-EQ')}</span></div>
       ${frowN(EQ_CUTOFFS.map((_, i) => fpath(`${k}.${i}.gain`, bandLabel(EQ_CUTOFFS, i), EQ_SHORT[i], RANGES.eqGain, `${k}.${i}.gain`)))}`;
   } else {
-    body = `<div class="bandrow"><small class="dim grow">${esc(PEQ_NAMES[sel])} – ${b.type === 'peaking' ? 'höjer/sänker runt frekvensen' : sel === 0 ? 'höjer/sänker allt under frekvensen' : 'höjer/sänker allt över frekvensen'}</small>
+    body = `<div class="bandrow"><small class="dim grow">${esc(PEQ_NAMES[sel])} (efter kompressorn) – ${b.type === 'peaking' ? 'runt frekvensen' : sel === 0 ? 'allt under frekvensen' : 'allt över frekvensen'}</small>
       <button class="btn small" id="peq-flat">Platta ut</button><span class="bms"><label class="mbtn" title="Mute"><input type="checkbox" data-enable="peq${sel}" ${en(`peq${sel}`) ? 'checked' : ''} aria-label="Mute ${esc(PEQ_NAMES[sel])}"><span>M</span></label>${solo(`peq${sel}`, PEQ_NAMES[sel])}</span></div>
       ${frowN([fpath(`peq.${sel}.freq`, 'Frekvens', 'Frekvens', b.range, 'peqFreq'), fpath(`peq.${sel}.gain`, 'Höj / sänk', 'Höj / sänk', RANGES.peqGain, 'peqGain'),
         fpath(`peq.${sel}.q`, 'Bredd (Q)', 'Bredd (Q)', RANGES.peqQ, 'peqQ')])}
