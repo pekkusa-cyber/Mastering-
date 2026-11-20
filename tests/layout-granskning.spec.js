@@ -28,6 +28,8 @@ const NAMES = { live: ['quick', 'in', 'eq1', 'comp', 'eq2', 'limiter', 'out'], a
 for (const [w, h] of [[360, 740], [412, 915]]) test(`granskning ${w}`, async ({ page }) => {
   await page.setViewportSize({ width: w, height: h });
   await page.goto('/?sim=1&mic=1');
+  // Värsta fall: en bred reservtypsnitt (som CI:ns) i stället för telefonens smalare
+  await page.addStyleTag({ content: "#app, #app * { font-family: 'DejaVu Sans', sans-serif !important; }" });
   await page.locator('#onoff').click();
   const all = [];
   for (const [view, blocks] of Object.entries(NAMES)) {

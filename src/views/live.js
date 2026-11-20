@@ -328,7 +328,7 @@ const fpath = (key, label, short, range, info = key, opts = {}) => vfader({ id: 
 function panelQuick() {
   const f = MACROS.map((m) => vfader({ id: `m-${m.key}`, label: m.label, short: SHORT_MACRO[m.key] || m.label, value: ui.macros[m.key] ?? 0, range: [-100, 100, 1, ''],
     kind: 'macro', key: m.key, resetTo: 0, enable: { key: `m_${m.key}`, on: en(`m_${m.key}`) }, soloKey: `m_${m.key}`, soloOn: ui.solo === `m_${m.key}`, info: m.key }));
-  return `<div class="phead"><b>Snabb</b><small>ovanpå presetten</small>${infoBtn('mixer')}<span class="grow"></span><button class="btn small" id="reset-all">Återställ alla</button></div>${frowN(f)}`;
+  return `<div class="phead"><b>Snabb</b>${infoBtn('mixer')}<span class="grow"></span><button class="btn small" id="reset-all">Återställ alla</button></div>${frowN(f)}`;
 }
 
 /** EQ 1: åttabandsEQ:n FÖRE kompressorn. */

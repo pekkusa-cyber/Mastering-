@@ -607,3 +607,15 @@ main { padding-bottom: 8px; }
 .stop .lblr .picker .pv { max-width: none; }
 .stop .lblr .picker { display: inline-flex; white-space: nowrap; }
 .stop .lblr .picker .pv { flex: 0 0 auto; overflow: visible; }
+
+/* Smala skärmar (≤ 400 px) och bredare reservtypsnitt: allt ska ändå rymmas */
+@media (max-width: 400px) {
+  .top { padding-left: 10px; padding-right: 10px; gap: 5px; }
+  .top h1 { font-size: 18px; }
+  .hbtns { gap: 5px; }
+  .rb, .top .info { width: 32px; height: 32px; font-size: 15px; }
+  .blk b { font-size: 10.5px; letter-spacing: -.2px; }
+  .blk small { font-size: 8.5px; }
+  .vname { font-size: 11px; }
+  .bandrow .chip { font-size: 11px; padding-left: 0; padding-right: 0; }
+}

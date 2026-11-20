@@ -146,7 +146,7 @@ const aBlock = () => (A_BLOCKS().some((b) => b.id === ui.blocks?.analys) ? ui.bl
 export function analysView() {
   const b = aBlock();
   const showResult = b === 'resultat' && ui.analysis;
-  const top = showResult ? resultTop() : `<div class="lbl"><b>Spektrum nu</b>${infoBtn('spectrum')}<span class="grow"></span></div><div class="lblr">${refSelect()}</div><div class="spwrap" id="specArea">${spectrumPart()}</div>`;
+  const top = showResult ? resultTop() : `<div class="lbl"><b>Spektrum</b>${infoBtn('spectrum')}<span class="grow"></span></div><div class="lblr">${refSelect()}</div><div class="spwrap" id="specArea">${spectrumPart()}</div>`;
   const panel = b === 'resultat' ? resultPanel() : b === 'referenser' ? refsCard()
     : `<div class="phead"><b>Analysera en låt</b>${infoBtn('analyze')}</div><div id="anArea">${analysisPart()}</div>
        ${ui.analysisMsg && !ui.analysis ? `<p class="hint" id="anmsg">${esc(ui.analysisMsg)}</p>` : ''}`;
