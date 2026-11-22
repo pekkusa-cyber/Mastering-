@@ -648,3 +648,7 @@ button.mbtn.on { background: #5a2b2b; border-color: #a33; color: #ffbcbc; }
 
 .stop .lbl .trunc { min-width: 0; flex: 0 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .stop .lbl .nowrap { flex: 0 0 auto; white-space: nowrap; }
+/* Bekräftelsen uppe till höger och solo/lyssna nere till vänster – de kan aldrig täcka varandra */
+.toast { top: 28px; bottom: auto; max-width: 62%; }
+.toast:not(.warn) { pointer-events: none; }
+.solochip { max-width: calc(100% - 16px); }

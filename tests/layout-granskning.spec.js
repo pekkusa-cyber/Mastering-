@@ -41,6 +41,15 @@ for (const [w, h] of [[360, 740], [412, 915]]) test(`granskning ${w}`, async ({ 
       (await page.evaluate(AUDIT)).forEach((m) => all.push(`${w}px ${view}/${b}: ${m}`));
     }
   }
+  // Specialfall: lyssna på ett band (gul ruta) samtidigt som en bekräftelse syns – ✕ ska gå att trycka på
+  await page.getByRole('button', { name: 'Meny' }).click(); await page.locator('#vmenu [data-view="live"]').click();
+  await page.locator('[data-block="comp"]').click(); await page.locator('[data-compband="0"]').click();
+  await page.locator('[data-asolo="mbc:0"]').click();
+  const x = await page.locator('#solo-off').boundingBox();
+  const hit = await page.evaluate(([cx, cy]) => document.elementFromPoint(cx, cy)?.id, [x.x + x.width / 2, x.y + x.height / 2]);
+  if (hit !== 'solo-off') all.push(`${w}px live/listen: ✕ i lyssningsrutan är täckt`);
+  (await page.evaluate(AUDIT)).forEach((m) => all.push(`${w}px live/listen: ${m}`));
+  await page.locator('#solo-off').click();
   // Specialfall: kompressorn Hela låten, EQ 2 med 8 band, och Fil med en inläst låt (spelare + vågform)
   await page.getByRole('button', { name: 'Meny' }).click(); await page.locator('#vmenu [data-view="live"]').click();
   await page.locator('[data-block="comp"]').click(); await page.locator('[data-compband="all"]').click();
