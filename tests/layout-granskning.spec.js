@@ -25,7 +25,7 @@ const AUDIT = () => {
   }
   return out;
 };
-const NAMES = { live: ['quick', 'in', 'eq1', 'comp', 'eq2', 'limiter', 'out'], analys: ['analysera', 'resultat', 'referenser'], fil: ['lat', 'klang', 'mat', 'export'], mer: ['perm', 'debug', 'app'] };
+const NAMES = { live: ['quick', 'in', 'eq1', 'comp', 'eq2', 'limiter', 'out'], analys: ['analysera', 'resultat', 'referenser'], fil: ['quick', 'in', 'eq1', 'comp', 'eq2', 'farg', 'lim', 'out'], mer: ['perm', 'debug', 'app'] };
 for (const [w, h] of [[360, 740], [412, 915]]) test(`granskning ${w}`, async ({ page }) => {
   await page.setViewportSize({ width: w, height: h });
   await page.goto('/?sim=1&mic=1');
@@ -57,7 +57,6 @@ for (const [w, h] of [[360, 740], [412, 915]]) test(`granskning ${w}`, async ({ 
   await page.locator('[data-block="eq2"]').click(); await page.locator('[data-eqband="graphic"]').click();
   (await page.evaluate(AUDIT)).forEach((m) => all.push(`${w}px live/eq2-8: ${m}`));
   await page.getByRole('button', { name: 'Meny' }).click(); await page.locator('#vmenu [data-view="fil"]').click();
-  await page.locator('[data-block="lat"]').click();
   const L = new Float32Array(44100 * 2).map((_, i) => Math.sin(i / 9) * 0.3 * Math.sin(i / 20000));
   await page.locator('#f-file').setInputFiles({ name: 'en-ganska-lang-latttitel-for-test.wav', mimeType: 'audio/wav', buffer: Buffer.from(encodeWav([L, L], 44100, 16)) });
   await expect(page.locator('#f-wave')).toBeVisible({ timeout: 30000 });

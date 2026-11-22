@@ -614,6 +614,7 @@ async function presetMenu() {
     <p class="affects small" data-testid="affects"><b>Påverkar:</b> ${esc(presetEffects(cur?.params ?? ui.base).join(' · '))}</p>
     <h2 style="margin-top:10px">Presets</h2>
     <div class="menu">
+      <button class="btn wide" data-act="tofile">→ Skicka till Fil (mastra en låt med den här inställningen)</button>
       <button class="btn wide" data-act="save">Spara som…</button>
       <button class="btn wide" data-act="rename" ${user ? '' : 'disabled'}>Döp om</button>
       <button class="btn wide" data-act="delete" ${user ? '' : 'disabled'}>Ta bort</button>
@@ -622,6 +623,7 @@ async function presetMenu() {
     </div>
     <p class="hint small">Inbyggda presets kan inte döpas om eller tas bort – spara en kopia med "Spara som". Avslagna delar sparas som neutrala.</p>`);
   const done = () => { d.close(); app.render(); };
+  d.querySelector('[data-act=tofile]').onclick = () => { ui.fromLive = effective(); d.close(); ui.view = 'fil'; app.render(); };
   d.querySelector('[data-act=save]').onclick = async () => {
     d.close();
     const cur = currentPreset();

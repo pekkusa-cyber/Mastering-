@@ -655,3 +655,82 @@ button.mbtn.on { background: #5a2b2b; border-color: #a33; color: #ffbcbc; }
 
 .fplayer .transport #f-render-top { width: auto; padding: 0 12px; margin-left: 4px; }
 .hint.stale { color: #f3d7a2; }
+
+/* ===== Studio grafit: en enda accent (grön = på/vald), gult = solo, rött = mute, orange = bara mätare ===== */
+:root {
+  --bg: #121418; --card: #191c22; --line: #262b33; --text: #eef1f4; --dim: #8b95a3;
+  --accent: #3fd3b0; --accent-ink: #062b24; --accent-soft: #123a33; --accent-line: #2c6e64;
+  --solo: #d9b23a; --solo-bg: #5a4a1b; --solo-ink: #ffe9a8;
+  --mute: #c04545; --mute-bg: #5a2b2b; --mute-ink: #ffd0d0;
+  --meter: #e0a03c;
+}
+html, body { background: var(--bg); }
+.vthumb { box-shadow: 0 1px 4px #0009; }
+.vrow.dragging .vthumb { box-shadow: 0 0 0 6px #3fd3b044; }
+input[type=range]::-webkit-slider-thumb { box-shadow: 0 1px 4px #0009; }
+.slrow.dragging input[type=range]::-webkit-slider-thumb { box-shadow: 0 0 0 8px #3fd3b044; }
+.solo.on { background: var(--solo-bg); border-color: var(--solo); color: var(--solo-ink); }
+button.mbtn.on, .mbtn:has(input:not(:checked)) { background: var(--mute-bg); border-color: var(--mute); color: var(--mute-ink); }
+.solochip { background: #3a3015ee; border-color: var(--solo); color: var(--solo-ink); }
+.grt em { background: linear-gradient(var(--meter), #a0601c); }
+.grb b { color: var(--meter); }
+.mixtabs button.sel, .chip.sel { border-color: var(--accent); color: var(--text); background: var(--accent-soft); }
+.chip b { color: var(--accent); }
+.spanel, .stop, .blk, .pp, .abmini { border-color: var(--line); }
+/* Match-EQ (10 band): selektorn [style*="--n:1"] träffade även "--n:10" – bara exakt ett band centreras */
+.faders.adv[style*="--n:1"] { grid-template-columns: repeat(var(--n), minmax(0, 1fr)); justify-content: stretch; }
+.faders.adv[style="--n:1"] { grid-template-columns: minmax(0, 88px); justify-content: center; }
+
+/* ===== Fil i samma flöde som Live ===== */
+.gsw { display: flex; gap: 2px; padding: 2px; border-radius: 9px; background: #151a1f; border: 1px solid var(--line); pointer-events: auto; }
+.gsw button { padding: 3px 8px; border-radius: 7px; border: 0; background: none; color: var(--dim); font: inherit; font-size: 10.5px; text-transform: none; letter-spacing: 0; }
+.gsw button.on { background: var(--accent-soft); color: var(--text); }
+.stop.fil { flex: 0 0 34%; min-height: 220px; }
+.stop.fil .lbl { top: 6px; }
+.stop.fil .ovw.fplayer { top: 36px; }
+.wave .loop { position: absolute; top: 0; bottom: 0; background: #d9b23a22; border-left: 1px dashed var(--solo); border-right: 1px dashed var(--solo); pointer-events: none; }
+.fplayer .btn.small.on, .btn.on-solo { background: var(--solo-bg); border-color: var(--solo); color: var(--solo-ink); }
+.fplayer .transport .btn.small { width: 36px; height: 34px; padding: 0; }
+.ftags { display: flex; align-items: center; gap: 6px; padding: 3px 8px; border-radius: 9px; background: #3a3015ee; border: 1px solid var(--solo); color: var(--solo-ink); font-size: 11.5px; }
+.ftags span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ftags button { background: none; border: 0; color: inherit; font: inherit; }
+.fmeters { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; height: 100%; min-height: 110px; padding: 4px 2px 0; }
+.fmb { display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 10px; color: var(--dim); min-width: 0; }
+.fmb b { font-size: 11.5px; color: var(--text); white-space: nowrap; }
+.fmb.gr b { color: var(--meter); }
+.fmt { flex: 1; width: 16px; border-radius: 5px; background: #1a2027; position: relative; overflow: hidden; }
+.fmb.lvl .fmt em { position: absolute; left: 0; right: 0; bottom: 0; background: var(--accent); }
+.fmb.gr .fmt em { position: absolute; left: 0; right: 0; top: 0; background: var(--meter); }
+.fmb span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.fmnote { display: block; text-align: right; font-size: 10px; color: var(--dim); margin-top: 2px; }
+.fspec svg { max-height: 100%; }
+.spanel.fmode { gap: 8px; }
+.steps5 { display: flex; gap: 4px; }
+.steps5 > div { flex: 1; text-align: center; font-size: 10.5px; color: var(--dim); }
+.steps5 i { display: block; height: 5px; border-radius: 3px; background: var(--line); margin-bottom: 4px; }
+.steps5 .done, .steps5 .cur { color: var(--text); }
+.steps5 .done i, .steps5 .cur i { background: var(--accent); }
+.acards { display: flex; flex-direction: column; gap: 6px; }
+.acard { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 9px 12px; border-radius: 14px; background: var(--card); border: 1px solid var(--line); color: var(--text); font: inherit; text-align: left; }
+.acard small { color: var(--dim); font-size: 11.5px; }
+.acard.on { border-color: var(--accent); background: var(--accent-soft); }
+.cslots { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.cslot { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 12px 6px; border-radius: 14px; background: var(--card); border: 2px solid var(--line); color: var(--text); font: inherit; }
+.cslot small { color: var(--dim); font-size: 11px; }
+.cslot.on { border-color: var(--accent); background: var(--accent-soft); }
+.checks { list-style: none; padding: 0; margin: 10px 0; display: flex; flex-direction: column; gap: 5px; font-size: 13px; }
+.checks .ok { color: var(--ok); } .checks .warn { color: #f3d7a2; } .checks .bad { color: var(--bad); }
+.pick2 b { color: var(--text); }
+/* Fil har åtta block – lite tätare än Live:s sju */
+[data-split="fil"] .blocks { gap: 2px; }
+[data-split="fil"] .blk b { letter-spacing: -.2px; }
+@media (max-width: 400px) {
+  [data-split="fil"] .blk b { font-size: 9.6px; letter-spacing: -.35px; }
+  [data-split="fil"] .blk small { font-size: 7.8px; }
+  [data-split="fil"] .blocks .blk:nth-child(2) { margin-left: 4px; }
+  .subbar .btn.small { padding: 0 8px; }
+}
+.stop.fil .ovw { overflow: hidden; }
+.fgbox { flex: 1; min-height: 0; overflow: hidden; position: relative; }
+.fgbox .fmeters { min-height: 0; height: calc(100% - 16px); }
+.fspec svg { width: 100%; height: auto; max-height: 100%; }

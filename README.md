@@ -24,7 +24,7 @@ flödesordning och en **panel** för valt block. Rubriken har runda av/på-knapp
 - **Live** – Snabb (genväg) | In → EQ 1 → Kompr. → EQ 2 → Limiter → Ut, i samma ordning som ljudet går. EQ-band är lodräta fadrar,
   allt annat vågräta reglage. M/S på ett band lyssnar på bandets frekvensområde; Kompressorn har Hela låten eller ett band i taget.
 - **Analys** – Analysera → Resultat → Referenser, med spektrumet (eller resultatet mot referensen) överst.
-- **Fil** – Låt → Klang → Mätare → Exportera, med spelaren (A/B) överst.
+- **Fil** – samma flöde: Snabb | In → EQ 1 → Kompr. → EQ 2 → Färg → Limiter → Ut, graf Våg/Spektrum/Mätare, Assistent, Jämför (loop, blindtest), Album, autosparning, export med kontroll.
 - **Mer** – Behörigheter → Felsökning → Appen, med en överblick överst.
 
 ## Hörlurskorrigering

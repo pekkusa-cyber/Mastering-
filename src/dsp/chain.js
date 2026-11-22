@@ -87,6 +87,9 @@ export class PreChain {
     this.width = 1; this.widthNow = 1; this.wk = coef(15, fs);
     this.bands = MBC_CUTOFFS.map(() => [new Float32Array(BLOCK), new Float32Array(BLOCK)]);
     this.gr = { mbc: [0, 0, 0, 0], glue: 0, deEss: 0, glitter: 0 };
+    this.now = { mbc: [0, 0, 0, 0], glue: 0 }; // nedtryckning just nu (för mätarna i direktlyssningen)
+    this.delta = null; // 'deEss': ge bara det som de-essern tar bort (Δ-lyssning)
+    this.tmp = [new Float32Array(BLOCK), new Float32Array(BLOCK)];
     this.set(p, true);
   }
 
@@ -118,6 +121,7 @@ export class PreChain {
       for (let b = 0; b < 4; b++) {
         const [bl, br] = this.bands[b];
         const gr = this.comps[b].run(bl, br, n);
+        this.now.mbc[b] = gr;
         if (gr > this.gr.mbc[b]) this.gr.mbc[b] = gr;
         if (b === 0) this.kick.run(bl, br, n);
       }
@@ -128,6 +132,14 @@ export class PreChain {
     }
     this.post.run(L, R, n);
     this.peq.run(L, R, n);
+    if (this.delta === 'deEss') {
+      // Δ: originalet minus de-esserns resultat = bara det som tas bort
+      if (this.tmp[0].length < n) this.tmp = [new Float32Array(n), new Float32Array(n)];
+      this.tmp[0].set(L.subarray(0, n)); this.tmp[1].set(R.subarray(0, n));
+      this.deEss.run(L, R, n);
+      for (let i = 0; i < n; i++) { L[i] = this.tmp[0][i] - L[i]; R[i] = this.tmp[1][i] - R[i]; }
+      return;
+    }
     this.deEss.run(L, R, n);
     this.glitter.run(L, R, n);
     if (this.width !== 1 || this.widthNow !== 1) {
@@ -141,6 +153,7 @@ export class PreChain {
     }
     if (this.p.glue.ratio > 1.0001 || this.p.glue.makeup !== 0) {
       const gr = this.glue.run(L, R, n);
+      this.now.glue = gr;
       if (gr > this.gr.glue) this.gr.glue = gr;
     }
   }

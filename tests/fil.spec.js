@@ -1,102 +1,92 @@
 import { test, expect } from '@playwright/test';
-import { encodeWav, decodeWav } from '../src/dsp/wav.js';
+import { decodeWav } from '../src/dsp/wav.js';
 import { measure } from '../src/dsp/loudness.js';
 import { block, go } from './helpers.js';
+import { wav, loadSong, setRange, meterValue } from './filhelp.js';
 
-/** En syntetisk "låt" som WAV (44,1 kHz, 16 bit): rosa brus, kick och en ton. */
-function songWav(seconds = 6, fs = 44100, gain = 1) {
-  const n = seconds * fs, L = new Float32Array(n), R = new Float32Array(n);
-  let s = 99, b0 = 0, b1 = 0, b2 = 0;
-  for (let i = 0; i < n; i++) {
-    s = (s * 1103515245 + 12345) >>> 0; const w = s / 2 ** 31 - 1;
-    b0 = 0.99765 * b0 + w * 0.099; b1 = 0.963 * b1 + w * 0.2965; b2 = 0.57 * b2 + w * 1.0526;
-    const t = (i % (fs / 2)) / fs;
-    const kick = Math.exp(-t * 25) * Math.sin(2 * Math.PI * (55 + 120 * Math.exp(-t * 40)) * t) * 0.7;
-    const v = ((b0 + b1 + b2 + w * 0.1848) * 0.04 + kick + 0.05 * Math.sin((2 * Math.PI * 330 * i) / fs)) * gain;
-    L[i] = v; R[i] = v * 0.95;
-  }
-  return Buffer.from(encodeWav([L, R], fs, 16));
-}
-
-test('mastra en fil: mål, mätare, A/B och export som håller taket', async ({ page }) => {
+test('Fil i samma flöde som Live: block i ljudets ordning, mål, mätare, A/B och export som håller taket', async ({ page }) => {
   test.setTimeout(120000);
   await page.goto('/?sim=1&view=fil');
-  await page.locator('#f-file').setInputFiles({ name: 'min-lat.wav', mimeType: 'audio/wav', buffer: songWav(6) });
-  await expect(page.getByTestId('fname')).toContainText('min-lat.wav · 0:06');
-  await block(page, 'mat');
-  await expect(page.getByTestId('meters')).toBeVisible({ timeout: 60000 });
-  const lufs = Number((await page.getByTestId('meters').locator('tbody tr').first().locator('td').nth(1).textContent()).replace('+', ''));
-  expect(Math.abs(lufs - -14)).toBeLessThan(0.6);
-  const tp = Number((await page.getByTestId('meters').locator('tbody tr').nth(2).locator('td').nth(1).textContent()).replace('+', ''));
-  expect(tp).toBeLessThanOrEqual(-1);
-
-  // Hög: −10 LUFS – hörs direkt, men mätarna uppdateras först när man trycker Rendera
-  await block(page, 'klang');
+  await expect(page.locator('.blk b')).toHaveText(['Snabb', 'In', 'EQ 1', 'Kompr.', 'EQ 2', 'Färg', 'Limiter', 'Ut']);
+  await loadSong(page, 'min-lat.wav', wav(6));
+  await expect(page.locator('#f-song')).toContainText('min-lat');
+  await block(page, 'out');
+  expect(Math.abs(await meterValue(page, 0) - -14)).toBeLessThan(0.6);
+  expect(await meterValue(page, 2)).toBeLessThanOrEqual(-1);
+  // Hög: −10 LUFS – hörs direkt, mätarna uppdateras när man trycker Rendera
   await page.getByRole('button', { name: 'Hög -10' }).click();
-  await block(page, 'mat');
   await expect(page.locator('.stale').first()).toBeVisible();
-  await page.getByRole('button', { name: 'Rendera' }).first().click();
-  await expect.poll(async () => Number((await page.getByTestId('meters').locator('tbody tr').first().locator('td').nth(1).textContent()).replace('+', '')), { timeout: 60000 }).toBeGreaterThan(-10.7);
-
+  await page.locator('#f-render-top').click();
+  await expect.poll(() => meterValue(page, 0), { timeout: 60000 }).toBeGreaterThan(-10.7);
   // A/B och uppspelning
-  await page.getByRole('button', { name: 'A · Original' }).click();
-  await expect(page.getByRole('button', { name: 'A · Original' })).toHaveClass(/sel/);
+  await page.locator('#f-ab').click();
+  await expect(page.locator('#f-ab')).toHaveAttribute('aria-pressed', 'false'); // A · Original
+  await page.locator('#f-ab').click();
   await page.getByRole('button', { name: 'Spela' }).click();
   await expect(page.getByRole('button', { name: 'Paus' })).toBeVisible();
   await page.getByRole('button', { name: 'Paus' }).click();
-
-  // Export: 24 bit 44,1 kHz – läs filen och kontrollera taket
-  await block(page, 'export');
+  // Export (24 bit 44,1 kHz) – läs filen och kontrollera taket
+  await page.locator('#f-exportbtn').click();
+  await expect(page.getByTestId('exportchecks')).toContainText('under taket');
   const download = page.waitForEvent('download');
-  await page.getByRole('button', { name: 'Exportera WAV' }).click();
+  await page.locator('#f-export').click();
   const d = await download;
   expect(d.suggestedFilename()).toContain('master 24bit 44k');
   const fs = await import('node:fs');
-  const wav = decodeWav(fs.readFileSync(await d.path()).buffer);
-  expect(wav.fs).toBe(44100);
-  expect(wav.bits).toBe(24);
-  const m = measure(wav.channels, wav.fs);
-  expect(m.truePeak).toBeLessThanOrEqual(-0.95); // dither kan lägga till högst 1 LSB
+  const w = decodeWav(fs.readFileSync(await d.path()).buffer);
+  expect(w.fs).toBe(44100);
+  expect(w.bits).toBe(24);
+  expect(measure(w.channels, w.fs).truePeak).toBeLessThanOrEqual(-0.95);
 });
 
-test('↺ per parameter, Återställ alla och info i filmastringen', async ({ page }) => {
+test('reglagen: vågräta med ↺ och ⓘ, EQ lodrät med M/S per band, Hela låten i kompressorn', async ({ page }) => {
   test.setTimeout(120000);
   await page.goto('/?sim=1&view=fil');
-  await page.locator('#f-file').setInputFiles({ name: 'a.wav', mimeType: 'audio/wav', buffer: songWav(3) });
-  await block(page, 'mat');
-  await expect(page.getByTestId('meters')).toBeVisible({ timeout: 60000 });
-  await block(page, 'klang');
-  await page.getByRole('button', { name: 'Avancerat' }).click();
-  const n = await page.locator('#fcontrols .sl').count();
-  expect(n).toBeGreaterThan(50);
-  // EQ-banden (pre, match, post) är lodräta fadrar (dubbeltryck = nollställ), resten vågräta med ↺
-  const eqN = await page.locator('#fcontrols .sl.vf').count();
-  expect(eqN).toBe(8 + 10 + 8);
-  await expect(page.locator('#fcontrols .sl.vf [data-dblreset]')).toHaveCount(eqN);
-  await expect(page.locator('#fcontrols .sl:not(.vf) .rst')).toHaveCount(n - eqN);
-  await expect(page.locator('#fcontrols .sl .i')).toHaveCount(n);
-  await page.getByRole('button', { name: 'Enkelt' }).click();
-  await page.locator('#f-clip').evaluate((el) => { el.value = '5'; el.dispatchEvent(new Event('input', { bubbles: true })); });
+  await loadSong(page, 'a.wav', wav(3));
+  await block(page, 'quick');
+  await expect(page.locator('#spanel .sl:not(.vf)')).toHaveCount(6);
+  await expect(page.locator('#spanel .sl .rst')).toHaveCount(6);
+  await expect(page.locator('#spanel .solo')).toHaveCount(6);
+  await setRange(page.locator('#f-clip'), 5);
   await page.locator('[data-reset="f-clip"]').click();
   await expect(page.locator('#f-clip')).toHaveValue('1.5');
   await page.locator('[data-sl="f-kickPunch"] .i').click();
   await expect(page.locator('dialog.sheet')).toContainText('Transient shaper');
+  await page.locator('dialog.sheet').getByRole('button', { name: 'Stäng' }).click();
+  // EQ 1: åtta lodräta band med M/S, Match-EQ tio
+  await block(page, 'eq1');
+  await expect(page.locator('#spanel .sl.vf')).toHaveCount(8);
+  await expect(page.locator('#spanel [data-fasolo]')).toHaveCount(8);
+  await page.locator('[data-feq1="match"]').click();
+  await expect(page.locator('#spanel .sl.vf')).toHaveCount(10);
+  // Match-EQ:s tio fadrar står i en rad (inte en kolumn)
+  const boxes = await page.locator('#spanel .sl.vf').evaluateAll((els) => els.map((e) => e.getBoundingClientRect().top));
+  expect(Math.max(...boxes) - Math.min(...boxes)).toBeLessThan(5);
+  // EQ 2 har de fem EQ-punkterna
+  await block(page, 'eq2');
+  await page.locator('[data-feq2="2"]').click();
+  await expect(page.locator('#f-peq-2-freq')).toHaveCount(1);
+  // Kompressorn: Hela låten sätter alla fyra band
+  await block(page, 'comp');
+  await setRange(page.locator('#f-mbcall-ratio'), 3);
+  await page.locator('[data-fcomp="2"]').click();
+  await expect(page.locator('#f-mbc-2-ratio')).toHaveValue('3');
 });
 
 test('matcha klang mot en referensfil', async ({ page }) => {
   test.setTimeout(120000);
   await page.goto('/?sim=1&mic=1&view=analys');
   await block(page, 'referenser');
-  await page.locator('#ref-audio').setInputFiles({ name: 'referens.wav', mimeType: 'audio/wav', buffer: songWav(4) });
+  await page.locator('#ref-audio').setInputFiles({ name: 'referens.wav', mimeType: 'audio/wav', buffer: wav(4) });
   await expect(page.locator('#refmsg')).toContainText('"referens" sparad som referens');
   await go(page, 'fil');
-  await page.locator('#f-file').setInputFiles({ name: 'egen.wav', mimeType: 'audio/wav', buffer: songWav(4, 44100, 0.5) });
-  await block(page, 'klang');
-  await expect(page.getByTestId('fverdict')).toBeVisible({ timeout: 60000 });
+  await loadSong(page, 'egen.wav', wav(4, { gain: 0.5, seed: 3 }));
+  await block(page, 'eq1');
+  await page.locator('[data-feq1="ref"]').click();
+  await expect(page.getByTestId('fverdict')).toBeVisible();
   await page.getByRole('button', { name: 'Matcha klang mot referensen' }).click();
-  await expect(page.locator('[data-sec="f-match"]')).toBeVisible();
-  await block(page, 'mat');
-  await expect(page.getByTestId('meters')).toBeVisible({ timeout: 60000 });
+  await expect(page.locator('[data-feq1="match"]')).toHaveClass(/sel/);
+  await expect(page.locator('#spanel .sl.vf')).toHaveCount(10);
 });
 
 test('i en vanlig webbläsare öppnas Fil direkt (live kräver Android)', async ({ page }) => {

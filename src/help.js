@@ -99,41 +99,47 @@ export const HELP = {
   fil: {
     title: 'Fil – mastring för släpp',
     html: `
-      <p>Mastrar en färdig låt (MP3/WAV) och exporterar en WAV för distribution. Allt sker på telefonen.
-      Samma upplägg som i Live: spelaren (A/B) ligger fast överst, blocken <b>Låt → Klang → Mätare → Exportera</b> och panelen under.</p>
-      <ol>
-        <li><b>Välj låt.</b> Den mastras direkt med vald preset och mål.</li>
-        <li><b>Mål:</b> Streaming (−14 LUFS, −1 dBTP) eller Hög (−10 LUFS). Nivån räknas ut automatiskt.</li>
-        <li><b>Rendera:</b> alla reglage hörs <b>direkt</b> medan låten spelar. Mätare, spektrum och export räknas om först när du är
-        nöjd och trycker <b>Rendera</b> – tills dess står "Ändrat sedan senaste renderingen" och Exportera byts mot Rendera, så att du
-        aldrig exporterar en gammal version.</li>
-        <li><b>Preset</b> och reglage som i Live, plus kick-anslag, S-ljud (de-esser), Mjuk topp (mot glitter), soft clip,
-        lim och stereobredd – alla med på/av, ⓘ och ↺.</li>
-        <li><b>Klang mot referens:</b> välj en referens, se omdömet och tryck <b>Matcha klang</b>. Tryck igen för att förfina.</li>
-        <li><b>Lyssna direkt:</b> låten spelas genom kedjan i realtid – ändringar hörs direkt, utan att något renderas. A (original) / B (mastrad),
-        nivåmatchat så att du hör klangen och inte volymen.</li>
-        <li><b>Versioner:</b> spara A, B, C … och växla mellan dem medan låten spelar.</li>
-        <li><b>Mono och fas:</b> visar om låten tappar i mono (telefonhögtalare, klubb) och om basen är för bred.</li>
-        <li><b>Album:</b> mastra flera låtar med samma inställning och nivå, exportera alla.</li>
-        <li><b>Exportera:</b> 24 bit (för distribution) eller 16 bit, 44,1 eller 48 kHz, med dither.</li>
-      </ol>
-      <h3>Kedjan</h3>
-      <p>Trim → Pre-EQ → Match-EQ → Multiband (Linkwitz-Riley, 4 band, kick-anslag på kickbandet) → Post-EQ → Parametrisk EQ →
-      De-esser → Mjuk topp → Stereobredd → Lim → Drive → Soft clipper → True-peak-limiter (lookahead, 4x översampling) → Utgång.</p>
+      <p>Mastrar en färdig låt (MP3/WAV) och exporterar en WAV för distribution. Allt sker på telefonen. Samma upplägg som
+      Live: grafen överst, blocken i ljudets ordning och panelen under.</p>
+      <h3>Raden överst</h3>
+      <ul>
+        <li><b>🎵 Låt ▾</b> – byt låt, Assistent, Jämför versioner, Album. ✓ = låten är sparad på telefonen.</li>
+        <li><b>A | B</b> – original eller mastrat. <b>↶</b> ångrar. <b>⤓ Export</b> – kontroll och export.</li>
+      </ul>
+      <h3>Grafen</h3>
+      <ul>
+        <li><b>Våg</b> – låtens vågform: tryck eller dra för att spola. ▶/❚❚, ■ (stopp), ⟲ loop (20 s från där du är),
+        👂 Lyssna (Lika nivå, mono, lyssna som mobil/bil) och <b>Rendera</b>.</li>
+        <li><b>Spektrum</b> – original, mastrat och referens.</li>
+        <li><b>Mätare</b> – nivå, topp och hur mycket varje del sänker – just nu medan låten spelar, annars från senaste renderingen.</li>
+      </ul>
+      <h3>Blocken (ljudets ordning)</h3>
+      <p><b>Snabb</b> (genväg) | <b>In</b> → <b>EQ 1</b> (8 band, Match-EQ, Mot referens) → <b>Kompr.</b> (Hela låten eller ett band, Kick-anslag)
+      → <b>EQ 2</b> (8 band och fem EQ-punkter) → <b>Färg</b> (S-ljud, Mjuk topp, Bredd, Lim) → <b>Limiter</b> (soft clip och true-peak-tak)
+      → <b>Ut</b> (mål, utgång, mätare). EQ har lodräta fadrar, allt annat vågräta reglage – som i Live.</p>
+      <ul>
+        <li><b>S</b> på en del = bara den delen hörs. <b>M/S på ett band</b> = bara bandets frekvenser / utan dem. <b>Δ</b> på S-ljud = hör det som tas bort.
+        En gul rad i grafen visar vad du lyssnar på – ✕ avslutar. Allt detta gäller bara lyssningen, aldrig exporten.</li>
+        <li><b>Preset ▾</b> i EQ och Kompr. byter bara den delen.</li>
+      </ul>
+      <h3>Rendera</h3>
+      <p>Allt hörs <b>direkt</b>. Mätare, spektrum och export räknas om när du trycker <b>Rendera</b>. Export kräver färsk rendering.</p>
+      <h3>Arbetsflöden</h3>
+      <ul>
+        <li><b>🪄 Assistent:</b> Låt → Mål → Förslag (Före, A Varsam, B Balanserad, C Kraftig – växla medan låten spelar) → Finjustera → Export.</li>
+        <li><b>⚖ Jämför:</b> Original och dina versioner i samma nivå, med loop och <b>blindtest</b>. Behåll den bästa.</li>
+        <li><b>💿 Album:</b> flera låtar med samma inställning och nivå.</li>
+        <li><b>Skicka till Fil</b> (i Live under ⋯) tar din Live-inställning hit.</li>
+      </ul>
+      <h3>Exportera</h3>
+      <p>24 eller 16 bit, 44,1 eller 48 kHz, med dither. Kontrollen visar om true peak är under taket, om originalet redan är
+      klippt och om låten håller i mono.</p>
+      <h3>Autosparning</h3>
+      <p>Låten och inställningarna sparas på telefonen och öppnas igen nästa gång – även om appen stängts eller uppdaterats.</p>
       <h3>Varför Fil har fler delar än Live</h3>
-      <p>Live använder Androids inbyggda ljudeffekt, som bara har In, EQ före kompressorn, en kompressor i fyra band, EQ efter
-      och en limiter – i den ordningen, och den går inte att bygga ut. Fil räknar ljudet själv i appen och kan därför ha mer:
-      match-EQ, kick-anslag, de-esser, mjuk topp, stereobredd, lim (buss-kompressor), soft clipper och en true-peak-limiter med lookahead.
-      Upplägget är detsamma: EQ med lodräta fadrar, allt annat med vågräta reglage.</p>
-      <h3>Spelaren</h3>
-      <p>Överst syns låtens vågform: tryck eller dra på den för att spola. ▶/❚❚ spelar och pausar, ■ stoppar och går till början.
-      A/B växlar mellan original och mastrat, <b>Lika nivå</b> gör dem lika höga så att du jämför klangen och inte volymen.</p>
-      <h3>Live och fil låter inte exakt lika</h3>
-      <p>Live använder Androids inbyggda DSP; filmastringen har en egen kedja. Samma preset ger samma riktning men
-      inte exakt samma ljud. Lyssna alltid på den exporterade filen innan du släpper den.</p>
-      <h3>Mätarna</h3>
-      <p>Loudness (LUFS) enligt EBU R128, true peak mätt mellan samplen (dBTP), loudness range (LU) och hur mycket
-      limitern som mest sänkte.</p>`,
+      <p>Live använder Androids inbyggda ljudeffekt (In, EQ, kompressor i 4 band, EQ, limiter – inget mer). Fil räknar ljudet själv
+      och kan därför ha Match-EQ, kick-anslag, de-esser, mjuk topp, stereobredd, lim, soft clipper och true-peak-limiter. Samma preset
+      ger samma riktning men inte exakt samma ljud. Lyssna alltid på den exporterade filen innan du släpper den.</p>`,
   },
   mer: {
     title: 'Mer',

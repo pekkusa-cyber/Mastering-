@@ -96,8 +96,15 @@ import workletUrl from './dsp/worklet.js?worker&url';
  * (renderade buffertar) om webbläsaren saknar AudioWorklet.
  */
 export class RealtimePlayer {
-  constructor() { this.ctx = null; this.node = null; this.buf = null; this.src = null; this.offset = 0; this.startedAt = 0; this.playing = false; this.ready = null; this.onEnd = null; this.params = null; this.drive = 0; this.which = 'master'; this.matchGain = 1; }
+  constructor() { this.ctx = null; this.node = null; this.buf = null; this.src = null; this.offset = 0; this.startedAt = 0; this.playing = false; this.ready = null; this.onEnd = null; this.params = null; this.drive = 0; this.which = 'master'; this.matchGain = 1; this.auto = false; this.mon = {}; this.loop = null; this.onMeter = null; }
   static supported() { return typeof AudioWorkletNode !== 'undefined'; }
+  /** Lyssningshjälp i spelaren (påverkar aldrig exporten): { listen: {lo,hi,mode}|null, mono, sim, delta }. */
+  setMonitor(m) { this.mon = { ...this.mon, ...m }; this.node?.port.postMessage({ type: 'monitor', ...this.mon }); }
+  /** Loopa [a, b] sekunder (null = av). */
+  setLoop(loop) {
+    this.loop = loop && loop[1] - loop[0] > 0.5 ? [Math.max(0, loop[0]), Math.min(this.duration, loop[1])] : null;
+    if (this.playing) this.play(this.loop ? Math.min(Math.max(this.position(), this.loop[0]), this.loop[1] - 0.05) : this.position());
+  }
 
   async ensure() {
     if (!this.ready) {
@@ -105,8 +112,10 @@ export class RealtimePlayer {
       this.ready = this.ctx.audioWorklet.addModule(workletUrl).then(() => {
         this.node = new AudioWorkletNode(this.ctx, 'masterlab-master', { numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [2] });
         this.node.connect(this.ctx.destination);
+        this.node.port.onmessage = (e) => { if (e.data?.type === 'meter') this.onMeter?.(e.data); };
         if (this.params) this.setParams(this.params, this.drive);
-        this.setAb(this.which, this.matchGain);
+        this.setAb(this.which, this.matchGain, this.auto);
+        this.setMonitor({});
       });
     }
     await this.ready;
@@ -126,13 +135,18 @@ export class RealtimePlayer {
     this.node?.port.postMessage({ type: 'params', params, drive });
   }
 
-  setAb(which, matchGain = this.matchGain) {
-    this.which = which; this.matchGain = matchGain;
-    this.node?.port.postMessage({ type: 'ab', which, matchGain });
+  setAb(which, matchGain = this.matchGain, auto = this.auto) {
+    this.which = which; this.matchGain = matchGain; this.auto = auto;
+    this.node?.port.postMessage({ type: 'ab', which, matchGain, auto });
   }
 
   get duration() { return this.buf?.duration || 0; }
-  position() { return this.playing ? Math.min(this.duration, this.offset + this.ctx.currentTime - this.startedAt) : this.offset; }
+  position() {
+    if (!this.playing) return this.offset;
+    const t = this.offset + this.ctx.currentTime - this.startedAt;
+    if (this.loop && t >= this.loop[1]) { const [a, b] = this.loop; return a + ((t - a) % (b - a)); }
+    return Math.min(this.duration, t);
+  }
 
   async play(at = this.offset) {
     await this.ensure();
@@ -140,6 +154,7 @@ export class RealtimePlayer {
     this.stopSrc();
     const src = this.ctx.createBufferSource();
     src.buffer = this.buf;
+    if (this.loop) { src.loop = true; src.loopStart = this.loop[0]; src.loopEnd = this.loop[1]; }
     src.connect(this.node);
     src.start(0, Math.min(at, this.duration));
     src.onended = () => { if (this.playing && this.position() >= this.duration - 0.05) { this.playing = false; this.offset = 0; this.onEnd?.(); } };
