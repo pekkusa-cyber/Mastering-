@@ -43,3 +43,13 @@ test('alla presets hamnar nära originalets nivå efter kompensation', () => {
     near(l, ref, 0.6, pr.name);
   }
 });
+
+test('Konstant utnivå kompenserar inte bort Ut och limiterns Lyft (uttryckliga nivåreglage)', async () => {
+  const { withCompensation } = await import('../../src/level.js');
+  const { neutral } = await import('../../src/chain.js');
+  const a = withCompensation({ ...neutral(), inputGain: 6 });
+  const b = withCompensation({ ...neutral(), inputGain: 6, outputGain: 3 });
+  assert.ok(Math.abs(b.outputGain - a.outputGain - 3) < 0.11);
+  const c = withCompensation({ ...neutral(), inputGain: 6, limiter: { ...neutral().limiter, postGain: 2 } });
+  assert.ok(Math.abs(c.outputGain - a.outputGain) < 0.11);
+});

@@ -7,7 +7,7 @@ import { BUILTIN_PRESETS, EQ_CUTOFFS, MBC_CUTOFFS, MBC_NAMES, RANGES, bandLabel 
 import { FILE_RANGES, MATCH_FREQS, TARGETS, applyFileEnables, fileNeutral, liveToFile, sanitizeFile } from '../master.js';
 import { compareProfiles, matchEqCurve, profileFromChannels, toFileMatchEq } from '../analysis.js';
 import { currentRef, selectRef } from '../refs.js';
-import { ask, bindPicker, bindSliders, esc, fmtDb, getPath, infoBtn, picker, saveFile, setPath, slider, split, toggle } from '../ui.js';
+import { ask, bindPicker, bindSliders, esc, fmtDb, getPath, infoBtn, picker, saveFile, setPath, slider, split, toggle, vfader } from '../ui.js';
 import { spectrumSvg, bindSpectrum } from '../spectrum.js';
 import { eqCurveSvg, compCurvesSvg } from '../viz.js';
 import { decodeFile, mmss, resample } from '../audio.js';
@@ -84,6 +84,12 @@ const fpath = (key, label, range, info = key, enableKey = null) =>
   slider({ id: `f-${key.replace(/\./g, '-')}`, label, value: getPath(F.params, key), range, info, resetTo: getPath(presetFileParams(), key), kind: 'fpath', key,
     enable: enableKey ? { key: enableKey, on: en(enableKey) } : null });
 
+/** EQ-band som lodräta fadrar (samma som i Live); allt annat i Fil är vågräta reglage. */
+const fvpath = (key, label, short, range, info = key) => vfader({ id: `f-${key.replace(/\./g, '-')}`, label, short, value: getPath(F.params, key), range, info,
+  resetTo: getPath(presetFileParams(), key), kind: 'fpath', key, buttons: false });
+const fEqRow = (items) => `<div class="faders adv" style="--n:${items.length}">${items.join('')}</div>`;
+const EQ_SHORT_F = ['60', '120', '250', '500', '1k', '3k', '8k', '20k'];
+
 function simpleControls() {
   return `${fpath('kickPunch', 'Kick-anslag', FILE_RANGES.kickPunch, 'kickPunch', 'kick')}
     ${fpath('deEss', 'S-ljud (de-esser)', FILE_RANGES.deEss, 'fileDeEss', 'deEss')}
@@ -103,8 +109,8 @@ function vizPart(kind) {
 }
 
 function advancedControls() {
-  const eq = (k) => EQ_CUTOFFS.map((_, i) => fpath(`${k}.${i}.gain`, bandLabel(EQ_CUTOFFS, i), RANGES.eqGain)).join('');
-  const match = MATCH_FREQS.map((f, i) => fpath(`matchEq.${i}.gain`, f >= 1000 ? `${f / 1000} kHz` : `${f} Hz`, FILE_RANGES.matchGain)).join('');
+  const eq = (k) => fEqRow(EQ_CUTOFFS.map((_, i) => fvpath(`${k}.${i}.gain`, bandLabel(EQ_CUTOFFS, i), EQ_SHORT_F[i], RANGES.eqGain)));
+  const match = fEqRow(MATCH_FREQS.map((f, i) => fvpath(`matchEq.${i}.gain`, f >= 1000 ? `${f / 1000} kHz` : `${f} Hz`, f >= 1000 ? `${f / 1000}k` : `${f}`, FILE_RANGES.matchGain)));
   const mbc = MBC_CUTOFFS.map((_, i) => `<details class="band${en(`mbc${i}`) ? '' : ' off'}"><summary>${toggle(`mbc${i}`, en(`mbc${i}`), MBC_NAMES[i])}${esc(MBC_NAMES[i])}${infoBtn(`mbcBand${i}`)}</summary>
       ${fpath(`mbc.${i}.threshold`, 'Tröskel', RANGES.threshold)}${fpath(`mbc.${i}.ratio`, 'Ratio', RANGES.ratio)}
       ${fpath(`mbc.${i}.attack`, 'Attack', RANGES.attack)}${fpath(`mbc.${i}.release`, 'Release', RANGES.release)}
@@ -177,22 +183,43 @@ function monoCard() {
   </section>`;
 }
 
+/** Vågformen (toppar i 200 bitar), räknas en gång per låt. */
+function waveform() {
+  if (!F.input) return null;
+  if (F._wave?.src === F.input) return F._wave.peaks;
+  const ch = F.input.channels, n = ch[0].length, bins = 200, per = Math.max(1, Math.floor(n / bins));
+  const peaks = Array.from({ length: bins }, (_, b) => {
+    let m = 0;
+    for (let i = b * per, e = Math.min(n, (b + 1) * per); i < e; i += 4) for (const c of ch) { const v = Math.abs(c[i]); if (v > m) m = v; }
+    return m;
+  });
+  F._wave = { src: F.input, peaks };
+  return peaks;
+}
+
+/** Spelaren överst: vågform (tryck/dra för att spola), spela/paus, stopp, tid, A/B och lika nivå. */
 function playerCard() {
   if (!F.input) return '';
-  const pos = player.position(), dur = player.duration;
+  const pos = player.position(), dur = player.duration || 1;
+  const peaks = waveform();
+  const top = Math.max(...peaks, 1e-6);
+  const bars = peaks.map((v, i) => { const h = Math.max(1, (v / top) * 46); return `<rect x="${i}" y="${(50 - h / 2).toFixed(1)}" width="0.7" height="${h.toFixed(1)}"/>`; }).join('');
   return `<section class="card" id="player">
-    <div class="row"><h2>Lyssna ${infoBtn('ab')}</h2><span class="grow"></span>${realtime ? `<span class="ok small">● direkt${infoBtn('realtime')}</span>` : ''}</div>
-    <div class="seg ab" role="tablist">
-      <button data-ab="orig" class="${F.ab === 'orig' ? 'sel' : ''}">A · Original</button>
-      <button data-ab="master" class="${F.ab === 'master' ? 'sel' : ''}">B · Mastrad</button>
-    </div>
+    <div class="wave" id="f-wave" role="slider" aria-label="Position" aria-valuemin="0" aria-valuemax="${dur.toFixed(1)}" aria-valuenow="${pos.toFixed(1)}" style="--pos:${((pos / dur) * 100).toFixed(2)}%">
+      <svg viewBox="0 0 200 100" preserveAspectRatio="none" aria-hidden="true">${bars}</svg><i class="head"></i></div>
     <div class="row transport">
       <button class="btn" id="f-play" aria-label="${player.playing ? 'Paus' : 'Spela'}">${player.playing ? '❚❚' : '▶'}</button>
-      <input type="range" id="f-seek" min="0" max="${dur.toFixed(2)}" step="0.1" value="${pos.toFixed(2)}" aria-label="Position">
-      <span class="dim small" id="f-time">${mmss(pos)} / ${mmss(dur)}</span>
+      <button class="btn" id="f-stop" aria-label="Stopp">■</button>
+      <span class="dim small" id="f-time">${mmss(pos)} / ${mmss(player.duration)}</span>
+      <span class="grow"></span>${realtime ? `<span class="ok small">● direkt${infoBtn('realtime')}</span>` : ''}
     </div>
-    <label class="switch"><input type="checkbox" id="f-matched" ${F.matched ? 'checked' : ''}> Nivåmatchad A/B</label>
-    ${LiveDsp ? '<p class="hint small">Medan låten spelar här pausas live-mastringen, så att du inte hör den dubbelt. Hörlurskorrigeringen ligger kvar.</p>' : ''}
+    <div class="row abrow">
+      <div class="seg ab" role="tablist">
+        <button data-ab="orig" class="${F.ab === 'orig' ? 'sel' : ''}">A · Original</button>
+        <button data-ab="master" class="${F.ab === 'master' ? 'sel' : ''}">B · Mastrad</button>
+      </div>
+      <label class="switch small"><input type="checkbox" id="f-matched" ${F.matched ? 'checked' : ''}> Lika nivå</label>${infoBtn('ab')}
+    </div>
   </section>`;
 }
 
@@ -267,7 +294,8 @@ const fBlock = () => (F_BLOCKS().some((b) => b.id === ui.blocks?.fil) ? ui.block
 function filTop() {
   if (!F.input) return `<div class="lbl"><b>Fil</b> · mastring för släpp</div><div class="ovw"><p class="hint">Välj en låt (MP3/WAV) i blocket <b>Låt</b>. Den mastras direkt med vald preset och mål – allt sker på telefonen.</p></div>`;
   const r = F.result;
-  return `<div class="lbl"><b>${esc(F.name)}</b>${r ? `<span class="grow"></span>${r.metrics.integrated.toFixed(1)} LUFS · ${fmtDb(r.metrics.truePeak)} dBTP` : ''}</div><div class="ovw">${playerCard()}</div>`;
+  // Långa filnamn kortas med … (hela namnet finns i title och i blocket Låt); mätvärdena får alltid plats
+  return `<div class="lbl"><b class="trunc" title="${esc(F.name)}">${esc(F.name.replace(/\.[a-z0-9]+$/i, ''))}</b>${r ? `<span class="grow"></span><span class="nowrap">${r.metrics.integrated.toFixed(1)} LUFS · ${fmtDb(r.metrics.truePeak)} dBTP</span>` : ''}</div><div class="ovw fplayer">${playerCard()}</div>`;
 }
 
 export function filView() {
@@ -294,7 +322,7 @@ export function filView() {
     mat: () => (F.result ? `${meters()}${monoCard()}` : `<div class="phead"><b>Mätare</b></div><div id="fileStatus">${statusPart()}</div><p class="hint">Mätarna visas när låten är mastrad.</p>`),
     export: () => (F.result ? exportCard() : '<div class="phead"><b>Exportera</b></div><p class="hint">Välj och mastra en låt först.</p>'),
   };
-  return split({ view: 'fil', top: filTop(), blocks: F_BLOCKS(), active: b, panel: panels[b](), topCls: 'short' });
+  return split({ view: 'fil', top: filTop(), blocks: F_BLOCKS(), active: b, panel: panels[b](), topCls: F.input ? 'fil' : 'short' });
 }
 
 export function renderFilePart(root, part) {
@@ -303,9 +331,9 @@ export function renderFilePart(root, part) {
     if (el) { el.innerHTML = statusPart(); bindRender(el); }
   }
   if (part === 'fileTime') {
-    const t = root.querySelector('#f-time'), s = root.querySelector('#f-seek');
+    const t = root.querySelector('#f-time'), w = root.querySelector('#f-wave');
     if (t) t.textContent = `${mmss(player.position())} / ${mmss(player.duration)}`;
-    if (s && !s.matches(':active')) s.value = player.position().toFixed(2);
+    if (w) { w.style.setProperty('--pos', `${((player.position() / (player.duration || 1)) * 100).toFixed(2)}%`); w.setAttribute('aria-valuenow', player.position().toFixed(1)); }
   }
   if (part === 'fileViz') root.querySelectorAll('[data-fviz]').forEach((el) => { el.innerHTML = vizPart(el.dataset.fviz); });
 }
@@ -429,8 +457,22 @@ export function bindFil(root) {
     play.textContent = player.playing ? '❚❚' : '▶';
     play.setAttribute('aria-label', player.playing ? 'Paus' : 'Spela');
   };
-  const seek = root.querySelector('#f-seek');
-  if (seek) seek.onchange = () => player.seek(Number(seek.value));
+  // Spola: tryck eller dra på vågformen
+  const wave = root.querySelector('#f-wave');
+  if (wave) {
+    const to = (e) => { const r = wave.getBoundingClientRect(); player.seek(Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)) * player.duration); app.renderPart('fileTime'); };
+    let down = false;
+    wave.addEventListener('pointerdown', (e) => { down = true; try { wave.setPointerCapture(e.pointerId); } catch { /* */ } to(e); });
+    wave.addEventListener('pointermove', (e) => { if (down) to(e); });
+    wave.addEventListener('pointerup', () => { down = false; });
+    wave.addEventListener('pointercancel', () => { down = false; });
+  }
+  const stop = root.querySelector('#f-stop');
+  if (stop) stop.onclick = () => {
+    player.pause(); player.seek(0); clearInterval(ticker); resumeLive();
+    if (play) { play.textContent = '▶'; play.setAttribute('aria-label', 'Spela'); }
+    app.renderPart('fileTime');
+  };
   const matched = root.querySelector('#f-matched');
   if (matched) matched.onchange = () => { F.matched = matched.checked; player.setAb(F.ab, matchGain()); };
 

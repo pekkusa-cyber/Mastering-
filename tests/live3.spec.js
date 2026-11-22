@@ -4,21 +4,37 @@ import { pick, block } from './helpers.js';
 const setRange = (loc, v) => loc.evaluate((el, val) => { el.value = val; el.dispatchEvent(new Event('input', { bubbles: true })); }, String(v));
 const params = (page) => page.evaluate(() => window.__simParams);
 
-test('solo: S på ett multiband hör bara det bandet, Avsluta solo tar tillbaka allt', async ({ page }) => {
+test('solo/mute per område: S på ett kompressorband spelar bara bandets frekvenser, M tar bort dem', async ({ page }) => {
   await page.goto('/?sim=1');
   await pick(page, 'Preset', 'Suno-fix');
   await block(page, 'comp');
   const before = await params(page);
-  await page.getByRole('button', { name: 'Solo Kick 0–120 Hz' }).click();
-  await expect(page.getByTestId('solobar')).toContainText('Kick 0–120 Hz');
-  await expect.poll(async () => (await params(page)).postEq.every((b) => b.gain === 0)).toBe(true);
-  const p = await params(page);
-  expect(p.mbc[0].ratio).toBe(before.mbc[0].ratio);
-  expect(p.mbc.slice(1).every((b) => b.ratio === 1)).toBe(true);
-  expect(p.limiter.threshold).toBe(-1); // skyddslimitern ligger kvar
+  await page.getByRole('button', { name: 'Bara Kick' }).click();
+  await expect(page.getByTestId('listenbar')).toContainText('Bara Kick (20–120 Hz)');
+  // Hela kedjan är kvar (du hör exakt vad bandet gör) – men bara 20–120 Hz släpps fram
+  await expect.poll(async () => (await params(page)).post31[20]).toBeLessThan(-20); // 2 kHz bort
+  let p = await params(page);
+  expect(p.post31[6]).toBeGreaterThan(-1); // 80 Hz kvar
+  expect(p.mbc[1].ratio).toBe(before.mbc[1].ratio); // inget annat stängs av
+  expect(JSON.stringify(p.postEq)).toBe(JSON.stringify(before.postEq));
+  // M: ta bort området
+  await page.getByRole('button', { name: 'Ta bort Kick' }).click();
+  await expect(page.getByTestId('listenbar')).toContainText('Utan Kick');
+  await expect.poll(async () => (await params(page)).post31[6]).toBeLessThan(-20);
+  p = await params(page);
+  expect(p.post31[20]).toBeGreaterThan(-1);
   await page.getByRole('button', { name: 'Avsluta solo' }).click();
-  await expect(page.getByTestId('solobar')).toHaveCount(0);
-  await expect.poll(async () => JSON.stringify((await params(page)).postEq)).toBe(JSON.stringify(before.postEq));
+  await expect(page.getByTestId('listenbar')).toHaveCount(0);
+  await expect.poll(async () => (await params(page)).post31.every((g) => g === 0)).toBe(true);
+});
+
+test('solo/mute per EQ-band: S på 250–500 Hz i EQ 1 släpper bara fram det området', async ({ page }) => {
+  await page.goto('/?sim=1');
+  await block(page, 'eq1');
+  await page.locator('[data-asolo="preEq:3"]').click();
+  await expect(page.getByTestId('listenbar')).toContainText('250–500');
+  await expect.poll(async () => (await params(page)).post31[14]).toBe(0); // 500 Hz
+  expect((await params(page)).post31[3]).toBe(-24); // 40 Hz
 });
 
 test('solo på en fader i Mixern', async ({ page }) => {
@@ -84,26 +100,56 @@ test('EQ: dra en EQ-punkt i spektrumet ändrar frekvens och gain', async ({ page
   await expect.poll(async () => (await params(page)).post31.every((g) => g === 0)).toBe(true);
 });
 
-test('± på en fader ändrar exakt ett steg åt gången', async ({ page }) => {
+test('± tar ett tydligt steg: 5 på Snabb, 0,5 dB på EQ och en tredjedels oktav på frekvens', async ({ page }) => {
   await page.goto('/?sim=1');
   const el = page.locator('#m-bright');
   await page.getByRole('button', { name: 'Öka Ljusare' }).click();
-  await expect(el).toHaveValue('1');
+  await expect(el).toHaveValue('5');
   await page.getByRole('button', { name: 'Öka Ljusare' }).click();
-  await expect(el).toHaveValue('2');
+  await expect(el).toHaveValue('10');
   await page.getByRole('button', { name: 'Minska Ljusare' }).click();
-  await expect(el).toHaveValue('1');
+  await expect(el).toHaveValue('5');
+  await block(page, 'eq1');
+  await page.getByRole('button', { name: 'Öka 250–500 Hz' }).click();
+  await expect(page.locator('#p-preEq-3-gain')).toHaveValue('0.5');
+  await block(page, 'eq2');
+  await page.locator('[data-eqband="2"]').click();
+  await page.getByRole('button', { name: 'Öka Frekvens' }).click();
+  await expect(page.locator('#p-peq-2-freq')).toHaveValue('1260'); // 1000 · 2^(1/3)
 });
 
-test('sakta drag uppåt hoppar inte: 30 px ger en liten ändring', async ({ page }) => {
+test('Snabb syns i de andra flikarna: Ljusare +100 flyttar EQ 2:s 8k-fader, och fadern går att ställa exakt', async ({ page }) => {
   await page.goto('/?sim=1');
-  const row = page.locator('[data-sl="m-bright"] .vrow');
+  await setRange(page.locator('#m-bright'), 100);
+  await block(page, 'eq2');
+  await page.locator('[data-eqband="graphic"]').click();
+  await expect(page.locator('#p-postEq-7-gain')).toHaveValue('4'); // det Ljusare gör
+  await setRange(page.locator('#p-postEq-7-gain'), 2);
+  await expect.poll(async () => (await params(page)).postEq[7].gain).toBe(2); // det man ställer är det man får
+  await block(page, 'quick');
+  await expect(page.locator('#m-bright')).toHaveValue('100'); // Snabb ligger kvar
+});
+
+test('kompressorn Hela låten: samma inställning på alla fyra band', async ({ page }) => {
+  await page.goto('/?sim=1');
+  await block(page, 'comp');
+  await page.locator('[data-compband="all"]').click();
+  await setRange(page.locator('#p-mbcall-ratio'), 3);
+  await setRange(page.locator('#p-mbcall-threshold'), -20);
+  await expect.poll(async () => (await params(page)).mbc.map((b) => b.ratio)).toEqual([3, 3, 3, 3]);
+  expect((await params(page)).mbc.map((b) => b.threshold)).toEqual([-20, -20, -20, -20]);
+});
+
+test('lodrätt EQ-drag hoppar inte: 30 px ger en liten ändring', async ({ page }) => {
+  await page.goto('/?sim=1');
+  await block(page, 'eq1');
+  const row = page.locator('[data-sl="p-preEq-3-gain"] .vrow');
   const box = await row.boundingBox();
   const cx = box.x + box.width / 2, my = box.y + box.height / 2;
   await page.mouse.move(cx, my); await page.mouse.down(); await page.mouse.move(cx, my - 30, { steps: 10 }); await page.mouse.up();
-  const v = Number(await page.locator('#m-bright').inputValue());
+  const v = Number(await page.locator('#p-preEq-3-gain').inputValue());
   expect(v).toBeGreaterThan(0);
-  expect(v).toBeLessThan(20); // 30 px minus dödzonen (10 px) ≈ 20 px ⇒ några få steg, inte ett hopp på 20+
+  expect(v).toBeLessThanOrEqual(2.5); // 20 px av 220 px ≈ 2 dB – inget hopp
 });
 
 test('blocken står i kedjans ordning: In, EQ 1 (före), Kompr., EQ 2 (efter), Limiter, Ut', async ({ page }) => {
@@ -134,4 +180,32 @@ test('vymenyn: rullgardin vid kugghjulet, ingen rad längst ner', async ({ page 
   await page.locator('#vmenu [data-view="analys"]').click();
   await expect(page.locator('h1')).toHaveText('Analys');
   await expect(page.locator('nav.bottom')).toHaveCount(0);
+});
+
+test('varje reglage i Live gör sitt jobb: ändrar det som skickas till motorn', async ({ page }) => {
+  test.setTimeout(120000);
+  await page.goto('/?sim=1');
+  await page.locator('#onoff').click();
+  const views = [['quick'], ['in'], ['eq1'], ['comp', '[data-compband="all"]'], ['comp', '[data-compband="0"]'], ['comp', '[data-compband="3"]'],
+    ['eq2', '[data-eqband="graphic"]'], ...[0, 1, 2, 3, 4].map((i) => ['eq2', `[data-eqband="${i}"]`]), ['limiter'], ['out']];
+  const dead = [];
+  let n = 0;
+  for (const [b, sel] of views) {
+    await block(page, b);
+    if (sel) await page.locator(sel).click();
+    const ids = await page.locator('#spanel input[type=range][data-kind]').evaluateAll((els) => els.map((e) => e.id));
+    for (const id of ids) {
+      const el = page.locator(`#${id}`);
+      const before = JSON.stringify(await params(page));
+      const [min, max, val] = await el.evaluate((e) => [Number(e.min), Number(e.max), Number(e.value)]);
+      const target = val - min > max - val ? min + (max - min) * 0.1 : max - (max - min) * 0.1;
+      await setRange(el, target);
+      try { await expect.poll(async () => JSON.stringify(await params(page)), { timeout: 2000 }).not.toBe(before); } catch { dead.push(`${b}${sel || ''} ${id}`); }
+      n++;
+    }
+    // Snabb-reglagen ändrar flera delar samtidigt (t.ex. snabbare attack) – nollställ dem så att varje block testas för sig
+    if (b === 'quick') await page.getByRole('button', { name: 'Återställ alla' }).click();
+  }
+  expect(n).toBeGreaterThan(50);
+  expect(dead, 'reglage som inte ändrar något').toEqual([]);
 });

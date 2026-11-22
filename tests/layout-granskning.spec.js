@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { encodeWav } from '../src/dsp/wav.js';
 // Granskning av layouten: ingen text klipps, inget hamnar utanför skärmen och inga knappar/etiketter överlappar –
 // i alla vyer och block, på 360 och 412 px.
 const AUDIT = () => {
@@ -6,7 +7,7 @@ const AUDIT = () => {
   const vis = (e) => { const r = e.getBoundingClientRect(); const cs = getComputedStyle(e); return r.width > 0 && r.height > 0 && cs.visibility !== 'hidden' && cs.display !== 'none'; };
   const txt = (e) => (e.innerText || e.getAttribute('aria-label') || e.tagName).replace(/\s+/g, ' ').slice(0, 40);
   document.querySelectorAll('#app *').forEach((e) => {
-    if (!vis(e) || e.closest('svg') || e.closest('dialog')) return;
+    if (!vis(e) || e.closest('svg') || e.closest('dialog') || e.matches('.trunc')) return; // .trunc = medvetet kortat användarnamn (filnamn), hela finns i title
     const cs = getComputedStyle(e), r = e.getBoundingClientRect();
     // text som klipps (ellipsis eller dold överrullning)
     if (e.children.length === 0 && e.scrollWidth > e.clientWidth + 1 && ['ellipsis', 'clip'].includes(cs.textOverflow) || (cs.overflow === 'hidden' && e.scrollWidth > e.clientWidth + 1 && e.textContent.trim() && !e.matches('.stop,.scrbox,.spwrap,.grt,.lvt,.tr,.vtrack,.vrow'))) out.push(`KLIPPT: ${e.tagName}.${e.className} "${txt(e)}" (${e.scrollWidth}>${e.clientWidth})`);
@@ -39,6 +40,21 @@ for (const [w, h] of [[360, 740], [412, 915]]) test(`granskning ${w}`, async ({ 
       await page.locator(`[data-block="${b}"]`).click(); await page.waitForTimeout(150);
       (await page.evaluate(AUDIT)).forEach((m) => all.push(`${w}px ${view}/${b}: ${m}`));
     }
+  }
+  // Specialfall: kompressorn Hela låten, EQ 2 med 8 band, och Fil med en inläst låt (spelare + vågform)
+  await page.getByRole('button', { name: 'Meny' }).click(); await page.locator('#vmenu [data-view="live"]').click();
+  await page.locator('[data-block="comp"]').click(); await page.locator('[data-compband="all"]').click();
+  (await page.evaluate(AUDIT)).forEach((m) => all.push(`${w}px live/comp-all: ${m}`));
+  await page.locator('[data-block="eq2"]').click(); await page.locator('[data-eqband="graphic"]').click();
+  (await page.evaluate(AUDIT)).forEach((m) => all.push(`${w}px live/eq2-8: ${m}`));
+  await page.getByRole('button', { name: 'Meny' }).click(); await page.locator('#vmenu [data-view="fil"]').click();
+  await page.locator('[data-block="lat"]').click();
+  const L = new Float32Array(44100 * 2).map((_, i) => Math.sin(i / 9) * 0.3 * Math.sin(i / 20000));
+  await page.locator('#f-file').setInputFiles({ name: 'en-ganska-lang-latttitel-for-test.wav', mimeType: 'audio/wav', buffer: Buffer.from(encodeWav([L, L], 44100, 16)) });
+  await expect(page.locator('#f-wave')).toBeVisible({ timeout: 30000 });
+  for (const b of NAMES.fil) {
+    await page.locator(`[data-block="${b}"]`).click(); await page.waitForTimeout(150);
+    (await page.evaluate(AUDIT)).forEach((m) => all.push(`${w}px fil-med-låt/${b}: ${m}`));
   }
   expect([...new Set(all)].filter((m) => !m.includes('vthumb')), 'layoutfel').toEqual([]);
 });

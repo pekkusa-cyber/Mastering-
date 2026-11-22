@@ -41,14 +41,24 @@ export const HELP = {
       </ul>
       <p>Pricken på ett block visar om det är på. I panelens rubrik: på/av för hela blocket, <b>S</b> (solo – hör bara blocket)
       och <b>Preset ▾</b> – ta just den delen från en annan preset.</p>
-      <h3>Fadrarna</h3>
+      <h3>Reglagen</h3>
       <ul>
-        <li>Dra handtaget uppåt/nedåt – långsamt och finkänsligt, det hoppar inte när du tar tag. Ett tryck flyttar inget, så inget ändras av misstag.</li>
-        <li><b>+ / −</b> över och under fadern ändrar exakt ett steg per tryck.</li>
-        <li><b>Dubbeltryck på namnet</b> under en fader = tillbaka till presetens värde.</li>
-        <li><b>M</b> = mute (av), <b>S</b> = solo. En gul ruta i grafen visar vad som är solat – ✕ avslutar.</li>
-        <li><b>ⓘ</b> vid varje fader förklarar vad den gör.</li>
+        <li><b>EQ</b> (EQ 1 och EQ 2) har lodräta fadrar som ett riktigt mixerbord: dra handtaget uppåt/nedåt, <b>+ / −</b> = 0,5 dB,
+        dubbeltryck på namnet = presetens värde. Frekvens går logaritmiskt (en tredjedels oktav per tryck), som på en riktig EQ.</li>
+        <li><b>Allt annat</b> är vågräta reglage: dra i sidled, <b>− / +</b> tar ett tydligt steg, <b>↺</b> = presetens värde.</li>
+        <li>Ett tryck flyttar inget, och sveper du upp/ner scrollar sidan – inget ändras av misstag.</li>
+        <li>Det du ändrar i <b>Snabb</b> syns på fadrarna i de andra blocken (t.ex. Ljusare höjer EQ 2:s 8k-fader).</li>
+        <li><b>ⓘ</b> vid varje reglage förklarar vad det gör.</li>
       </ul>
+      <h3>Solo och mute</h3>
+      <ul>
+        <li><b>S på en hel del</b> (Snabb-reglage, In, EQ 1, Kompressor, Limiter): bara den delens effekt hörs.</li>
+        <li><b>S på ett band</b> (EQ-band eller kompressorband): bara bandets frekvensområde hörs, med hela kedjan kvar – som solo på en riktig EQ.
+        <b>M på ett band</b> tar bort området. En gul ruta i grafen visar vad du lyssnar på, ✕ avslutar.</li>
+        <li>På/av-knappen vid en del stänger av hela delen.</li>
+      </ul>
+      <h3>Kompressorn</h3>
+      <p><b>Hela låten</b> ställer alla fyra band likadant – hela låten trycks ihop jämnt. Eller välj Kick, Mellan, Närvaro eller Luft och ställ bandet för sig.</p>
       <h3>Bekräftelse</h3>
       <p>Efter en ändring visas en kort ruta nere till höger i grafen (t.ex. <b>✓ Ändringen hörs nu</b>) som försvinner av sig själv.
       Tar en annan app (t.ex. Wavelet) kontrollen ligger en varning kvar tills du trycker <b>Ta tillbaka</b>.</p>
@@ -107,6 +117,14 @@ export const HELP = {
       <h3>Kedjan</h3>
       <p>Trim → Pre-EQ → Match-EQ → Multiband (Linkwitz-Riley, 4 band, kick-anslag på kickbandet) → Post-EQ → Parametrisk EQ →
       De-esser → Mjuk topp → Stereobredd → Lim → Drive → Soft clipper → True-peak-limiter (lookahead, 4x översampling) → Utgång.</p>
+      <h3>Varför Fil har fler delar än Live</h3>
+      <p>Live använder Androids inbyggda ljudeffekt, som bara har In, EQ före kompressorn, en kompressor i fyra band, EQ efter
+      och en limiter – i den ordningen, och den går inte att bygga ut. Fil räknar ljudet själv i appen och kan därför ha mer:
+      match-EQ, kick-anslag, de-esser, mjuk topp, stereobredd, lim (buss-kompressor), soft clipper och en true-peak-limiter med lookahead.
+      Upplägget är detsamma: EQ med lodräta fadrar, allt annat med vågräta reglage.</p>
+      <h3>Spelaren</h3>
+      <p>Överst syns låtens vågform: tryck eller dra på den för att spola. ▶/❚❚ spelar och pausar, ■ stoppar och går till början.
+      A/B växlar mellan original och mastrat, <b>Lika nivå</b> gör dem lika höga så att du jämför klangen och inte volymen.</p>
       <h3>Live och fil låter inte exakt lika</h3>
       <p>Live använder Androids inbyggda DSP; filmastringen har en egen kedja. Samma preset ger samma riktning men
       inte exakt samma ljud. Lyssna alltid på den exporterade filen innan du släpper den.</p>

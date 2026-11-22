@@ -104,7 +104,10 @@ test('import av trasig fil ger begripligt fel', () => {
 test('nya reglage: S-ljud och Mjuk topp', async () => {
   const { applyMacros, neutral } = await import('../../src/chain.js');
   const s = applyMacros(neutral(), { sibilance: 100 });
-  assert.ok(s.mbc[2].ratio > 1 && s.mbc[3].ratio > 1 && s.mbc[3].attack <= 1.5);
+  assert.ok(s.mbc[2].ratio > 1 && s.mbc[3].ratio > 1 && s.mbc[3].attack <= neutral().mbc[3].attack * 0.25); // snabb attack
+  // relativt: bandets egen attack verkar fortfarande när S-ljud är på
+  const slower = applyMacros({ ...neutral(), mbc: neutral().mbc.map((b) => ({ ...b, attack: 40 })) }, { sibilance: 100 });
+  assert.ok(slower.mbc[3].attack > s.mbc[3].attack);
   const g = applyMacros(neutral(), { glitter: 100 });
   assert.ok(g.postEq[7].gain < -3 && g.mbc[3].threshold < 0);
 });
@@ -227,4 +230,31 @@ test('mixerns mängd: 100 % = oförändrat, 0 % = ingen EQ/kompression, 200 % = 
   const dbl = applyAmounts({ postEq: [{ gain: 2 }], mbc: [{ ratio: 3 }] }, { postEq: 200, comp: 200 });
   assert.equal(dbl.postEq[0].gain, 4);
   assert.equal(dbl.mbc[0].ratio, 5);
+});
+
+import { areaRange, listenCurve, withListen, setAllBands } from '../../src/chain.js';
+test('områdeslyssning: solo släpper bara fram bandets område, mute tar bort det', () => {
+  assert.deepEqual(areaRange('preEq:3'), [250, 500]);
+  assert.deepEqual(areaRange('mbc:3'), [8000, 20000]);
+  const s = listenCurve('mbc:0', 'solo');
+  assert.equal(s.length, 31);
+  assert.equal(s[THIRD_OCTAVE_CENTERS.indexOf(63)], 0);
+  assert.equal(s[THIRD_OCTAVE_CENTERS.indexOf(1000)], -24);
+  const m = listenCurve('mbc:0', 'mute');
+  assert.equal(m[THIRD_OCTAVE_CENTERS.indexOf(63)], -24);
+  assert.equal(m[THIRD_OCTAVE_CENTERS.indexOf(1000)], 0);
+  // klocka: smalare Q = smalare område
+  const wide = areaRange('peq:2', { peq: [{}, {}, { freq: 1000, gain: 0, q: 0.7 }] });
+  const narrow = areaRange('peq:2', { peq: [{}, {}, { freq: 1000, gain: 0, q: 6 }] });
+  assert.ok(narrow[1] / narrow[0] < wide[1] / wide[0]);
+  assert.ok(listenCurve('peq:2', 'solo', { peq: [{}, {}, { freq: 1000, gain: 0, q: 8 }] }).some((g) => g === 0)); // alltid minst ett band
+  // läggs på motorns post31 och hålls inom ±24
+  const n = withListen(toNative({ peq: [{}, {}, { freq: 1000, gain: 6, q: 1 }] }), listenCurve('mbc:0', 'solo'));
+  assert.ok(n.post31.every((g) => g >= -24 && g <= 24));
+  assert.equal(withListen(toNative(neutral()), null).post31.every((g) => g === 0), true);
+});
+
+test('Hela låten: samma värde på alla fyra kompressorband', () => {
+  const p = setAllBands(BUILTIN_PRESETS.find((x) => x.id === 'mjuk-kick').params, 'ratio', 2.5);
+  assert.deepEqual(p.mbc.map((b) => b.ratio), [2.5, 2.5, 2.5, 2.5]);
 });

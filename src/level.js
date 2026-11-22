@@ -60,6 +60,7 @@ export function compensation(params, opts) {
 /** Parametrarna med kompensationen inlagd i utgångsnivån (det som skickas till motorn). */
 export function withCompensation(params, opts) {
   const p = sanitize(params);
-  const c = compensation(p, opts);
+  // Ut och limiterns Lyft är uttryckliga nivåreglage: de kompenseras inte bort (annars gör de ingenting)
+  const c = compensation({ ...p, outputGain: 0, limiter: { ...p.limiter, postGain: 0 } }, opts);
   return { ...p, outputGain: Math.max(-24, Math.min(12, p.outputGain + c)) };
 }

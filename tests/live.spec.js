@@ -31,23 +31,23 @@ test('vald preset skickas till motorn med alla band, och det finns minst 16 pres
   await expect.poll(async () => (await sent(page)).postEq[6].gain).toBe(-2);
 });
 
-test('Snabb: varje fader har ⓘ, M och S, dubbeltryck nollställer, och Återställ alla nollställer', async ({ page }) => {
+test('Snabb: vågräta reglage med ⓘ, på/av, S och ↺, och Återställ alla nollställer', async ({ page }) => {
   await page.goto('/?sim=1');
   await expect(page.locator('[data-block="quick"]')).toHaveClass(/\bon\b/); // Snabb är förvalt
   for (const id of ['m-kick', 'm-bright', 'm-punch', 'm-vocal', 'm-sibilance', 'm-glitter']) {
     const sl = page.locator(`[data-sl="${id}"]`);
+    await expect(sl.locator('.slrow')).toHaveCount(1); // vågrätt
     await expect(sl.locator('.i')).toHaveCount(1);
-    await expect(sl.locator('.mbtn input')).toHaveCount(1);
+    await expect(sl.locator('[data-enable]')).toHaveCount(1);
     await expect(sl.locator('.solo')).toHaveCount(1);
+    await expect(sl.locator('.rst')).toHaveCount(1);
   }
   await setRange(page.locator('#m-bright'), 100);
   await expect(page.locator('#dirty')).toBeVisible();
   await expect.poll(async () => (await sent(page)).postEq[7].gain).toBe(4);
-  // dubbeltryck på namnet nollställer just den fadern
-  await page.locator('[data-dblreset="m-bright"]').dblclick();
+  await page.locator('[data-reset="m-bright"]').click();
   await expect(page.locator('#m-bright')).toHaveValue('0');
   await expect.poll(async () => (await sent(page)).postEq[7].gain).toBe(0);
-  // Återställ alla
   await setRange(page.locator('#m-kick'), 50);
   await setRange(page.locator('#m-vocal'), -40);
   await page.getByRole('button', { name: 'Återställ alla' }).click();
@@ -70,23 +70,26 @@ test('alla block i flödet: fadrar med ⓘ och nollställning, rätt graf övers
   await page.goto('/?sim=1');
   // Flödet i ljudets ordning
   await expect(page.locator('.blk b')).toHaveText(['Snabb', 'In', 'EQ 1', 'Kompr.', 'EQ 2', 'Limiter', 'Ut']);
-  for (const [b, n] of [['in', 1], ['eq1', 8], ['comp', 6], ['eq2', 3], ['limiter', 5], ['out', 1]]) {
+  // EQ: lodräta fadrar (dubbeltryck = nollställ); allt annat: vågräta reglage (↺)
+  for (const [b, vert, horiz] of [['in', 0, 1], ['eq1', 8, 0], ['comp', 0, 6], ['eq2', 3, 0], ['limiter', 0, 5], ['out', 0, 1]]) {
     await block(page, b);
-    await expect(page.locator('#spanel .sl.vf')).toHaveCount(n);
-    await expect(page.locator('#spanel .sl [data-dblreset]')).toHaveCount(n);
-    await expect(page.locator('#spanel .sl .i')).toHaveCount(n);
+    await expect(page.locator('#spanel .sl.vf')).toHaveCount(vert);
+    await expect(page.locator('#spanel .sl.vf [data-dblreset]')).toHaveCount(vert);
+    await expect(page.locator('#spanel .sl:not(.vf) .rst')).toHaveCount(horiz);
+    await expect(page.locator('#spanel .sl .i')).toHaveCount(vert + horiz);
   }
   // Kompressorn: grafen visar nedtryckningen per band
   await block(page, 'comp');
   await expect(page.locator('#stop .grb')).toHaveCount(4);
   await setRange(page.locator('#p-mbc-0-ratio'), 8);
   await expect.poll(async () => (await sent(page)).mbc[0].ratio).toBe(8);
-  await page.locator('[data-dblreset="p-mbc-0-ratio"]').dblclick();
+  await page.locator('[data-reset="p-mbc-0-ratio"]').click();
   await expect.poll(async () => (await sent(page)).mbc[0].ratio).toBe(4); // Mjuk kick
   // Bandväljare: Mellan
   await page.locator('[data-compband="1"]').click();
   await expect(page.locator('#p-mbc-1-ratio')).toHaveCount(1);
-  // man kan scrolla med fingret på en fader – bara handtaget griper
+  // man kan scrolla med fingret på en EQ-fader – bara handtaget griper
+  await block(page, 'eq1');
   expect(await page.locator('#spanel .vrow').first().evaluate((e) => getComputedStyle(e).touchAction)).toBe('pan-y');
   expect(await page.locator('#spanel .vthumb').first().evaluate((e) => getComputedStyle(e).touchAction)).toBe('none');
   // EQ 2: åtta band efter kompressorn

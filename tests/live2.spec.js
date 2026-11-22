@@ -56,28 +56,24 @@ test('på/av per del: bara kicken mjukas upp, EQ och resten av', async ({ page }
   await page.getByLabel('EQ 1 på/av').uncheck();
   await block(page, 'eq2');
   await page.getByLabel('EQ 2 på/av').uncheck();
-  await block(page, 'comp');
-  for (const [i, n] of [[1, 'Mellan'], [2, 'Närvaro'], [3, 'Luft']]) { await page.locator(`[data-compband="${i}"]`).click(); await page.getByLabel(`Mute ${n}`).uncheck(); }
   await block(page, 'out');
-  await expect.poll(async () => (await sent(page)).mbc[3].ratio).toBe(1);
+  await expect.poll(async () => (await sent(page)).postEq[6].gain).toBe(0);
   const p = await sent(page);
-  expect(p.postEq[6].gain).toBe(0);
   expect(p.preEq.every((b) => b.gain === 0)).toBe(true);
-  expect(p.mbc[0].ratio).toBe(3); // kickbandet kvar
-  expect(p.mbc[2].ratio).toBe(1);
+  expect(p.mbc[0].ratio).toBe(3); // kompressorn kvar
   await page.getByRole('button', { name: 'Slå på allt' }).click();
   await expect.poll(async () => (await sent(page)).postEq[6].gain).toBe(-2);
 });
 
-test('M (mute) på en fader: delen stängs av men inställningen ligger kvar', async ({ page }) => {
+test('på/av på ett Snabb-reglage: delen stängs av men inställningen ligger kvar', async ({ page }) => {
   await page.goto('/?sim=1');
   await setRange(page.locator('#m-bright'), 100);
   await expect.poll(async () => (await sent(page)).postEq[7].gain).toBe(4);
-  await page.getByLabel('Mute Ljusare').uncheck();
+  await page.getByLabel('Ljusare på/av').uncheck();
   await expect.poll(async () => (await sent(page)).postEq[7].gain).toBe(0);
   await expect(page.locator('[data-sl="m-bright"]')).toHaveClass(/off/);
   await expect(page.locator('#m-bright')).toHaveValue('100'); // inställningen ligger kvar
-  await page.getByLabel('Mute Ljusare').check();
+  await page.getByLabel('Ljusare på/av').check();
   await expect.poll(async () => (await sent(page)).postEq[7].gain).toBe(4);
 });
 
@@ -202,28 +198,25 @@ for (const width of [360, 320]) test(`ingen vy är bredare än telefonen vid ${w
   await expect(btn).toBeInViewport({ ratio: 1 });
 });
 
-test('skydd mot misstag: tryck och vågrätt svep ändrar inte en fader, drag uppåt gör det, Ångra tar tillbaka', async ({ page }) => {
+test('skydd mot misstag: tryck och lodrätt svep ändrar inte ett reglage, vågrätt drag gör det, Ångra tar tillbaka', async ({ page }) => {
   await page.goto('/?sim=1');
   const el = page.locator('#m-bright');
-  const row = page.locator('[data-sl="m-bright"] .vrow');
-  const box = await row.boundingBox();
-  const cx = box.x + box.width / 2, cy = box.y + box.height * 0.1;
-  // Tryck högt upp på fadern: inget hopp
-  await page.mouse.click(cx, cy);
+  const row = page.locator('[data-sl="m-bright"] .slrow');
+  const box = await el.boundingBox();
+  const cy = box.y + box.height / 2;
+  await page.mouse.click(box.x + box.width * 0.9, cy); // tryck långt till höger: inget hopp
   await expect(el).toHaveValue('0');
-  // Kort vågrätt svep: ingen ändring
-  const my = box.y + box.height / 2;
-  await page.mouse.move(cx, my); await page.mouse.down(); await page.mouse.move(cx + 40, my + 3, { steps: 6 }); await page.mouse.up();
+  const cx = box.x + box.width / 2;
+  await page.mouse.move(cx, cy); await page.mouse.down(); await page.mouse.move(cx + 3, cy - 60, { steps: 6 }); await page.mouse.up(); // scroll
   await expect(el).toHaveValue('0');
-  // Drag uppåt: relativt och dämpat – 100 px ≈ +45 (inget hopp när greppet tar)
-  await page.mouse.move(cx, my); await page.mouse.down(); await page.mouse.move(cx, my - 100, { steps: 8 }); await page.mouse.up();
+  // vågrätt drag: en fjärdedel av bredden ≈ +50 (minus dödzonen)
+  await page.mouse.move(cx, cy); await page.mouse.down(); await page.mouse.move(cx + box.width / 4, cy, { steps: 8 }); await page.mouse.up();
   const v = Number(await el.inputValue());
-  expect(v).toBeGreaterThan(35);
-  expect(v).toBeLessThan(65);
+  expect(v).toBeGreaterThan(30);
+  expect(v).toBeLessThan(60);
+  await expect(row).toHaveCount(1);
   await expect.poll(async () => (await sent(page)).postEq[7].gain).toBeGreaterThan(1);
-  // Ångra
   await page.getByRole('button', { name: '↶ Ångra' }).click();
   await expect(page.locator('#m-bright')).toHaveValue('0');
-  await expect.poll(async () => (await sent(page)).postEq[7].gain).toBe(0);
   await expect(page.locator('#confirm')).toContainText('Ångrat');
 });

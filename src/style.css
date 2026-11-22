@@ -619,3 +619,32 @@ main { padding-bottom: 8px; }
   .vname { font-size: 11px; }
   .bandrow .chip { font-size: 11px; padding-left: 0; padding-right: 0; }
 }
+/* Vågräta reglage i panelen (allt utom EQ): kompakta rader */
+.srows { display: flex; flex-direction: column; gap: 2px; margin-top: 4px; }
+.spanel .srows .sl { margin: 2px 0; gap: 0 6px; }
+.spanel .srows .slhead { gap: 4px; min-height: 30px; }
+.spanel .srows .slhead .name { font-size: 13.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.spanel .srows .slhead output { font-size: 13px; min-width: 52px; }
+.spanel .srows .step { width: 32px; height: 32px; }
+.spanel .srows .rst { width: 30px; height: 28px; }
+/* M som knapp (område): röd när området är borttaget */
+button.mbtn { background: transparent; font: inherit; font-size: 12px; font-weight: 700; padding: 0; cursor: pointer; }
+button.mbtn.on { background: #5a2b2b; border-color: #a33; color: #ffbcbc; }
+.vbtns button.mbtn, .vbtns .solo { width: 30px; height: 24px; }
+/* Fil: spelaren överst med vågform */
+.stop.fil { flex: 0 0 31%; min-height: 200px; }
+.fplayer { gap: 6px; }
+.fplayer .card { display: flex; flex-direction: column; gap: 6px; height: 100%; }
+.wave { position: relative; flex: 1; min-height: 56px; border-radius: 10px; background: #0f1418; overflow: hidden; touch-action: none; cursor: pointer; }
+.wave svg { position: absolute; inset: 0; width: 100%; height: 100%; fill: #3a7bd5; }
+.wave::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: var(--pos, 0%); background: #3fd3b022; pointer-events: none; }
+.wave .head { position: absolute; top: 0; bottom: 0; left: var(--pos, 0%); width: 2px; margin-left: -1px; background: #3fd3b0; pointer-events: none; }
+.fplayer .transport { gap: 6px; align-items: center; }
+.fplayer .transport .btn { width: 42px; height: 34px; padding: 0; }
+.fplayer .abrow { gap: 8px; align-items: center; flex-wrap: nowrap; }
+.fplayer .abrow .seg { flex: 1; margin: 0; }
+.fplayer .abrow .seg button { padding: 5px 4px; font-size: 13px; }
+.fplayer .switch.small { font-size: 12px; white-space: nowrap; }
+
+.stop .lbl .trunc { min-width: 0; flex: 0 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.stop .lbl .nowrap { flex: 0 0 auto; white-space: nowrap; }

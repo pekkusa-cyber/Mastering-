@@ -4,6 +4,8 @@ import { infoFor } from './info.js';
 export const esc = (t) => String(t ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 export const fmt = (v, step) => (step < 1 ? Number(v).toFixed(1) : String(Math.round(v)));
 const pct = (v, min, max) => Math.round(((Number(v) - min) / (max - min || 1)) * 1000) / 10;
+/** Position i procent på en logaritmisk skala (frekvens). */
+const lpct = (v, min, max) => Math.round((Math.log(Number(v) / min) / Math.log(max / min || 2)) * 1000) / 10;
 export const fmtDb = (v, d = 1) => (Number.isFinite(v) ? `${v > 0 ? '+' : ''}${v.toFixed(d)}` : '–');
 
 export const getPath = (obj, path) => path.split('.').reduce((o, k) => o?.[k], obj);
@@ -21,7 +23,7 @@ export const infoBtn = (key, label = 'Förklaring') => (key ? `<button type="but
  * kind/key berättar för vyn vad som ändras (t.ex. kind="path" key="mbc.0.ratio").
  * enable: { key, on } ger en på/av-knapp – av = reglaget påverkar inte ljudet.
  */
-export function slider({ id, label, value, range, info, resetTo = null, kind, key, enable = null, extra = '' }) {
+export function slider({ id, label, value, range, info, resetTo = null, kind, key, enable = null, extra = '', log = false }) {
   const [min, max, step, unit] = range;
   const atReset = resetTo !== null && Math.abs(Number(value) - Number(resetTo)) < 1e-9;
   const off = enable && !enable.on;
@@ -34,7 +36,7 @@ export function slider({ id, label, value, range, info, resetTo = null, kind, ke
     </div>
     <div class="slrow">
       <button type="button" class="step" data-step="${esc(id)}" data-dir="-1" aria-label="Minska ${esc(label)}">−</button>
-      <input type="range" id="${esc(id)}" min="${min}" max="${max}" step="${step}" value="${value}" data-kind="${esc(kind)}" data-key="${esc(key)}" data-unit="${esc(unit)}" style="--p:${pct(value, min, max)}%">
+      <input type="range" id="${esc(id)}" min="${min}" max="${max}" step="${step}" value="${value}" data-kind="${esc(kind)}" data-key="${esc(key)}" data-unit="${esc(unit)}"${log ? ' data-log="1"' : ''} style="--p:${pct(value, min, max)}%">
       <button type="button" class="step" data-step="${esc(id)}" data-dir="1" aria-label="Öka ${esc(label)}">+</button>
     </div>
   </div>`;
@@ -44,18 +46,18 @@ export function slider({ id, label, value, range, info, resetTo = null, kind, ke
  * Lodrät fader för mixern: värde överst, fader (dra uppåt/nedåt – ett tryck flyttar den inte), M (mute = av) och
  * S (solo) under, namn längst ner. Bygger på samma <input type=range> som slider(), så ↺, Ångra och tester fungerar lika.
  */
-export function vfader({ id, label, short = label, value, range, kind, key, resetTo = 0, enable = null, soloKey = null, soloOn = false, info = null, buttons = true }) {
+export function vfader({ id, label, short = label, value, range, kind, key, resetTo = 0, enable = null, soloKey = null, soloOn = false, info = null, buttons = true, btns = null, log = false }) {
   const [min, max, step, unit = ''] = range;
   const off = enable && !enable.on;
-  const p = pct(value, min, max);
-  const z = pct(Math.min(max, Math.max(min, resetTo)), min, max);
+  const p = (log ? lpct : pct)(value, min, max);
+  const z = (log ? lpct : pct)(Math.min(max, Math.max(min, resetTo)), min, max);
   return `<div class="sl vf${off ? ' off' : ''}" data-sl="${esc(id)}" style="--p:${p}%;--z:${z}%">
-    <button type="button" class="vs" data-step="${esc(id)}" data-dir="1" data-fine="1" aria-label="Öka ${esc(label)}">+</button>
+    <button type="button" class="vs" data-step="${esc(id)}" data-dir="1" aria-label="Öka ${esc(label)}">+</button>
     <output for="${esc(id)}">${fmt(value, step)}</output>${unit && !buttons ? `<small class="vu">${esc(unit)}</small>` : ''}
     <div class="vrow" aria-hidden="false"><div class="vtrack"><i class="vfill"></i><i class="vthumb"></i></div>
-      <input type="range" id="${esc(id)}" min="${min}" max="${max}" step="${step}" value="${value}" data-kind="${esc(kind)}" data-key="${esc(key)}" data-unit="" aria-label="${esc(label)}" style="--p:${p}%"></div>
-    <button type="button" class="vs" data-step="${esc(id)}" data-dir="-1" data-fine="1" aria-label="Minska ${esc(label)}">−</button>
-    ${buttons ? `<div class="vbtns">${enable ? `<label class="mbtn" title="Mute"><input type="checkbox" data-enable="${esc(enable.key)}" ${enable.on ? 'checked' : ''} aria-label="Mute ${esc(label)}"><span>M</span></label>` : '<span class="mbtn ghost"></span>'}
+      <input type="range" id="${esc(id)}" min="${min}" max="${max}" step="${step}" value="${value}" data-kind="${esc(kind)}" data-key="${esc(key)}" data-unit=""${log ? ' data-log="1"' : ''} aria-label="${esc(label)}" style="--p:${p}%"></div>
+    <button type="button" class="vs" data-step="${esc(id)}" data-dir="-1" aria-label="Minska ${esc(label)}">−</button>
+    ${btns !== null ? `<div class="vbtns">${btns}</div>` : ''}${btns === null && buttons ? `<div class="vbtns">${enable ? `<label class="mbtn" title="Mute"><input type="checkbox" data-enable="${esc(enable.key)}" ${enable.on ? 'checked' : ''} aria-label="Mute ${esc(label)}"><span>M</span></label>` : '<span class="mbtn ghost"></span>'}
       ${soloKey ? soloBtn(soloKey, soloOn, label) : '<span class="solo ghost"></span>'}</div>` : ''}
     <button type="button" class="vname" data-dblreset="${esc(id)}" data-to="${resetTo}" title="Dubbeltryck = nollställ">${esc(short)}</button>
     ${info ? infoBtn(info, `Om ${label}`) : ''}
@@ -73,8 +75,9 @@ export const toggle = (key, on, label) =>
 /** Kopplar alla reglage, ↺, −/+ och på/av i root. onChange(kind, key, value), onEnable(key, on). */
 export function bindSliders(root, onChange, onEnable) {
   const update = (el, v) => {
-    el.style.setProperty('--p', `${pct(v, Number(el.min), Number(el.max))}%`);
-    el.closest('.vf')?.style.setProperty('--p', `${pct(v, Number(el.min), Number(el.max))}%`);
+    const pp = (el.dataset.log ? lpct : pct)(v, Number(el.min), Number(el.max));
+    el.style.setProperty('--p', `${pp}%`);
+    el.closest('.vf')?.style.setProperty('--p', `${pp}%`);
     const out = el.closest('.sl').querySelector('output');
     const unit = el.dataset.unit;
     out.textContent = el.closest('.vf') ? fmt(v, Number(el.step)) : `${fmt(v, Number(el.step))}${unit ? ` ${unit}` : ''}`;
@@ -112,10 +115,11 @@ export function bindSliders(root, onChange, onEnable) {
       }
       e.preventDefault();
       const min = Number(el.min), max = Number(el.max), st = Number(el.step);
-      const w = Math.max(vert ? 200 : 0, (vert ? row.getBoundingClientRect().height : el.getBoundingClientRect().width) || 1); // korta fadrar blir inte grövre
-      // Lodräta fadrar går hälften så fort (fin kontroll); en fader kan alltid greppas om för längre sträcka
-      const k = vert ? 0.5 : 1;
-      const v = Math.min(max, Math.max(min, Math.round((g.v + ((dx - g.ax) / w) * (max - min) * k) / st) * st));
+      // Hela skalan = reglagets bredd (vågrätt) eller en fast sträcka på 220 px (lodrätt, oberoende av fadern höjd)
+      const w = vert ? 220 : (el.getBoundingClientRect().width || 220);
+      const t = (dx - g.ax) / w;
+      const raw = el.dataset.log ? g.v * (max / min) ** t : g.v + t * (max - min); // frekvens: logaritmiskt som på en riktig EQ
+      const v = Math.min(max, Math.max(min, Math.round(raw / st) * st));
       if (v !== Number(el.value)) set(el, v);
     });
     const end = () => { if (g?.active) row.classList.remove('dragging'); g = null; };
@@ -131,10 +135,13 @@ export function bindSliders(root, onChange, onEnable) {
   root.querySelectorAll('[data-step]').forEach((b) => {
     b.onclick = () => {
       const el = root.querySelector(`#${CSS.escape(b.dataset.step)}`);
-      const st = Number(el.step), range = Number(el.max) - Number(el.min);
-      const inc = b.dataset.fine ? st : Math.max(st, Math.round(range / 40 / st) * st); // ± på fadrar = exakt ett steg
-      const v = Math.min(Number(el.max), Math.max(Number(el.min), Number(el.value) + Number(b.dataset.dir) * inc));
-      set(el, Math.round(v / st) * st);
+      const st = Number(el.step), range = Number(el.max) - Number(el.min), dir = Number(b.dataset.dir);
+      // Ett tryck = en fyrtiondel av skalan (t.ex. 0,5 dB, 5 på −100…100); frekvens: en tredjedels oktav
+      const inc = Math.max(st, Math.round(range / 40 / st) * st);
+      const raw = el.dataset.log ? Number(el.value) * 2 ** (dir / 3) : Number(el.value) + dir * inc;
+      let v = Math.min(Number(el.max), Math.max(Number(el.min), Math.round(raw / st) * st));
+      if (v === Number(el.value) && raw !== Number(el.value)) v = Math.min(Number(el.max), Math.max(Number(el.min), v + dir * st));
+      set(el, v);
     };
   });
   if (onEnable) root.querySelectorAll('[data-enable]').forEach((c) => {

@@ -94,3 +94,20 @@ test('live-mastringen pausas medan Fil spelar (ingen dubbelmastring)', async ({ 
   await page.getByRole('button', { name: 'Paus' }).click();
   await expect.poll(() => page.evaluate(async () => (await window.__sim.getStatus()).bypass)).toBe(false);
 });
+
+test('spelaren överst: vågform, spela/paus, stopp och spola genom att trycka på vågen', async ({ page }) => {
+  test.setTimeout(120000);
+  await page.goto('/?sim=1&view=fil');
+  await load(page, 'a.wav', wav(4));
+  await expect(page.locator('#f-wave svg rect')).toHaveCount(200);
+  await expect(page.locator('#f-wave')).toBeInViewport({ ratio: 1 });
+  // tryck i mitten av vågen: hoppar till halva låten
+  const box = await page.locator('#f-wave').boundingBox();
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+  await expect(page.locator('#f-time')).toHaveText('0:02 / 0:04');
+  await page.getByRole('button', { name: 'Spela' }).click();
+  await expect(page.getByRole('button', { name: 'Paus' })).toBeVisible();
+  await page.getByRole('button', { name: 'Stopp' }).click();
+  await expect(page.getByRole('button', { name: 'Spela' })).toBeVisible();
+  await expect(page.locator('#f-time')).toHaveText('0:00 / 0:04');
+});

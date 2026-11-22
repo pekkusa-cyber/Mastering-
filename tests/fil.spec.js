@@ -67,7 +67,11 @@ test('↺ per parameter, Återställ alla och info i filmastringen', async ({ pa
   await page.getByRole('button', { name: 'Avancerat' }).click();
   const n = await page.locator('#fcontrols .sl').count();
   expect(n).toBeGreaterThan(50);
-  await expect(page.locator('#fcontrols .sl .rst')).toHaveCount(n);
+  // EQ-banden (pre, match, post) är lodräta fadrar (dubbeltryck = nollställ), resten vågräta med ↺
+  const eqN = await page.locator('#fcontrols .sl.vf').count();
+  expect(eqN).toBe(8 + 10 + 8);
+  await expect(page.locator('#fcontrols .sl.vf [data-dblreset]')).toHaveCount(eqN);
+  await expect(page.locator('#fcontrols .sl:not(.vf) .rst')).toHaveCount(n - eqN);
   await expect(page.locator('#fcontrols .sl .i')).toHaveCount(n);
   await page.getByRole('button', { name: 'Enkelt' }).click();
   await page.locator('#f-clip').evaluate((el) => { el.value = '5'; el.dispatchEvent(new Event('input', { bubbles: true })); });

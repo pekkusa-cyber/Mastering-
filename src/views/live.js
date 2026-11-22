@@ -5,7 +5,7 @@ import { LiveDsp, isNative } from '../livedsp.js';
 import { ui, app } from '../state.js';
 import { load, save } from '../store.js';
 import {
-  BUILTIN_PRESETS, EQ_CUTOFFS, MACROS, MODULES, PEQ_BANDS, AMOUNT_KEYS, applyAmounts, noAmounts, applyModule, moduleActive, soloParams, MACRO_GROUPS, MBC_CUTOFFS, presetEffects, MBC_NAMES, RANGES, activeMacros, allEnabled, applyEnables,
+  BUILTIN_PRESETS, EQ_CUTOFFS, MACROS, MODULES, PEQ_BANDS, AMOUNT_KEYS, areaRange, listenCurve, withListen, applyAmounts, noAmounts, applyModule, moduleActive, soloParams, MACRO_GROUPS, MBC_CUTOFFS, presetEffects, MBC_NAMES, RANGES, activeMacros, allEnabled, applyEnables,
   applyMacros, bandLabel, deletePreset, exportPresets, importPresets, neutral, noMacros, renamePreset, sanitize,
   savePreset, toNative,
 } from '../chain.js';
@@ -26,6 +26,8 @@ const withAmounts = () => applyAmounts(ui.base, ui.amounts);
 export const effective = () => applyEnables(applyMacros(withAmounts(), activeMacros(ui.macros, ui.enabled)), ui.enabled);
 /** Det som hörs: som effective(), men med solo bara den solade delen (solo sparas aldrig i en preset). */
 export const heard = () => (ui.solo ? soloParams(withAmounts(), ui.macros, ui.enabled, ui.solo) : effective());
+/** Lyssningsfiltret för M/S per frekvensområde (null = inget). */
+const listenNow = () => (ui.listen ? listenCurve(ui.listen.area, ui.listen.mode, heard()) : null);
 /** Det som skickas till motorn: med nivåkompensation om Konstant utnivå är på. */
 export const sendParams = () => (ui.constant ? withCompensation(heard()) : heard());
 const presetBase = () => sanitize(currentPreset()?.params ?? neutral());
@@ -74,7 +76,7 @@ export function changed({ now = false, user = true, keepUndo = false, undone = f
   clearTimeout(sendTimer);
   const send = async () => {
     if (!LiveDsp) return;
-    const r = await LiveDsp.setParams({ params: toNative(sendParams()) });
+    const r = await LiveDsp.setParams({ params: withListen(toNative(sendParams()), listenNow()) });
     if (r && typeof r === 'object') { ui.report = { ...r, at: Date.now(), user: user || undone, undone }; app.renderPart('confirm'); }
   };
   if (now) send(); else sendTimer = setTimeout(send, 60);
@@ -106,7 +108,7 @@ export async function initLive() {
     ui.constant = st.constant !== false;
     ui.mods = st.mods || {};
   }
-  ui.solo = null; // solo gäller bara medan man lyssnar
+  ui.solo = null; ui.listen = null; // solo och områdeslyssning gäller bara medan man lyssnar
   ui.amounts ||= noAmounts();
 }
 
@@ -227,7 +229,7 @@ function statusLine() {
 function subbar() {
   const p = currentPreset(), s = ui.status || {};
   return `<div class="subbar" id="subbar">
-    <button class="pp" id="preset" aria-label="Preset" aria-haspopup="listbox"><span class="ico">${PRESET_ICONS[p?.id] || (p ? '⭐' : '✎')}</span><b class="pv">${esc(p?.name || '(egen)')}</b><small id="dirty" title="Ändrad från presetten" ${isDirty() ? '' : 'hidden'}>✎</small>▾</button>
+    <button class="pp" id="preset" aria-label="Preset" aria-haspopup="listbox"><span class="ico">${PRESET_ICONS[p?.id] || (p ? '⭐' : '🎛️')}</span><b class="pv">${esc(p?.name || '(egen)')}</b><small id="dirty" title="Ändrad från presetten" aria-label="ändrad" ${isDirty() ? '' : 'hidden'}>●</small>▾</button>
     <button class="abmini ${s.on ? 'on' : ''}" id="onoff" aria-pressed="${!!s.on}" aria-label="Mastrad på/av" ${s.bypass ? 'disabled' : ''}><span class="o">Före</span><span class="m">Efter</span></button>
     <button class="rb sm" id="undo" aria-label="↶ Ångra" ${ui.undo?.length ? '' : 'disabled'}>↶</button>
     <button class="rb sm" id="p-menu" aria-label="Hantera presets">⋯</button>
@@ -238,7 +240,8 @@ function subbar() {
 export function toast() {
   if (!LiveDsp) return '<div id="confirm" hidden></div>';
   const s = ui.status || {}, r = ui.report;
-  if (s.running && s.control === false || r?.noControl > 0 && Date.now() - r.at < 60000 && s.control !== true) {
+  const active = !s.bypass || s.correction?.on; // helt original: ingen effekt ska ligga på – då är "kontrollen" ointressant
+  if (active && (s.running && s.control === false || r?.noControl > 0 && Date.now() - r.at < 60000 && s.control !== true)) {
     return `<div class="toast warn" id="confirm" role="status"><span>⚠ En annan app (t.ex. Wavelet) styr ljudet.</span><button class="btn small" id="takeControl">Ta tillbaka</button></div>`;
   }
   if (ui.msg && Date.now() - (ui.msgAt || 0) < 3500) return `<div class="toast" id="confirm" role="status"><span id="msg">${esc(ui.msg)}</span></div>`;
@@ -252,7 +255,14 @@ export function toast() {
 }
 
 const SOLO_LABEL = () => ({ ...SOLO_NAMES(), preEq: 'EQ 1 (före kompressorn)', eq2: 'EQ 2 (efter kompressorn)', mbc: 'Kompressor', input: 'In', limiter: 'Limiter' });
-const soloChip = () => (ui.solo ? `<div class="solochip" data-testid="solobar"><b>S</b> Solo: ${esc(SOLO_LABEL()[ui.solo] || ui.solo)}<button id="solo-off" aria-label="Avsluta solo">✕</button></div>` : '');
+const soloChip = () => {
+  if (ui.listen) {
+    const [lo, hi] = areaRange(ui.listen.area, heard());
+    const hz = (f) => (f >= 1000 ? `${+(f / 1000).toFixed(1)}k` : `${Math.round(f)}`);
+    return `<div class="solochip" data-testid="listenbar"><b>${ui.listen.mode === 'solo' ? 'S' : 'M'}</b> ${ui.listen.mode === 'solo' ? 'Bara' : 'Utan'} ${esc(AREA_NAME(ui.listen.area))} (${hz(lo)}–${hz(hi)} Hz)<button id="solo-off" aria-label="Avsluta solo">✕</button></div>`;
+  }
+  return ui.solo ? `<div class="solochip" data-testid="solobar"><b>S</b> Solo: ${esc(SOLO_LABEL()[ui.solo] || ui.solo)}<button id="solo-off" aria-label="Avsluta solo">✕</button></div>` : '';
+};
 
 // Blocken står i exakt samma ordning som ljudet går genom effekten: In → EQ 1 → Kompressor → EQ 2 → Limiter → Ut.
 // Snabb är ingen del av kedjan utan en genväg som styr flera delar samtidigt (därför skild från resten).
@@ -272,7 +282,7 @@ const SHORT_MACRO = { kick: 'Kick', bright: 'Ljus', punch: 'Tryck', vocal: 'Rös
 const PEQ_NAMES = ['Bas', 'Lågmitt', 'Mitt', 'Närvaro', 'Diskant'];
 const COMP_NAMES = ['Kick', 'Mellan', 'Närvaro', 'Luft'];
 const eqSel = () => (ui.eqSel ?? 2);
-const compSel = () => Math.max(0, Math.min(3, ui.compSel ?? 0));
+const compSel = () => (Number.isInteger(ui.compSel) ? Math.max(0, Math.min(3, ui.compSel)) : 0); // 'all' (Hela låten) visar band 0
 
 /** Den övre halvan: alltid grafen för det block som är öppet. */
 function topPart(b = block()) {
@@ -322,19 +332,64 @@ function phead({ title, sub = '', enableKey = null, soloKey = null, mod = null }
     ${sub ? `<small>${esc(sub)}</small>` : ''}<span class="grow"></span>${modBtn}</div>`;
 }
 const frowN = (items) => `<div class="faders" style="--n:${items.length}">${items.join('')}</div>`;
-const fpath = (key, label, short, range, info = key, opts = {}) => vfader({ id: `p-${key.replace(/\./g, '-')}`, label, short, value: getPath(ui.base, key), range, info,
-  resetTo: getPath(presetBase(), key), kind: 'path', key, buttons: false, ...opts });
+const srows = (items) => `<div class="srows">${items.join('')}</div>`;
+
+/**
+ * Det reglagen visar: presetten + mängder + Snabb (enkla reglage). Ändrar man Ljus i Snabb syns det alltså direkt
+ * på EQ 2:s fader för 8k – och drar man den fadern ändras grunden så att fadern hamnar exakt där man drog.
+ */
+const shown = () => sanitize(applyMacros(withAmounts(), activeMacros(ui.macros, ui.enabled)));
+const shownPreset = () => sanitize(applyMacros(presetBase(), activeMacros(ui.macros, ui.enabled)));
+/** Sätter en parameter så att det man ser (inkl. Snabb) blir v. */
+function setShown(key, v) {
+  // Snabb kan lägga till (EQ, tröskel) eller skala (attack, release): sök det grundvärde som ger exakt v
+  for (let k = 0; k < 8; k++) {
+    const cur = getPath(shown(), key);
+    if (Math.abs(v - cur) < 1e-6) return;
+    const b0 = getPath(ui.base, key);
+    setPath(ui.base, key, b0 + 1e-3);
+    const slope = (getPath(shown(), key) - cur) / 1e-3;
+    setPath(ui.base, key, b0);
+    // vid en gräns (Snabb har drivit värdet till kanten) flyttas grunden rakt, tills fadern lossnar
+    const next = b0 + (Math.abs(slope) > 1e-6 ? (v - cur) / slope : v - cur);
+    setPath(ui.base, key, Math.round(next * 1e4) / 1e4); // inga flyttalsrester (3.0000000002)
+    ui.base = sanitize(ui.base);
+  }
+}
+
+/** Lodrät fader (bara i EQ). */
+const vpath = (key, label, short, range, info = key, opts = {}) => vfader({ id: `p-${key.replace(/\./g, '-')}`, label, short, value: getPath(shown(), key), range, info,
+  resetTo: getPath(shownPreset(), key), kind: 'path', key, buttons: false, ...opts });
+/** Vågrätt reglage (allt utom EQ). */
+const hpath = (key, label, range, info = key, opts = {}) => slider({ id: `p-${key.replace(/\./g, '-')}`, label, value: getPath(shown(), key), range, info,
+  resetTo: getPath(shownPreset(), key), kind: 'path', key, ...opts });
+
+/** M och S för ett frekvensområde: S = bara området hörs, M = området tas bort. Som på en riktig EQ/multiband. */
+function areaBtns(area, label) {
+  const on = (mode) => ui.listen?.area === area && ui.listen?.mode === mode;
+  return `<button type="button" class="mbtn${on('mute') ? ' on' : ''}" data-amute="${area}" aria-pressed="${on('mute')}" aria-label="Ta bort ${esc(label)}" title="Mute: ta bort området">M</button>`
+    + `<button type="button" class="solo${on('solo') ? ' on' : ''}" data-asolo="${area}" aria-pressed="${on('solo')}" aria-label="Bara ${esc(label)}" title="Solo: hör bara området">S</button>`;
+}
+const AREA_NAME = (area) => {
+  const [k, i] = area.split(':');
+  if (k === 'mbc') return COMP_NAMES[i];
+  if (k === 'peq') return PEQ_NAMES[i];
+  return `${k === 'preEq' ? 'EQ 1' : 'EQ 2'} ${bandLabel(EQ_CUTOFFS, Number(i))}`;
+};
 
 function panelQuick() {
-  const f = MACROS.map((m) => vfader({ id: `m-${m.key}`, label: m.label, short: SHORT_MACRO[m.key] || m.label, value: ui.macros[m.key] ?? 0, range: [-100, 100, 1, ''],
-    kind: 'macro', key: m.key, resetTo: 0, enable: { key: `m_${m.key}`, on: en(`m_${m.key}`) }, soloKey: `m_${m.key}`, soloOn: ui.solo === `m_${m.key}`, info: m.key }));
-  return `<div class="phead"><b>Snabb</b>${infoBtn('mixer')}<span class="grow"></span><button class="btn small" id="reset-all">Återställ alla</button></div>${frowN(f)}`;
+  const f = MACROS.map((m) => slider({ id: `m-${m.key}`, label: m.label, value: ui.macros[m.key] ?? 0, range: [-100, 100, 5, ''],
+    kind: 'macro', key: m.key, resetTo: 0, info: m.key, enable: { key: `m_${m.key}`, on: en(`m_${m.key}`) }, extra: solo(`m_${m.key}`, m.label) }));
+  return `<div class="phead"><b>Snabb</b>${infoBtn('mixer')}<span class="grow"></span><button class="btn small" id="reset-all">Återställ alla</button></div>${srows(f)}`;
 }
+
+/** Åtta band som lodräta fadrar, med M/S per band (område). */
+const eqBands = (k) => frowN(EQ_CUTOFFS.map((_, i) => vpath(`${k}.${i}.gain`, bandLabel(EQ_CUTOFFS, i), EQ_SHORT[i], RANGES.eqGain, `${k}.${i}.gain`,
+  { btns: areaBtns(`${k}:${i}`, bandLabel(EQ_CUTOFFS, i)) })));
 
 /** EQ 1: åttabandsEQ:n FÖRE kompressorn. */
 function panelEq1() {
-  return `${phead({ title: 'EQ 1', sub: 'före komp.', enableKey: 'preEq', soloKey: 'preEq', mod: 'eq' })}
-    ${frowN(EQ_CUTOFFS.map((_, i) => fpath(`preEq.${i}.gain`, bandLabel(EQ_CUTOFFS, i), EQ_SHORT[i], RANGES.eqGain, `preEq.${i}.gain`)))}`;
+  return `${phead({ title: 'EQ 1', sub: 'före komp.', enableKey: 'preEq', soloKey: 'preEq', mod: 'eq' })}${eqBands('preEq')}`;
 }
 
 /** EQ 2: EFTER kompressorn – åttabandsEQ:n och sedan de fem EQ-punkterna (frekvens, höj/sänk, bredd). */
@@ -345,34 +400,38 @@ function panelEq2() {
     ${PEQ_NAMES.map((n, i) => `<button class="chip${!graphic && i === sel ? ' sel' : ''}${en(`peq${i}`) ? '' : ' off'}" data-eqband="${i}">${n}</button>`).join('')}</div>`;
   let body;
   if (graphic) {
-    body = frowN(EQ_CUTOFFS.map((_, i) => fpath(`postEq.${i}.gain`, bandLabel(EQ_CUTOFFS, i), EQ_SHORT[i], RANGES.eqGain, `postEq.${i}.gain`)));
+    body = eqBands('postEq');
   } else {
     body = `<div class="bandrow"><small class="dim grow">${esc(PEQ_NAMES[sel])} – ${b.type === 'peaking' ? 'runt frekvensen' : sel === 0 ? 'allt under frekvensen' : 'allt över frekvensen'}</small>
-      <button class="btn small" id="peq-flat">Platta ut</button><span class="bms"><label class="mbtn" title="Mute"><input type="checkbox" data-enable="peq${sel}" ${en(`peq${sel}`) ? 'checked' : ''} aria-label="Mute ${esc(PEQ_NAMES[sel])}"><span>M</span></label>${solo(`peq${sel}`, PEQ_NAMES[sel])}</span></div>
-      ${frowN([fpath(`peq.${sel}.freq`, 'Frekvens', 'Frekvens', b.range, 'peqFreq'), fpath(`peq.${sel}.gain`, 'Höj / sänk', 'Höj / sänk', RANGES.peqGain, 'peqGain'),
-        fpath(`peq.${sel}.q`, 'Bredd (Q)', 'Bredd (Q)', RANGES.peqQ, 'peqQ')])}`;
+      <button class="btn small" id="peq-flat">Platta ut</button><span class="bms">${areaBtns(`peq:${sel}`, PEQ_NAMES[sel])}${infoBtn('areaSolo')}</span></div>
+      ${frowN([vpath(`peq.${sel}.freq`, 'Frekvens', 'Frekvens', b.range, 'peqFreq', { log: true }), vpath(`peq.${sel}.gain`, 'Höj / sänk', 'Höj / sänk', RANGES.peqGain, 'peqGain'),
+        vpath(`peq.${sel}.q`, 'Bredd (Q)', 'Bredd (Q)', RANGES.peqQ, 'peqQ')])}`;
   }
   return `${phead({ title: 'EQ 2', sub: 'efter komp.', enableKey: 'grp_eq2', soloKey: 'eq2', mod: 'eq' })}${chips}${body}`;
 }
 
+const COMP_ROWS = [
+  ['ratio', 'Styrka (ratio)', 'ratio'], ['threshold', 'Startar vid (tröskel)', 'threshold'], ['attack', 'Reaktion (attack)', 'attack'],
+  ['release', 'Släpper (release)', 'release'], ['knee', 'Mjukhet (knä)', 'knee'], ['postGain', 'Lyft efter', 'postGain'],
+];
 function panelComp() {
-  const i = compSel();
-  const chips = `<div class="bandrow">${COMP_NAMES.map((n, k) => `<button class="chip${k === i ? ' sel' : ''}${en(`mbc${k}`) ? '' : ' off'}" data-compband="${k}">${n}</button>`).join('')}
-    <span class="bms"><label class="mbtn" title="Mute"><input type="checkbox" data-enable="mbc${i}" ${en(`mbc${i}`) ? 'checked' : ''} aria-label="Mute ${COMP_NAMES[i]}"><span>M</span></label>${solo(`mbc${i}`, MBC_NAMES[i])}</span></div>`;
-  return `${phead({ title: 'Kompressor', enableKey: 'grp_comp', soloKey: 'mbc', mod: 'comp' })}${chips}
-    ${frowN([fpath(`mbc.${i}.ratio`, 'Styrka (ratio)', 'Styrka', RANGES.ratio, `mbc.${i}.ratio`),
-      fpath(`mbc.${i}.threshold`, 'Startar vid (tröskel)', 'Startar', RANGES.threshold, `mbc.${i}.threshold`),
-      fpath(`mbc.${i}.attack`, 'Reaktion (attack)', 'Reaktion', RANGES.attack, `mbc.${i}.attack`),
-      fpath(`mbc.${i}.release`, 'Släpper (release)', 'Släpper', RANGES.release, `mbc.${i}.release`),
-      fpath(`mbc.${i}.knee`, 'Mjukhet (knä)', 'Mjukhet', RANGES.knee, `mbc.${i}.knee`),
-      fpath(`mbc.${i}.postGain`, 'Lyft efter', 'Lyft', RANGES.postGain, `mbc.${i}.postGain`)])}`;
+  const all = ui.compSel === 'all';
+  const i = all ? 0 : compSel();
+  const chips = `<div class="bandrow"><button class="chip${all ? ' sel' : ''}" data-compband="all">Hela låten</button>
+    ${COMP_NAMES.map((n, k) => `<button class="chip${!all && k === i ? ' sel' : ''}${en(`mbc${k}`) ? '' : ' off'}" data-compband="${k}">${n}</button>`).join('')}</div>`;
+  const rows = COMP_ROWS.map(([p, label, r]) => (all
+    ? slider({ id: `p-mbcall-${p}`, label, value: shown().mbc[0][p], range: RANGES[r], info: `mbc.0.${p}`, resetTo: shownPreset().mbc[0][p], kind: 'mbcall', key: p })
+    : hpath(`mbc.${i}.${p}`, label, RANGES[r], `mbc.${i}.${p}`)));
+  const head = all ? '<div class="bandrow"><small class="dim grow">Alla fyra band får samma inställning – hela låten trycks ihop jämnt.</small>' + infoBtn('compAll') + '</div>'
+    : `<div class="bandrow"><small class="dim grow">${COMP_NAMES[i]}: ${bandLabel(MBC_CUTOFFS, i)}</small><span class="bms">${areaBtns(`mbc:${i}`, COMP_NAMES[i])}${infoBtn('areaSolo')}</span></div>`;
+  return `${phead({ title: 'Kompressor', enableKey: 'grp_comp', soloKey: 'mbc', mod: 'comp' })}${chips}${head}${srows(rows)}`;
 }
 
 function panelLimiter() {
   return `${phead({ title: 'Limiter', enableKey: 'limiter', soloKey: 'limiter', mod: 'limiter' })}
-    ${frowN([fpath('limiter.threshold', 'Tak', 'Tak', RANGES.limThreshold), fpath('limiter.ratio', 'Styrka (ratio)', 'Styrka', RANGES.limRatio),
-      fpath('limiter.attack', 'Reaktion (attack)', 'Reaktion', RANGES.limAttack), fpath('limiter.release', 'Släpper (release)', 'Släpper', RANGES.limRelease),
-      fpath('limiter.postGain', 'Lyft efter', 'Lyft', RANGES.limPostGain)])}`;
+    ${srows([hpath('limiter.threshold', 'Tak', RANGES.limThreshold), hpath('limiter.ratio', 'Styrka (ratio)', RANGES.limRatio),
+      hpath('limiter.attack', 'Reaktion (attack)', RANGES.limAttack), hpath('limiter.release', 'Släpper (release)', RANGES.limRelease),
+      hpath('limiter.postGain', 'Lyft efter', RANGES.limPostGain)])}`;
 }
 
 const resetRow = () => '<div class="pfoot"><button class="btn small" id="flat">Platt</button><button class="btn small" id="all-on">Slå på allt</button><button class="btn small" id="reset-all">Återställ alla</button></div>';
@@ -380,14 +439,14 @@ const resetRow = () => '<div class="pfoot"><button class="btn small" id="flat">P
 /** In: längst fram i kedjan – hur hårt ljudet driver in i EQ 1, kompressorn och limitern. */
 function panelIn() {
   return `${phead({ title: 'In', sub: 'först i kedjan', enableKey: 'input', soloKey: 'input' })}
-    ${frowN([vfader({ id: 'p-inputGain', label: 'Ingångsförstärkning', short: 'In', value: ui.base.inputGain, range: RANGES.inputGain, kind: 'path', key: 'inputGain', resetTo: presetBase().inputGain, info: 'inputGain' })])}${resetRow()}`;
+    ${srows([hpath('inputGain', 'Ingångsförstärkning', RANGES.inputGain, 'inputGain')])}${resetRow()}`;
 }
 
 /** Ut: längst bak – slutlig nivå efter limitern. */
 function panelOut() {
   const agcOn = ui.status?.agc?.on;
   return `${phead({ title: 'Ut', sub: 'sist i kedjan', enableKey: 'output' })}
-    ${frowN([vfader({ id: 'p-outputGain', label: 'Utgångsnivå', short: 'Ut', value: ui.base.outputGain, range: RANGES.outputGain, kind: 'path', key: 'outputGain', resetTo: presetBase().outputGain, info: 'outputGain' })])}
+    ${srows([hpath('outputGain', 'Utgångsnivå', RANGES.outputGain, 'outputGain')])}
     <div class="pfoot">${agcOn || ui.constant ? '<span class="hint">Nivån hålls automatiskt (Jämn volym / Konstant utnivå). Ut finjusterar.</span>'
       : `<button class="btn small" id="autolevel">Auto-nivåmatcha</button>${infoBtn('autolevel')}`}
       ${ui.levelMsg ? `<span class="hint" id="levelmsg">${esc(ui.levelMsg)}</span>` : ''}</div>${resetRow()}`;
@@ -427,7 +486,7 @@ export function refreshStatus(root) {
 
 function bindTop(root) {
   const so = root.querySelector('#solo-off');
-  if (so) so.onclick = () => { ui.solo = null; changed({ now: true, keepUndo: true }); app.render(); };
+  if (so) so.onclick = () => { ui.solo = null; ui.listen = null; changed({ now: true, keepUndo: true }); app.render(); };
   const t = root.querySelector('#takeControl');
   if (t) t.onclick = async () => {
     t.textContent = 'Tar tillbaka…';
@@ -684,7 +743,10 @@ export function bindLive(root) {
   bindSubbar(root);
   bindTop(root);
   bindSliders(root, (kind, key, v) => {
-    if (kind === 'path') setPath(ui.base, key, v);
+    if (kind === 'path') setShown(key, v);
+    if (kind === 'mbcall') [0, 1, 2, 3].forEach((i) => setShown(`mbc.${i}.${key}`, v));
+    // Når inte reglaget dit (Snabb håller det vid en gräns): visa det verkliga värdet i stället för att låtsas
+    if (kind === 'path' && Math.abs(getPath(shown(), key) - v) > 1e-3) { changed(); app.render(); return; }
     if (kind === 'macro') ui.macros[key] = v;
     changed();
   }, (key, on) => {
@@ -701,6 +763,7 @@ export function bindLive(root) {
     b.onclick = (e) => {
       e.preventDefault(); e.stopPropagation();
       ui.solo = ui.solo === b.dataset.solo ? null : b.dataset.solo;
+      if (ui.solo) ui.listen = null;
       changed({ now: true, keepUndo: true });
       app.render();
     };
@@ -710,7 +773,16 @@ export function bindLive(root) {
     app.render();
   }; });
   root.querySelectorAll('[data-eqstage]').forEach((b) => { b.onclick = () => { ui.eqStage = b.dataset.eqstage; app.render(); }; });
-  root.querySelectorAll('[data-compband]').forEach((b) => { b.onclick = () => { ui.compSel = Number(b.dataset.compband); app.render(); }; });
+  root.querySelectorAll('[data-compband]').forEach((b) => { b.onclick = () => { ui.compSel = b.dataset.compband === 'all' ? 'all' : Number(b.dataset.compband); app.render(); }; });
+  // M/S per frekvensområde (lyssningsfilter). Bara ett åt gången, och inte samtidigt som solo på en hel del.
+  const listen = (area, mode) => {
+    ui.listen = ui.listen?.area === area && ui.listen?.mode === mode ? null : { area, mode };
+    if (ui.listen) ui.solo = null;
+    changed({ now: true, keepUndo: true });
+    app.render();
+  };
+  root.querySelectorAll('[data-asolo]').forEach((b) => { b.onclick = () => listen(b.dataset.asolo, 'solo'); });
+  root.querySelectorAll('[data-amute]').forEach((b) => { b.onclick = () => listen(b.dataset.amute, 'mute'); });
   const pf = root.querySelector('#peq-flat');
   if (pf) pf.onclick = () => { ui.base.peq.forEach((b) => { b.gain = 0; }); changed({ now: true }); app.render(); };
   // svep i sidled i panelen = nästa/föregående block
@@ -732,7 +804,7 @@ export function bindLive(root) {
   root.querySelectorAll('#reset-all').forEach((el) => { el.onclick = () => {
     ui.base = presetBase(); ui.macros = noMacros(); ui.amounts = noAmounts();
     ui.enabled = allEnabled();
-    ui.mods = {}; ui.solo = null;
+    ui.mods = {}; ui.solo = null; ui.listen = null;
     say(currentPreset() ? `Återställd till "${currentPreset().name}".` : 'Återställd.');
     changed({ now: true });
     app.render();

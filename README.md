@@ -21,8 +21,8 @@ Samma upplägg i alla vyer: skärmen är delad i två fasta halvor och scrollar 
 flödesordning och en **panel** för valt block. Rubriken har runda av/på-knappar för 🎧 Hörlurar och 🎚️ Masterlab
 (gröna = på), ⚙ och ⓘ. Under rubriken: preset, Före/Efter, ↶ Ångra och ⋯ (presetinfo och hantering).
 
-- **Live** – Snabb → EQ → Kompr. → Limiter → Ut. Lodräta fadrar med M (mute), S (solo) och ⓘ; dubbeltryck på namnet nollställer.
-  Grafen följer blocket: spektrum + klangkurva (EQ-punkterna går att dra), nedtryckning per kompressorband, limiterns in → ut, nivå Original/Efter.
+- **Live** – Snabb (genväg) | In → EQ 1 → Kompr. → EQ 2 → Limiter → Ut, i samma ordning som ljudet går. EQ-band är lodräta fadrar,
+  allt annat vågräta reglage. M/S på ett band lyssnar på bandets frekvensområde; Kompressorn har Hela låten eller ett band i taget.
 - **Analys** – Analysera → Resultat → Referenser, med spektrumet (eller resultatet mot referensen) överst.
 - **Fil** – Låt → Klang → Mätare → Exportera, med spelaren (A/B) överst.
 - **Mer** – Behörigheter → Felsökning → Appen, med en överblick överst.

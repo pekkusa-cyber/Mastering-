@@ -544,13 +544,13 @@ export function applyMacros(base, macros) {
     for (const m of [p.mbc[2], p.mbc[3]]) {
       m.threshold += -8 * si;
       m.ratio = Math.max(1, m.ratio * (1 + 1.2 * si));
-      if (si > 0) { m.attack = Math.min(m.attack, 1.5); m.release = Math.min(m.release, 80); }
+      if (si > 0) { m.attack *= 1 - 0.8 * si; m.release *= 1 - 0.5 * si; } // snabbare – men relativt, så att bandets egna fadrar fortfarande verkar
     }
   }
   if (gl) {
     p.postEq[7].gain += -4 * gl;
     p.mbc[3].threshold += -6 * gl;
-    if (gl > 0) p.mbc[3].attack = Math.min(p.mbc[3].attack, 2);
+    if (gl > 0) p.mbc[3].attack *= 1 - 0.8 * gl;
   }
   if (v) {
     p.postEq[6].gain += -3 * v;
@@ -641,4 +641,55 @@ export function presetEffects(params) {
   }
   if (!out.length) return [l.ratio <= 1.0001 ? 'Ingen bearbetning alls – låten är orörd' : 'Ingen bearbetning (bara skyddslimiter)'];
   return out;
+}
+
+// ---- Lyssna på ett frekvensområde (solo/mute per band, som på en riktig EQ eller multibandkompressor) ----
+// Område = de frekvenser ett band arbetar med. Solo: bara området hörs (resten sänks kraftigt). Mute: området tas bort.
+// Läggs som en extra kurva i post-EQ:ns 31 tersband (precis före limitern). Sparas aldrig i en preset.
+
+const AREA_DB = -24; // så mycket allt utanför (solo) eller innanför (mute) sänks – motorns största steg per tersband
+
+/** Frekvensområdet [lo, hi] (Hz) för ett band: 'preEq:3', 'postEq:3', 'mbc:1' eller 'peq:2' (då med parametrarna p). */
+export function areaRange(area, p = null) {
+  const [kind, si] = String(area).split(':');
+  const i = Number(si);
+  const edge = (cut) => [i === 0 ? 20 : cut[i - 1], Math.min(20000, cut[i])];
+  if (kind === 'preEq' || kind === 'postEq') return edge(EQ_CUTOFFS);
+  if (kind === 'mbc') return edge(MBC_CUTOFFS);
+  if (kind === 'peq') {
+    const b = sanitize(p).peq[i], type = PEQ_BANDS[i].type;
+    if (type === 'lowshelf') return [20, b.freq];
+    if (type === 'highshelf') return [b.freq, 20000];
+    // klockans bandbredd (oktaver) ur Q, minst en tredjedels oktav
+    const n = Math.max(1 / 3, (2 * Math.asinh(1 / (2 * b.q))) / Math.LN2);
+    return [b.freq * 2 ** (-n / 2), b.freq * 2 ** (n / 2)];
+  }
+  return [20, 20000];
+}
+
+/** 31 tersband (dB) som gör att bara området hörs (mode 'solo') eller att området tas bort ('mute'). */
+export function listenCurve(area, mode, p = null) {
+  if (!area || !mode) return null;
+  const [lo, hi] = areaRange(area, p);
+  let inside = THIRD_OCTAVE_CENTERS.map((c) => c >= lo / 2 ** (1 / 6) && c <= hi * 2 ** (1 / 6));
+  if (!inside.some(Boolean)) { // smalt område mellan två mitter: ta närmaste
+    const mid = Math.sqrt(lo * hi);
+    const k = THIRD_OCTAVE_CENTERS.reduce((best, c, j) => (Math.abs(Math.log(c / mid)) < Math.abs(Math.log(THIRD_OCTAVE_CENTERS[best] / mid)) ? j : best), 0);
+    inside = THIRD_OCTAVE_CENTERS.map((_, j) => j === k);
+  }
+  return inside.map((x) => ((mode === 'solo') === x ? 0 : AREA_DB));
+}
+
+/** Lägger lyssningskurvan på det som skickas till motorn. */
+export function withListen(native, curve) {
+  if (!curve) return native;
+  return { ...native, post31: native.post31.map((g, i) => Math.max(-24, Math.min(24, Math.round((g + curve[i]) * 100) / 100))) };
+}
+
+/** Kompressorn "Hela låten": samma inställning på alla fyra band (sätts relativt, så banden följer med likadant). */
+export const MBC_PARAMS = ['ratio', 'threshold', 'attack', 'release', 'knee', 'postGain'];
+export function setAllBands(base, param, value) {
+  const p = structuredClone(sanitize(base));
+  p.mbc.forEach((b) => { b[param] = value; });
+  return sanitize(p);
 }
