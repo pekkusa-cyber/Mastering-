@@ -234,3 +234,12 @@ test('tak-skydd i Live: positiv Ut sänker limiterns tröskel i det som skickas 
   const p = await params(page);
   expect(p.limiter.threshold + p.limiter.postGain + p.outputGain).toBeLessThanOrEqual(-0.99); // taket hålls
 });
+
+test('båda huvudbrytarna av: motorn stängs (ingen notis), på igen startar den', async ({ page }) => {
+  await page.goto('/?sim=1');
+  await page.locator('#masterlab').uncheck({ force: true });
+  await expect(page.getByTestId('mode')).toHaveText('HELT ORIGINAL');
+  await expect(page.getByTestId('motor')).toHaveText('Av – inget ljud ändras, ingen notis');
+  await page.locator('#masterlab').check({ force: true });
+  await expect(page.getByTestId('motor')).toContainText('Bearbetar');
+});

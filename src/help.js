@@ -16,7 +16,8 @@ export const HELP = {
         <li><b>🎚️</b> – Masterlab: allt annat (mastring, jämn volym, konstant nivå). Grön = på, grå = av.</li>
         <li><b>☰</b> menyn: byt mellan Live, Analys, Fil och Mer. <b>⚙</b> inställningar, <b>ⓘ</b> den här hjälpen.</li>
       </ul>
-      <p>🎧 på + 🎚️ av = vanlig musik, bara neutral. Båda av = helt originalljud. Knapparna finns också i notisen.</p>
+      <p>🎧 på + 🎚️ av = vanlig musik, bara neutral. Båda av = helt originalljud: motorn stängs och notisen försvinner. <b>Notis = appen bearbetar ljud, ingen notis = appen gör ingenting.</b>
+      Knapparna finns också i notisen.</p>
       <h3>Raden under rubriken</h3>
       <ul>
         <li><b>Preset ▾</b> – välj bland 30 (Orörd, Mjuk kick, Suno-fix, Radio ljus …). "ändrad" = du har ändrat något.</li>

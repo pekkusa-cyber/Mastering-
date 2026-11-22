@@ -220,8 +220,8 @@ export function headerToggles() {
 function statusLine() {
   const s = ui.status || {};
   const hpOn = !!s.correction?.on, appOn = !s.bypass;
-  const mode = !s.running && (s.on || hpOn) ? 'STARTAR…' : !appOn ? (hpOn ? 'BARA HÖRLURSKORRIGERING' : 'HELT ORIGINAL') : s.on ? 'MASTRAT' : s.agc?.on ? 'ORIGINAL · NIVÅMATCHAT' : 'ORIGINAL';
-  const motor = s.running ? (s.globalActive ? 'Bearbetar allt ljud' : `Bearbetar ${(s.sessions || []).filter((x) => x.attached).length} spelande appar`) : 'Motorn står still';
+  const mode = !s.running && ((appOn && s.on) || hpOn) ? 'STARTAR…' : !appOn ? (hpOn ? 'BARA HÖRLURSKORRIGERING' : 'HELT ORIGINAL') : s.on ? 'MASTRAT' : s.agc?.on ? 'ORIGINAL · NIVÅMATCHAT' : 'ORIGINAL';
+  const motor = s.running ? (s.globalActive ? 'Bearbetar allt ljud' : `Bearbetar ${(s.sessions || []).filter((x) => x.attached).length} spelande appar`) : (!appOn && !hpOn ? 'Av – inget ljud ändras, ingen notis' : 'Motorn står still');
   return `<span id="lstat"><b data-testid="mode">${mode}</b> · <span data-testid="motor">${motor}</span></span>${infoBtn('mains', 'Om huvudbrytarna')}`;
 }
 

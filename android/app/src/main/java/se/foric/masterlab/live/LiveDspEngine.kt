@@ -93,6 +93,9 @@ object LiveDspEngine {
         changed()
     }
 
+    /** Masterlab av och inga hörlurar: appen gör ingenting – då ska motorn (och notisen) inte finnas alls. */
+    fun idle() = bypass && !correctionOn
+
     fun setBypass(value: Boolean): JSONObject { bypass = value; save(); val r = refreshEffects(); changed(); return r }
 
     // ---- Hörlurskorrigering, volymoberoende kompression och profiler per ljudutgång ----

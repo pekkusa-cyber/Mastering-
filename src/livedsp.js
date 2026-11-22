@@ -65,8 +65,8 @@ function simulator() {
       const total = s.running ? 1 : 0;
       return { total, ok: wavelet ? 0 : total, noControl: wavelet ? total : 0, errors: 0, running: s.running };
     },
-    async setBypass({ on }) { s.bypass = !!on; return refresh(); },
-    async setCorrection({ on, correction }) { s.correction = { on: !!on, name: correction?.name || s.correction.name, preamp: correction?.preamp ?? s.correction.preamp }; window.__simCorrection = correction; if (on) s.running = true; return { ...refresh(), total: 1, ok: 1, noControl: 0, errors: 0, running: true }; },
+    async setBypass({ on }) { s.bypass = !!on; if (on && !s.correction.on) s.running = false; else if (!on) s.running = true; return refresh(); },
+    async setCorrection({ on, correction }) { s.correction = { on: !!on, name: correction?.name || s.correction.name, preamp: correction?.preamp ?? s.correction.preamp }; window.__simCorrection = correction; if (on) s.running = true; else if (s.bypass) s.running = false; return { ...refresh(), total: 1, ok: 1, noControl: 0, errors: 0, running: true }; },
     async setVolComp({ on }) { s.volComp = !!on; return refresh(); },
     async setProfiles({ profiles }) { window.__simProfiles = profiles; s.profiles = Object.keys(profiles); return refresh(); },
     /** Testhjälp: låtsas att en annan utgång ansluts. */
