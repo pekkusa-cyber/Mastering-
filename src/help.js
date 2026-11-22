@@ -104,10 +104,13 @@ export const HELP = {
       <ol>
         <li><b>Välj låt.</b> Den mastras direkt med vald preset och mål.</li>
         <li><b>Mål:</b> Streaming (−14 LUFS, −1 dBTP) eller Hög (−10 LUFS). Nivån räknas ut automatiskt.</li>
+        <li><b>Rendera:</b> alla reglage hörs <b>direkt</b> medan låten spelar. Mätare, spektrum och export räknas om först när du är
+        nöjd och trycker <b>Rendera</b> – tills dess står "Ändrat sedan senaste renderingen" och Exportera byts mot Rendera, så att du
+        aldrig exporterar en gammal version.</li>
         <li><b>Preset</b> och reglage som i Live, plus kick-anslag, S-ljud (de-esser), Mjuk topp (mot glitter), soft clip,
         lim och stereobredd – alla med på/av, ⓘ och ↺.</li>
         <li><b>Klang mot referens:</b> välj en referens, se omdömet och tryck <b>Matcha klang</b>. Tryck igen för att förfina.</li>
-        <li><b>Lyssna direkt:</b> låten spelas genom kedjan i realtid – ändringar hörs direkt. A (original) / B (mastrad),
+        <li><b>Lyssna direkt:</b> låten spelas genom kedjan i realtid – ändringar hörs direkt, utan att något renderas. A (original) / B (mastrad),
         nivåmatchat så att du hör klangen och inte volymen.</li>
         <li><b>Versioner:</b> spara A, B, C … och växla mellan dem medan låten spelar.</li>
         <li><b>Mono och fas:</b> visar om låten tappar i mono (telefonhögtalare, klubb) och om basen är för bred.</li>

@@ -111,3 +111,24 @@ test('spelaren överst: vågform, spela/paus, stopp och spola genom att trycka p
   await expect(page.getByRole('button', { name: 'Spela' })).toBeVisible();
   await expect(page.locator('#f-time')).toHaveText('0:00 / 0:04');
 });
+
+test('Rendera: ändringar hörs direkt men renderas först på knapptryck; export kräver färsk rendering', async ({ page }) => {
+  test.setTimeout(120000);
+  await page.goto('/?sim=1&view=fil');
+  await load(page, 'a.wav', wav(3));
+  await expect(page.locator('#f-render-top')).not.toHaveClass(/primary/); // färsk rendering efter inladdning
+  const lufs = async () => { await block(page, 'mat'); return page.getByTestId('meters').locator('tbody tr').first().locator('td').nth(2).textContent(); };
+  const before = await lufs();
+  await block(page, 'klang');
+  await page.locator('#f-clip').evaluate((el) => { el.value = '5'; el.dispatchEvent(new Event('input', { bubbles: true })); });
+  await page.waitForTimeout(2500); // inget renderas av sig självt
+  await expect(page.locator('#f-render-top')).toHaveClass(/primary/);
+  await expect(page.locator('.stale')).toBeVisible();
+  expect(await lufs()).toBe(before);
+  // Export kräver färsk rendering
+  await block(page, 'export');
+  await expect(page.locator('#f-export')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Rendera' }).first().click();
+  await expect(page.locator('#f-export')).toBeVisible({ timeout: 60000 });
+  await expect(page.locator('#f-render-top')).not.toHaveClass(/primary/);
+});

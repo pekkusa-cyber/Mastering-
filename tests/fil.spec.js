@@ -30,10 +30,12 @@ test('mastra en fil: mål, mätare, A/B och export som håller taket', async ({ 
   const tp = Number((await page.getByTestId('meters').locator('tbody tr').nth(2).locator('td').nth(1).textContent()).replace('+', ''));
   expect(tp).toBeLessThanOrEqual(-1);
 
-  // Hög: −10 LUFS (mastras om automatiskt)
+  // Hög: −10 LUFS – hörs direkt, men mätarna uppdateras först när man trycker Rendera
   await block(page, 'klang');
   await page.getByRole('button', { name: 'Hög -10' }).click();
   await block(page, 'mat');
+  await expect(page.locator('.stale').first()).toBeVisible();
+  await page.getByRole('button', { name: 'Rendera' }).first().click();
   await expect.poll(async () => Number((await page.getByTestId('meters').locator('tbody tr').first().locator('td').nth(1).textContent()).replace('+', '')), { timeout: 60000 }).toBeGreaterThan(-10.7);
 
   // A/B och uppspelning

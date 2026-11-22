@@ -652,3 +652,6 @@ button.mbtn.on { background: #5a2b2b; border-color: #a33; color: #ffbcbc; }
 .toast { top: 28px; bottom: auto; max-width: 62%; }
 .toast:not(.warn) { pointer-events: none; }
 .solochip { max-width: calc(100% - 16px); }
+
+.fplayer .transport #f-render-top { width: auto; padding: 0 12px; margin-left: 4px; }
+.hint.stale { color: #f3d7a2; }

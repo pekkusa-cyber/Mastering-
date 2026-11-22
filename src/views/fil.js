@@ -47,18 +47,33 @@ const matchGain = () => {
 };
 
 let renderTimer = 0;
-/** En ändring hörs direkt (realtid); mätare, spektrum och export räknas om i bakgrunden en stund efter. */
+/**
+ * En ändring hörs direkt (realtidsspelaren). Mätare, spektrum och export räknas om först när du trycker Rendera
+ * (F.stale visar att de är från före ändringen). Utan realtidsspelare (äldre telefoner) räknas det om automatiskt.
+ */
 function paramsChanged({ now = false } = {}) {
   F.params = sanitizeFile(F.params);
+  F.rev = (F.rev || 0) + 1;
   if (realtime) player.setParams(effective(), F.result?.drive ?? 0);
   app.renderPart('fileViz');
-  if (!F.input || (!F.result && !now)) return;
+  if (!F.input) return;
+  if (now) { clearTimeout(renderTimer); renderTimer = setTimeout(doRender, 0); return; }
+  if (realtime) {
+    if (F.result && !F.stale) {
+      F.stale = true;
+      // Under ett drag i Klang får inget byggas om (då tappar reglaget greppet); övriga block ritas om så att Rendera syns
+      if (ui.blocks?.fil === 'klang') app.renderPart('fileStatus'); else app.render();
+    }
+    return;
+  }
+  if (!F.result) return;
   clearTimeout(renderTimer);
-  renderTimer = setTimeout(doRender, now ? 0 : 900);
+  renderTimer = setTimeout(doRender, 900);
 }
 
 async function doRender() {
   if (!F.input) return;
+  const mine = F.rev || 0;
   F.rendering = true; F.progress = 0; F.msg = '';
   app.renderPart('fileStatus');
   try {
@@ -75,6 +90,7 @@ async function doRender() {
     F.msg = `Mastringen misslyckades: ${e.message}`;
   }
   F.rendering = false;
+  F.stale = (F.rev || 0) !== mine; // ändrades något under renderingen är resultatet redan föråldrat
   app.render();
 }
 
@@ -137,8 +153,9 @@ function advancedControls() {
 function statusPart() {
   if (F.rendering) return `<div class="progress" role="progressbar" aria-valuenow="${Math.round(F.progress * 100)}"><i style="width:${Math.round(F.progress * 100)}%"></i></div><p class="hint" data-testid="fprog">Räknar mätare och export… ${Math.round(F.progress * 100)} %</p>`;
   if (F.msg) return `<p class="bad" id="fmsg">${esc(F.msg)}</p>`;
-  if (!F.result) return `<button class="btn primary wide" id="f-render" ${F.input ? '' : 'disabled'}>Mastra</button>`;
-  return `<p class="hint small">${realtime ? 'Ändringar hörs direkt; mätarna räknas om strax efter.' : 'Ändringar mastras om automatiskt.'}</p>`;
+  if (!F.result) return `<button class="btn primary wide" data-render ${F.input ? '' : 'disabled'}>Rendera</button>`;
+  if (F.stale) return `<p class="hint small stale">Ändrat sedan senaste renderingen – mätare och export visar det gamla. Du hör ändringen direkt.</p><button class="btn primary wide" data-render>Rendera</button>`;
+  return `<p class="hint small">${realtime ? 'Ändringar hörs direkt. Tryck Rendera när du är nöjd – då uppdateras mätare och export.' : 'Ändringar mastras om automatiskt.'}</p>`;
 }
 
 function meters() {
@@ -210,6 +227,7 @@ function playerCard() {
     <div class="row transport">
       <button class="btn" id="f-play" aria-label="${player.playing ? 'Paus' : 'Spela'}">${player.playing ? '❚❚' : '▶'}</button>
       <button class="btn" id="f-stop" aria-label="Stopp">■</button>
+      <button class="btn${F.stale || !F.result ? ' primary' : ''}" id="f-render-top" data-render ${F.rendering ? 'disabled' : ''}>Rendera</button>
       <span class="dim small" id="f-time">${mmss(pos)} / ${mmss(player.duration)}</span>
       <span class="grow"></span>${realtime ? `<span class="ok small">● direkt${infoBtn('realtime')}</span>` : ''}
     </div>
@@ -264,7 +282,7 @@ function exportCard() {
     <div class="row"><h2>Exportera ${infoBtn('export')}</h2></div>
     <div class="seg"><button data-bits="24" class="${F.bits === 24 ? 'sel' : ''}">24 bit</button><button data-bits="16" class="${F.bits === 16 ? 'sel' : ''}">16 bit</button></div>
     <div class="seg"><button data-rate="44100" class="${F.rate === 44100 ? 'sel' : ''}">44,1 kHz</button><button data-rate="48000" class="${F.rate === 48000 ? 'sel' : ''}">48 kHz</button></div>
-    <button class="btn primary wide" id="f-export">Exportera WAV</button>
+    ${F.stale ? '<p class="hint stale">Ändrat sedan senaste renderingen – rendera först så att filen får dina ändringar.</p><button class="btn primary wide" data-render>Rendera</button>' : '<button class="btn primary wide" id="f-export">Exportera WAV</button>'}
     ${F.exportMsg ? `<p class="hint" id="f-exportmsg">${esc(F.exportMsg)}</p>` : ''}
   </section>`;
 }
@@ -319,7 +337,7 @@ export function filView() {
       <div class="btnrow"><button class="btn small" id="f-reset-all">Återställ alla</button><button class="btn small" id="f-flat">Platt</button><button class="btn small" id="f-all-on">Slå på allt</button></div>
       <div id="fileStatus">${statusPart()}</div>
     </section>${analysisCard()}`,
-    mat: () => (F.result ? `${meters()}${monoCard()}` : `<div class="phead"><b>Mätare</b></div><div id="fileStatus">${statusPart()}</div><p class="hint">Mätarna visas när låten är mastrad.</p>`),
+    mat: () => (F.result ? `${F.stale ? '<p class="hint small stale">Mätarna visar förra renderingen – du hör ändringarna direkt. Tryck Rendera för att uppdatera.</p><button class="btn primary wide" data-render>Rendera</button>' : ''}${meters()}${monoCard()}` : `<div class="phead"><b>Mätare</b></div><div id="fileStatus">${statusPart()}</div><p class="hint">Mätarna visas när låten är mastrad.</p>`),
     export: () => (F.result ? exportCard() : '<div class="phead"><b>Exportera</b></div><p class="hint">Välj och mastra en låt först.</p>'),
   };
   return split({ view: 'fil', top: filTop(), blocks: F_BLOCKS(), active: b, panel: panels[b](), topCls: F.input ? 'fil' : 'short' });
@@ -329,6 +347,8 @@ export function renderFilePart(root, part) {
   if (part === 'fileStatus' || part === 'fileProgress') {
     const el = root.querySelector('#fileStatus');
     if (el) { el.innerHTML = statusPart(); bindRender(el); }
+    const top = root.querySelector('#f-render-top');
+    if (top) { top.classList.toggle('primary', !!F.stale || !F.result); top.disabled = !!F.rendering; }
   }
   if (part === 'fileTime') {
     const t = root.querySelector('#f-time'), w = root.querySelector('#f-wave');
@@ -338,7 +358,7 @@ export function renderFilePart(root, part) {
   if (part === 'fileViz') root.querySelectorAll('[data-fviz]').forEach((el) => { el.innerHTML = vizPart(el.dataset.fviz); });
 }
 
-const bindRender = (el) => { const b = el.querySelector('#f-render'); if (b) b.onclick = () => paramsChanged({ now: true }); };
+const bindRender = (el) => el.querySelectorAll('[data-render]').forEach((b) => { b.onclick = () => paramsChanged({ now: true }); });
 
 let ticker = 0;
 /**
@@ -521,7 +541,7 @@ export function bindFil(root) {
     paramsChanged({ now: true });
   };
   const fmr = root.querySelector('#f-match-reset');
-  if (fmr) fmr.onclick = () => { F.params.matchEq = MATCH_FREQS.map(() => ({ gain: 0 })); app.render(); paramsChanged({ now: true }); };
+  if (fmr) fmr.onclick = () => { F.params.matchEq = MATCH_FREQS.map(() => ({ gain: 0 })); app.render(); paramsChanged(); };
 
   // Export
   root.querySelectorAll('[data-bits]').forEach((b) => { b.onclick = () => { F.bits = Number(b.dataset.bits); app.render(); }; });
