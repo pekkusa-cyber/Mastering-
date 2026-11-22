@@ -49,7 +49,7 @@ test('reglagen: vågräta med ↺ och ⓘ, EQ lodrät med M/S per band, Hela lå
   await expect(page.locator('#spanel .solo')).toHaveCount(6);
   await setRange(page.locator('#f-clip'), 5);
   await page.locator('[data-reset="f-clip"]').click();
-  await expect(page.locator('#f-clip')).toHaveValue('1.5');
+  await expect(page.locator('#f-clip')).toHaveValue('0'); // ny låt är orörd: ↺ går tillbaka till 0
   await page.locator('[data-sl="f-kickPunch"] .i').click();
   await expect(page.locator('dialog.sheet')).toContainText('Transient shaper');
   await page.locator('dialog.sheet').getByRole('button', { name: 'Stäng' }).click();

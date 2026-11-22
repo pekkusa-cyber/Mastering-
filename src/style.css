@@ -741,3 +741,20 @@ button.mbtn.on, .mbtn:has(input:not(:checked)) { background: var(--mute-bg); bor
 
 .rb.locked { opacity: .45; }
 .rb.locked input { cursor: not-allowed; }
+
+/* Många fadrar i rad (Match-EQ, 10 band): smalare handtag och knappar så att kolumnerna inte går in i varandra */
+.faders.dense { gap: 2px; }
+.faders.dense .vthumb { width: min(26px, 100%); margin-left: max(-13px, -50%); }
+.faders.dense .mbtn, .faders.dense .solo { width: min(26px, 100%); min-width: 0; height: 24px; padding: 0; font-size: 11px; }
+.faders.dense .vbtns { gap: 3px; width: 100%; }
+.faders.dense output, .faders.dense .vname { font-size: 10px; letter-spacing: -.2px; }
+.faders.dense .sl.vf > .i { width: 18px; }
+/* Tiden i spelaren på en rad; Rendera tar inte mer plats än den behöver */
+.fplayer #f-time { white-space: nowrap; font-variant-numeric: tabular-nums; font-size: 12px; }
+.fplayer .transport #f-render-top { flex: 0 0 auto; margin-left: auto; padding: 0 10px; font-size: 14px; }
+@media (max-width: 400px) { .fplayer .transport { gap: 4px; } .fplayer .transport .btn { width: 38px; } .fplayer #f-time { font-size: 11px; } }
+/* Presetlistan: rad = val + 🗑 för egna presets */
+.prow { display: flex; gap: 6px; align-items: stretch; }
+.prow .popt { flex: 1; min-width: 0; }
+.pdel { flex: 0 0 44px; border-radius: 14px; border: 1px solid var(--line); background: rgba(255,255,255,.04); color: var(--mute); font-size: 18px; padding: 0; }
+.pdel:active { background: #5a2b2b; }

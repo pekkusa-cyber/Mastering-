@@ -251,7 +251,8 @@ class LiveDspService : Service() {
                 on -> "Mastrad" + if (LiveDspEngine.correctionOn) " · 🎧" else ""
                 else -> "Original" + if (LiveDspEngine.correctionOn) " · 🎧" else ""
             })
-            .setContentText("Bearbetar $how")
+            // Av (bypass) utan hörlurskorrigering: ingenting ändras – säg det, inte "Bearbetar"
+            .setContentText(if (LiveDspEngine.bypass && !LiveDspEngine.correctionOn) "Inget ljud ändras – tryck Masterlab på" else "Bearbetar $how")
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .setContentIntent(open)

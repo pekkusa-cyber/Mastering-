@@ -69,7 +69,7 @@ test('Jämför: versioner, blindtest och Behåll', async ({ page }) => {
   await page.locator('[data-cslot]', { hasText: 'Version A' }).click();
   await page.getByRole('button', { name: /Behåll/ }).click();
   await block(page, 'quick');
-  await expect(page.locator('#f-clip')).toHaveValue('1.5');
+  await expect(page.locator('#f-clip')).toHaveValue('0'); // Version A sparades orörd
 });
 
 test('Assistent: låt → mål → förslag → finjustera', async ({ page }) => {
@@ -111,7 +111,7 @@ test('Ångra i Fil och Skicka till Fil från Live', async ({ page }) => {
   await block(page, 'quick');
   await setRange(page.locator('#f-clip'), 5);
   await page.getByRole('button', { name: '↶ Ångra i Fil' }).click();
-  await expect(page.locator('#f-clip')).toHaveValue('1.5');
+  await expect(page.locator('#f-clip')).toHaveValue('0');
   await go(page, 'live');
   await page.getByRole('button', { name: 'Hantera presets' }).click();
   await page.getByRole('button', { name: /Skicka till Fil/ }).click();
@@ -198,4 +198,37 @@ test('Fil spelar: Masterlab-knappen i rubriken är spärrad så att låten inte 
   await page.getByRole('button', { name: 'Paus' }).click();
   await expect(page.locator('#masterlab')).toBeEnabled();
   await expect.poll(() => page.evaluate(async () => (await window.__sim.getStatus()).bypass)).toBe(false);
+});
+
+test('en ny låt öppnas helt orörd: ingen preset, ingen bearbetning, inget att ångra', async ({ page }) => {
+  test.setTimeout(120000);
+  await page.goto('/?sim=1&view=fil');
+  await loadSong(page, 'a.wav');
+  await expect(page.locator('#f-preset')).toHaveText(/Ingen preset/);
+  await expect(page.locator('#f-kickPunch')).toHaveValue('0');
+  await page.locator('#f-preset').click();
+  await page.locator('dialog.sheet').getByRole('option', { name: /Suno-fix/ }).click();
+  await expect(page.locator('#f-preset')).toHaveText(/Suno-fix/);
+  await expect(page.locator('#f-undo')).toBeEnabled();
+  await loadSong(page, 'b.wav', wav(3, { seed: 3 }));
+  await expect(page.locator('#f-preset')).toHaveText(/Ingen preset/);
+  await expect(page.locator('#f-kickPunch')).toHaveValue('0');
+  await expect(page.locator('#f-deEss')).toHaveValue('0');
+  await expect(page.locator('#f-undo')).toBeDisabled();
+});
+
+test('versionerna hör till låten: en annan låt visar inte den förras versioner', async ({ page }) => {
+  test.setTimeout(120000);
+  await page.goto('/?sim=1&view=fil');
+  await loadSong(page, 'a.wav');
+  await page.locator('#f-song').click();
+  await page.getByRole('button', { name: /Jämför versioner/ }).click();
+  await page.getByRole('button', { name: '+ Ny version' }).click();
+  await page.locator('dialog.ask').getByRole('button', { name: 'Spara' }).click();
+  await expect(page.locator('[data-cslot]')).toHaveCount(2);
+  await page.getByRole('button', { name: 'Stäng' }).first().click();
+  await loadSong(page, 'b.wav', wav(3, { seed: 3 }));
+  await page.locator('#f-song').click();
+  await page.getByRole('button', { name: /Jämför versioner/ }).click();
+  await expect(page.locator('[data-cslot]')).toHaveCount(1); // bara Original
 });

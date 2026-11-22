@@ -15,7 +15,7 @@ import { decodeFile, mmss, resample } from '../audio.js';
 import { AbPlayer, RealtimePlayer, renderInWorker } from '../filemaster.js';
 import { encodeWav } from '../dsp/wav.js';
 import { truePeak } from '../dsp/truepeak.js';
-import { allPresets, presetGroups } from './live.js';
+import { allPresets, presetGroups, removeUserPreset } from './live.js';
 import { refGroups } from './analys.js';
 import { saveSong, loadSong, forgetSong, saveFileState, loadFileState } from '../filestore.js';
 import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
@@ -24,7 +24,7 @@ import { Share } from '@capacitor/share';
 const realtime = RealtimePlayer.supported();
 const player = realtime ? new RealtimePlayer() : new AbPlayer();
 const F = (ui.file = {
-  name: '', input: null, profile: null, presetId: 'suno-fix', params: liveToFile(BUILTIN_PRESETS.find((p) => p.id === 'suno-fix').params),
+  name: '', input: null, profile: null, presetId: '', params: sanitizeFile(fileNeutral()),
   enabled: {}, matchAmount: 70, result: null, rendering: false, progress: 0, msg: '', ab: 'master', matched: true, autoMatch: true,
   bits: 24, rate: 44100, exportMsg: '', versions: [], versionId: '', album: [], albumMsg: '', albumBusy: false,
   mode: 'blocks', graph: 'wave', eqView1: 'graphic', eqView2: 'graphic', eqSel: 2, compSel: 'all', fargSel: 'deEss',
@@ -32,6 +32,8 @@ const F = (ui.file = {
   assistStep: 1, assistPick: 'B', compare: null, saved: false,
 });
 load('fileVersions', []).then((v) => { F.versions = v; });
+/** Versionerna hör till låten de sparades för (äldre sparningar utan låtnamn visas för alla). */
+const songVersions = () => F.versions.filter((v) => !v.song || v.song === F.name);
 
 const presetOf = (id) => allPresets().find((p) => p.id === id);
 const fileDeps = () => ({ isNative, Filesystem, Directory, Encoding, Share });
@@ -176,6 +178,12 @@ async function openSong(file, { fromStore = false } = {}) {
   stopFilePlayback();
   F.msg = ''; F.result = null; F.exportMsg = ''; F.stale = false; F.loop = null; F.listen = null; F.solo = null; F.delta = false;
   F.name = file.name;
+  if (!fromStore) {
+    // Ny låt = helt orörd: ingen preset, ingen bearbetning, allt på, inget att ångra. Bara målnivån (vald plattform) behålls.
+    Object.assign(F, { params: sanitizeFile({ ...fileNeutral(), target: F.params.target }), presetId: '', enabled: {}, undo: [], versionId: '',
+      compare: null, assistStep: 1, assistPick: 'B', mono: false, sim: 'normal', fromLiveMsg: '' });
+    if (realtime) player.setParams(heard(), 0);
+  }
   F.rendering = true; F.progress = 0; F.saved = false;
   app.render();
   try {
@@ -204,7 +212,7 @@ const fpath = (key, label, range, info = key, enableKey = null, extra = '') =>
 /** Lodrät fader för ett EQ-band, med M/S för bandets område. */
 const fvpath = (key, label, short, range, info, area, opts = {}) => vfader({ id: `f-${key.replace(/\./g, '-')}`, label, short, value: getPath(F.params, key), range, info,
   resetTo: getPath(presetFileParams(), key), kind: 'fpath', key, buttons: false, btns: area ? areaBtns(area, label) : null, ...opts });
-const frow = (items) => `<div class="faders" style="--n:${items.length}">${items.join('')}</div>`;
+const frow = (items) => `<div class="faders${items.length > 8 ? ' dense' : ''}" style="--n:${items.length}">${items.join('')}</div>`;
 const srows = (items) => `<div class="srows">${items.join('')}</div>`;
 const EQ_SHORT = ['60', '120', '250', '500', '1k', '3k', '8k', '20k'];
 const COMP_NAMES = ['Kick', 'Mellan', 'Närvaro', 'Luft'];
@@ -241,7 +249,7 @@ function panelQuick() {
     ['glue.ratio', 'Lim', FILE_RANGES.glueRatio, 'glueRatio', 'glue'], ['width', 'Stereobredd', FILE_RANGES.width, 'width', 'width']]
     .map(([k, l, r, i, e]) => fpath(k, l, r, i, e, fsolo(e, l)));
   return `<div class="phead"><b>Snabb</b>${infoBtn('fileQuick')}<span class="grow"></span>
-      <button class="pick2" id="f-preset" aria-label="Preset för filen">${esc(p?.name || '(egen inställning)')} ▾</button></div>${srows(rows)}`;
+      <button class="pick2" id="f-preset" aria-label="Preset för filen">${esc(p?.name || 'Ingen preset')} ▾</button></div>${srows(rows)}`;
 }
 function panelIn() {
   return `${fhead({ title: 'In', sub: 'först i kedjan', enableKey: 'trim', soloKey: 'trim' })}${srows([fpath('trim', 'Trim', FILE_RANGES.trim, 'trim')])}`;
@@ -447,7 +455,7 @@ function assistView() {
 }
 function compareView() {
   const c = F.compare || {};
-  const slots = [{ id: 'orig', name: 'Original', sub: 'orörd' }, ...F.versions.map((v) => ({ id: v.id, name: v.name, sub: v.lufs != null ? `${v.lufs.toFixed(1)} LUFS` : '' }))];
+  const slots = [{ id: 'orig', name: 'Original', sub: 'orörd' }, ...songVersions().map((v) => ({ id: v.id, name: v.name, sub: v.lufs != null ? `${v.lufs.toFixed(1)} LUFS` : '' }))];
   const order = c.blind ? c.order : slots.map((s) => s.id);
   return `<div class="spanel fmode" id="spanel"><div class="phead"><b>Jämför</b>${infoBtn('compare')}<span class="grow"></span><button class="btn small" id="f-mode-exit">Stäng</button></div>
     <div class="cslots">${order.map((id, i) => {
@@ -455,11 +463,11 @@ function compareView() {
       const label = c.blind && !c.revealed ? `? ${i + 1}` : s.name;
       return `<button class="cslot${c.on === id ? ' on' : ''}" data-cslot="${esc(id)}"><b>${esc(label)}</b><small>${c.blind && !c.revealed ? 'blint' : esc(s.sub)}</small>${c.on === id ? '<small class="ok">▶ hörs nu</small>' : ''}</button>`;
     }).join('')}</div>
-    ${F.versions.length ? '' : '<p class="hint small">Spara versioner (+ Ny version) och jämför dem här, i samma nivå, medan låten loopar.</p>'}
+    ${songVersions().length ? '' : '<p class="hint small">Spara versioner (+ Ny version) och jämför dem här, i samma nivå, medan låten loopar.</p>'}
     <div class="btnrow"><button class="btn small" id="v-save">+ Ny version</button>
       <button class="btn small" id="f-blind">${c.blind ? (c.revealed ? 'Blindtest igen' : 'Visa vilken det var') : 'Blindtest 🎲'}</button>
       ${c.on && c.on !== 'orig' ? `<button class="btn small primary" id="f-keep">Behåll ${c.blind && !c.revealed ? 'den här' : esc(slots.find((x) => x.id === c.on)?.name || '')}</button>` : ''}</div>
-    ${F.versions.length ? `<div class="btnrow">${F.versions.map((v) => `<button class="btn small ghost" data-vdel="${esc(v.id)}" aria-label="Ta bort ${esc(v.name)}">✕ ${esc(v.name)}</button>`).join('')}</div>` : ''}</div>`;
+    ${songVersions().length ? `<div class="btnrow">${songVersions().map((v) => `<button class="btn small ghost" data-vdel="${esc(v.id)}" aria-label="Ta bort ${esc(v.name)}">✕ ${esc(v.name)}</button>`).join('')}</div>` : ''}</div>`;
 }
 function albumView() {
   return `<div class="spanel fmode" id="spanel"><div class="phead"><b>Album</b>${infoBtn('album')}<span class="grow"></span><button class="btn small" id="f-mode-exit">Stäng</button></div>
@@ -737,7 +745,7 @@ export function bindFil(root) {
   root.querySelectorAll('[data-target]').forEach((b) => {
     b.onclick = () => { pushUndo(); F.params.target = b.dataset.target; F.params = sanitizeFile(F.params); app.render(); paramsChanged(); };
   });
-  bindPicker(root, 'f-preset', () => ({ title: 'Preset för filen', value: F.presetId, groups: presetGroups({ withTest: false }) }), (v) => {
+  bindPicker(root, 'f-preset', () => ({ title: 'Preset för filen', value: F.presetId, groups: presetGroups({ withTest: false }), onDelete: async (id) => { const ok = await removeUserPreset(id); if (ok) persist(); return ok; } }), (v) => {
     pushUndo();
     F.presetId = v;
     const matchEq = F.params.matchEq;
@@ -857,7 +865,7 @@ export function bindFil(root) {
   if (bl) bl.onclick = () => {
     const c = F.compare || {};
     if (c.blind && !c.revealed) F.compare = { ...c, revealed: true };
-    else { const ids = ['orig', ...F.versions.map((v) => v.id)]; for (let i = ids.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [ids[i], ids[j]] = [ids[j], ids[i]]; } F.compare = { on: null, blind: true, revealed: false, order: ids }; }
+    else { const ids = ['orig', ...songVersions().map((v) => v.id)]; for (let i = ids.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [ids[i], ids[j]] = [ids[j], ids[i]]; } F.compare = { on: null, blind: true, revealed: false, order: ids }; }
     app.render();
   };
   const kp = root.querySelector('#f-keep');
@@ -870,10 +878,10 @@ export function bindFil(root) {
   };
   const vs = root.querySelector('#v-save');
   if (vs) vs.onclick = async () => {
-    const name = await ask({ title: 'Spara version', value: `Version ${'ABCDEF'[F.versions.length] || F.versions.length + 1}`, okText: 'Spara' });
+    const name = await ask({ title: 'Spara version', value: `Version ${'ABCDEF'[songVersions().length] || songVersions().length + 1}`, okText: 'Spara' });
     if (name === null) return;
-    const v = { id: `v-${Date.now().toString(36)}`, name: name.trim() || 'Version', params: structuredClone(F.params), enabled: { ...F.enabled }, presetId: F.presetId, lufs: F.result?.metrics.integrated ?? null };
-    F.versions = [...F.versions, v].slice(-6);
+    const v = { id: `v-${Date.now().toString(36)}`, name: name.trim() || 'Version', params: structuredClone(F.params), enabled: { ...F.enabled }, presetId: F.presetId, song: F.name, lufs: F.result?.metrics.integrated ?? null };
+    F.versions = [...F.versions.filter((x) => x.song !== F.name || songVersions().indexOf(x) >= songVersions().length - 5), v].slice(-60); // högst 6 per låt
     F.versionId = v.id;
     await save('fileVersions', F.versions);
     app.render();

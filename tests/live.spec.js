@@ -187,3 +187,24 @@ test('hjälptexten för varje vy', async ({ page }) => {
     await page.locator('dialog.sheet').getByRole('button', { name: 'Stäng' }).click();
   }
 });
+
+test('🗑 i presetlistan tar bort en egen preset (inbyggda har ingen papperskorg)', async ({ page }) => {
+  await page.goto('/?sim=1');
+  await setRange(page.locator('#m-kick'), 40);
+  await page.getByRole('button', { name: 'Hantera presets' }).click();
+  await page.getByRole('button', { name: 'Spara som…' }).click();
+  await page.locator('dialog.ask input').fill('Kvällsmix');
+  await page.locator('dialog.ask').getByRole('button', { name: 'Spara' }).click();
+  await page.getByRole('button', { name: 'Preset', exact: true }).click();
+  const sheet = page.locator('dialog.sheet');
+  await expect(sheet.locator('.pdel')).toHaveCount(1);
+  await sheet.getByRole('button', { name: 'Ta bort Kvällsmix' }).click();
+  await page.locator('dialog.ask').getByRole('button', { name: 'Ta bort' }).click();
+  await expect(sheet.getByRole('option', { name: /Kvällsmix/ })).toHaveCount(0);
+  await expect(sheet.getByText('Mina', { exact: true })).toHaveCount(0);
+  await expect(sheet.getByRole('option', { name: /Suno-fix/ })).toHaveCount(1); // listan är kvar öppen
+  await sheet.getByRole('button', { name: 'Avbryt' }).click();
+  await page.reload();
+  await page.getByRole('button', { name: 'Preset', exact: true }).click();
+  await expect(page.locator('dialog.sheet').getByRole('option', { name: /Kvällsmix/ })).toHaveCount(0);
+});

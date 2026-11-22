@@ -185,7 +185,7 @@ export function renderSettings() {
 
 /** Alternativen i presetväljaren: mina först, sedan inbyggda – med ikon och beskrivning. */
 export function presetGroups({ withTest = true } = {}) {
-  const o = (p) => ({ value: p.id, label: p.name, desc: p.desc || 'Din egen preset', icon: PRESET_ICONS[p.id] || '⭐' });
+  const o = (p) => ({ value: p.id, label: p.name, desc: p.desc || 'Din egen preset', icon: PRESET_ICONS[p.id] || '⭐', del: ui.userPresets.some((u) => u.id === p.id) });
   return [
     ...(ui.userPresets.length ? [{ label: 'Mina', options: ui.userPresets.map(o) }] : []),
     { label: 'Inbyggda', options: BUILTIN_PRESETS.filter((p) => withTest || p.id !== 'test').map(o) },
@@ -590,6 +590,18 @@ export async function toggleOn() {
   try { ui.status = await LiveDsp.setOn({ on: !ui.status?.on }); } finally { ui.busy = false; app.renderPart('status'); }
 }
 
+/** 🗑 vid en egen preset (presetlistan i Live och Fil): ta bort efter bekräftelse. Svarar true om den togs bort. */
+export async function removeUserPreset(id) {
+  const p = ui.userPresets.find((x) => x.id === id);
+  if (!p || !(await ask({ title: `Ta bort "${p.name}"?`, okText: 'Ta bort' }))) return false;
+  ui.userPresets = deletePreset(ui.userPresets, id);
+  await save('presets', ui.userPresets);
+  if (ui.presetId === id) { ui.presetId = ''; changed(); } // inställningen ligger kvar, bara utan presetnamn
+  if (ui.file?.presetId === id) ui.file.presetId = '';
+  say(`"${p.name}" borttagen.`);
+  return true;
+}
+
 function selectPreset(id) {
   const p = allPresets().find((x) => x.id === id);
   if (!p) return;
@@ -667,14 +679,7 @@ async function presetMenu() {
   };
   d.querySelector('[data-act=delete]').onclick = async () => {
     d.close();
-    const p = currentPreset();
-    if (!(await ask({ title: `Ta bort "${p.name}"?`, okText: 'Ta bort' }))) return;
-    ui.userPresets = deletePreset(ui.userPresets, p.id);
-    await save('presets', ui.userPresets);
-    ui.presetId = '';
-    say(`"${p.name}" borttagen.`);
-    changed();
-    app.render();
+    if (await removeUserPreset(currentPreset().id)) app.render();
   };
   d.querySelector('[data-act=export]').onclick = async () => {
     try { await saveFile('masterlab-presets.json', exportPresets(ui.userPresets), 'application/json', fileDeps()); say(`${ui.userPresets.length} presets exporterade.`); } catch (e) { say(`Exporten misslyckades: ${e.message}`); }
@@ -853,7 +858,7 @@ export function bindLive(root) {
 export function say(msg) { ui.msg = msg; ui.msgAt = Date.now(); }
 
 function bindSubbar(root) {
-  bindPicker(root, 'preset', () => ({ title: 'Välj preset', value: ui.presetId, groups: presetGroups() }), selectPreset);
+  bindPicker(root, 'preset', () => ({ title: 'Välj preset', value: ui.presetId, groups: presetGroups(), onDelete: removeUserPreset }), selectPreset);
   const o = root.querySelector('#onoff');
   if (o) o.onclick = toggleOn;
   const u = root.querySelector('#undo');

@@ -21,7 +21,8 @@ export const HELP = {
       <ul>
         <li><b>Preset ▾</b> – välj bland 30 (Orörd, Mjuk kick, Suno-fix, Radio ljus …). "ändrad" = du har ändrat något.</li>
         <li><b>Före / Efter</b> – jämför originalet med det mastrade ljudet (nivåmatchat).</li>
-        <li><b>↶</b> Ångra (upp till 20 steg). <b>⋯</b> visar vad presetten påverkar och låter dig spara, döpa om, ta bort, exportera och importera.</li>
+        <li><b>↶</b> Ångra (upp till 20 steg). <b>⋯</b> visar vad presetten påverkar och låter dig spara, döpa om, ta bort, exportera och importera.
+          I presetlistan har dina egna presets en <b>🗑</b> – tryck för att ta bort (du får bekräfta).</li>
       </ul>
       <h3>Blocken följer ljudets väg</h3>
       <p>Ljudet går genom effekten i en fast ordning (Androids), och blocken står i exakt samma ordning:
@@ -105,6 +106,9 @@ export const HELP = {
     html: `
       <p>Mastrar en färdig låt (MP3/WAV) och exporterar en WAV för distribution. Allt sker på telefonen. Samma upplägg som
       Live: grafen överst, blocken i ljudets ordning och panelen under.</p>
+      <p>En ny låt öppnas <b>helt orörd</b>: ingen preset vald, ingen bearbetning och inget att ångra – välj själv var du börjar
+      (Preset ▾ i Snabb, Assistent eller egna reglage). Bara målnivån (plattform) behålls. Sparade versioner hör till sin låt.
+      Egna presets tas bort med <b>🗑</b> i presetlistan.</p>
       <h3>Raden överst</h3>
       <ul>
         <li><b>🎵 Låt ▾</b> – byt låt, Assistent, Jämför versioner, Album. ✓ = låten är sparad på telefonen.</li>

@@ -241,17 +241,28 @@ export function picker({ id, label, value, groups, placeholder = 'Välj' }) {
 }
 
 /** Öppnar väljarens ark. Svarar valt värde, eller null om arket stängdes. */
-export function openPicker({ title, value, groups }) {
+export function openPicker({ title, value, groups, onDelete = null }) {
   return new Promise((resolve) => {
     let chosen = null;
     const d = sheet(`<h2>${esc(title)}</h2><div class="plist" role="listbox" aria-label="${esc(title)}">${groups.map((g) => `
       ${g.label ? `<div class="pgroup">${esc(g.label)}</div>` : ''}
-      ${g.options.map((o) => `<button type="button" role="option" class="popt ${o.value === value ? 'sel' : ''}" aria-selected="${o.value === value}" data-value="${esc(o.value)}">
+      ${g.options.map((o) => `<div class="prow" data-row="${esc(o.value)}"><button type="button" role="option" class="popt ${o.value === value ? 'sel' : ''}" aria-selected="${o.value === value}" data-value="${esc(o.value)}">
         ${o.icon ? `<span class="pi">${o.icon}</span>` : ''}<span class="pt"><b>${esc(o.label)}</b>${o.desc ? `<small>${esc(o.desc)}</small>` : ''}</span>${o.value === value ? '<span class="pcheck">✓</span>' : ''}
-      </button>`).join('')}`).join('')}</div>`, { cls: 'pickersheet', closeText: 'Avbryt' });
+      </button>${o.del && onDelete ? `<button type="button" class="pdel" data-del="${esc(o.value)}" aria-label="Ta bort ${esc(o.label)}">🗑</button>` : ''}</div>`).join('')}`).join('')}</div>`, { cls: 'pickersheet', closeText: 'Avbryt' });
     d.querySelectorAll('[data-value]').forEach((b) => { b.onclick = () => { chosen = b.dataset.value; d.close(); }; });
+    // 🗑 vid egna val: ta bort (efter bekräftelse) utan att stänga listan
+    d.querySelectorAll('[data-del]').forEach((b) => {
+      b.onclick = async () => {
+        if (await onDelete(b.dataset.del)) {
+          const row = b.closest('.prow'), grp = row.previousElementSibling?.classList.contains('pgroup') && !row.nextElementSibling?.classList.contains('prow') ? row.previousElementSibling : null;
+          row.remove(); grp?.remove();
+        }
+      };
+    });
     d.addEventListener('close', () => resolve(chosen));
-    d.querySelector('.popt.sel')?.scrollIntoView({ block: 'center' });
+    // Visa valt alternativ utan att rubriken scrollas bort (scrolla bara listan)
+    const list = d.querySelector('.plist'), sel = d.querySelector('.popt.sel');
+    if (list && sel) list.scrollTop = Math.max(0, sel.offsetTop - list.offsetTop - list.clientHeight / 2 + sel.clientHeight / 2);
   });
 }
 
