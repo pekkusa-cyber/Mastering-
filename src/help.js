@@ -138,6 +138,9 @@ export const HELP = {
       <h3>Exportera</h3>
       <p>24 eller 16 bit, 44,1 eller 48 kHz, med dither. Kontrollen visar om true peak är under taket, om originalet redan är
       klippt och om låten håller i mono.</p>
+      <h3>Live och Fil samtidigt</h3>
+      <p>Medan Fil spelar pausas Live-mastringen och 🎚️ i rubriken är spärrad (grå) – annars skulle låten mastras två gånger,
+      en gång i Fil och en gång av Live-effekten, och låta förvrängd. 🎧 (hörlurskorrigeringen) ligger kvar. Pausar du låten släpps spärren.</p>
       <h3>Autosparning</h3>
       <p>Låten och inställningarna sparas på telefonen och öppnas igen nästa gång – även om appen stängts eller uppdaterats.</p>
       <h3>Varför Fil har fler delar än Live</h3>

@@ -213,7 +213,7 @@ export function headerToggles() {
   const hpOn = !!s.correction?.on, appOn = !s.bypass;
   return `<span class="hdt" id="hdt">
     <label class="rb ${hpOn ? 'on' : 'off'}" title="Hörlurar (korrigering)"><input type="checkbox" id="corr" ${hpOn ? 'checked' : ''} aria-label="Hörlurskorrigering">🎧</label>
-    <label class="rb ${appOn ? 'on' : 'off'}" title="Masterlab (bearbetning)"><input type="checkbox" id="masterlab" ${appOn ? 'checked' : ''} aria-label="Masterlab (bearbetning)">🎚️</label></span>`;
+    <label class="rb ${appOn ? 'on' : 'off'}${ui.filePlaying ? ' locked' : ''}" title="${ui.filePlaying ? 'Pausad medan Fil spelar (annars mastras låten två gånger)' : 'Masterlab (bearbetning)'}"><input type="checkbox" id="masterlab" ${appOn ? 'checked' : ''} ${ui.filePlaying ? 'disabled' : ''} aria-label="Masterlab (bearbetning)">🎚️</label></span>`;
 }
 
 /** Läget i klartext (överst i grafen). */
@@ -864,7 +864,11 @@ function bindSubbar(root) {
 
 export function bindStatus(root) {
   const m = root.querySelector('#masterlab');
-  if (m) m.onchange = async () => { ui.status = await LiveDsp.setBypass({ on: !m.checked }); app.render(); };
+  if (m) m.onchange = async () => {
+    if (ui.filePlaying) { app.render(); return; } // Fil spelar: Live-mastringen får inte slås på (dubbel mastring)
+    ui.status = await LiveDsp.setBypass({ on: !m.checked });
+    app.render();
+  };
   const c = root.querySelector('#corr');
   if (c) c.onchange = async () => { await sendCorrection(c.checked); app.render(); };
 }

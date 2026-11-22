@@ -180,3 +180,22 @@ test('album: två låtar mastras till samma nivå och exporteras', async ({ page
   expect(spread).toBeLessThan(1);
   await expect.poll(() => downloads.length).toBe(2);
 });
+
+test('Fil spelar: Masterlab-knappen i rubriken är spärrad så att låten inte mastras två gånger', async ({ page }) => {
+  test.setTimeout(120000);
+  await page.goto('/?sim=1');
+  await page.locator('#onoff').click(); // Live-mastringen på
+  await go(page, 'fil');
+  await loadSong(page, 'a.wav', wav(3));
+  await page.getByRole('button', { name: 'Spela' }).click();
+  await expect.poll(() => page.evaluate(async () => (await window.__sim.getStatus()).bypass)).toBe(true);
+  const masterlab = page.locator('label.rb:has(#masterlab)');
+  await expect(masterlab).toHaveClass(/locked/);
+  await expect(page.locator('#masterlab')).toBeDisabled();
+  await masterlab.click({ force: true }); // försöker slå på ändå
+  await expect.poll(() => page.evaluate(async () => (await window.__sim.getStatus()).bypass)).toBe(true);
+  // paus släpper spärren och Live-mastringen kommer tillbaka
+  await page.getByRole('button', { name: 'Paus' }).click();
+  await expect(page.locator('#masterlab')).toBeEnabled();
+  await expect.poll(() => page.evaluate(async () => (await window.__sim.getStatus()).bypass)).toBe(false);
+});

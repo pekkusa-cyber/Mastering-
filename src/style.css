@@ -738,3 +738,6 @@ button.mbtn.on, .mbtn:has(input:not(:checked)) { background: var(--mute-bg); bor
 /* Klippvarning i Live-grafen */
 .clipchip { position: absolute; left: 8px; right: 8px; top: 24px; z-index: 3; padding: 5px 9px; border-radius: 10px; background: #3a1d1dee; border: 1px solid var(--mute); color: var(--mute-ink); font-size: 12px; font-weight: 600; pointer-events: none; }
 .clipchip small { display: block; font-weight: 400; opacity: .85; font-size: 11px; }
+
+.rb.locked { opacity: .45; }
+.rb.locked input { cursor: not-allowed; }

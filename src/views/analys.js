@@ -224,7 +224,7 @@ export function bindAnalys(root) {
       backup: { presetId: ui.presetId, base: structuredClone(ui.base), macros: { ...ui.macros }, enabled: { ...ui.enabled } },
     };
     // Förslagen ska höras: Masterlab på och Mastrad
-    if (ui.status?.bypass) ui.status = await LiveDsp.setBypass({ on: false });
+    if (ui.status?.bypass && !ui.filePlaying) ui.status = await LiveDsp.setBypass({ on: false });
     if (!ui.status?.on) ui.status = await LiveDsp.setOn({ on: true });
     app.render();
   };

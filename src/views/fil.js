@@ -584,7 +584,13 @@ async function resumeLive() {
   livePaused = false;
   ui.status = await LiveDsp.setBypass({ on: false });
 }
-export function stopFilePlayback() { player.pause(); clearInterval(ticker); resumeLive(); }
+/** Fil spelar → Live-mastringen är pausad och 🎚️ i rubriken spärrad (annars mastras låten två gånger: "kaka på kaka"). */
+function setFilePlaying(on) {
+  if (!!ui.filePlaying === on) return;
+  ui.filePlaying = on;
+  app.renderPart('status');
+}
+export function stopFilePlayback() { player.pause(); clearInterval(ticker); resumeLive(); setFilePlaying(false); }
 
 async function exportWav(channels, fs, baseName) {
   let ch = await resample(channels, fs, F.rate);
@@ -697,15 +703,16 @@ function listenSheet() {
 // ---- Uppspelning ----
 async function playToggle(root) {
   const play = root.querySelector('#f-play');
-  if (player.playing) { player.pause(); clearInterval(ticker); resumeLive(); }
+  if (player.playing) { player.pause(); clearInterval(ticker); resumeLive(); setFilePlaying(false); }
   else {
     await pauseLive();
+    setFilePlaying(true);
     if (realtime) player.setParams(heard(), F.result?.drive ?? 0);
     applyAb(); sendMonitor();
     await player.play();
     clearInterval(ticker);
     ticker = setInterval(() => app.renderPart('fileTime'), 250);
-    player.onEnd = () => { clearInterval(ticker); resumeLive(); app.render(); };
+    player.onEnd = () => { clearInterval(ticker); resumeLive(); setFilePlaying(false); app.render(); };
   }
   if (play) { play.textContent = player.playing ? '❚❚' : '▶'; play.setAttribute('aria-label', player.playing ? 'Paus' : 'Spela'); }
 }
@@ -798,7 +805,7 @@ export function bindFil(root) {
   }
   const stop = root.querySelector('#f-stop');
   if (stop) stop.onclick = () => {
-    player.pause(); player.seek(F.loop ? F.loop[0] : 0); clearInterval(ticker); resumeLive();
+    player.pause(); player.seek(F.loop ? F.loop[0] : 0); clearInterval(ticker); resumeLive(); setFilePlaying(false);
     const play = root.querySelector('#f-play');
     if (play) { play.textContent = '▶'; play.setAttribute('aria-label', 'Spela'); }
     app.renderPart('fileTime');
