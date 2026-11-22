@@ -116,8 +116,13 @@ export function sanitize(p) {
 /** Det som skickas till Kotlin: parametrarna plus bandgränserna. */
 export function toNative(p) {
   const s = sanitize(p);
+  // Androids limiter lägger Ut och limiterns Lyft EFTER begränsningen. Plusnivåer där skulle skjuta topparna över taket –
+  // därför sänks tröskeln lika mycket, så att det verkliga taket (tröskel + efterförstärkning) alltid hålls.
+  const post = s.limiter.postGain + s.outputGain;
+  const limiter = post > 0 && s.limiter.ratio > 1 ? { ...s.limiter, threshold: Math.max(RANGES.limThreshold[0], s.limiter.threshold - post) } : s.limiter;
   return {
     ...s,
+    limiter,
     preEq: s.preEq.map((b, i) => ({ ...b, cutoff: EQ_CUTOFFS[i] })),
     mbc: s.mbc.map((b, i) => ({ ...b, cutoff: MBC_CUTOFFS[i] })),
     postEq: s.postEq.map((b, i) => ({ ...b, cutoff: EQ_CUTOFFS[i] })),

@@ -155,7 +155,7 @@ async function init() {
     if (syncProfileFromStatus(prev)) { render(); return; }
     if (!ui.busy) renderPart('status');
   });
-  await LiveDsp.addListener('spectrum', (x) => { ui.spectrum = x; renderPart('spectrum'); });
+  await LiveDsp.addListener('spectrum', (x) => { ui.spectrum = x; if (x.peak != null && x.peak > -0.5) ui.clipAt = Date.now(); renderPart('spectrum'); });
   changed({ now: true, user: false }); // motorn får alltid samma inställning som skärmen visar
   const q = new URLSearchParams(location.search);
   if (isSim && q.get('update') === 'apk') ui.update = { kind: 'apk' };

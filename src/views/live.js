@@ -255,6 +255,21 @@ export function toast() {
 }
 
 const SOLO_LABEL = () => ({ ...SOLO_NAMES(), preEq: 'EQ 1 (före kompressorn)', eq2: 'EQ 2 (efter kompressorn)', mbc: 'Kompressor', input: 'In', limiter: 'Limiter' });
+/**
+ * Klippvarning: Visualizern mäter det som verkligen spelas. Når topparna 0 dB visas en varning (i fyra sekunder) med det som
+ * höjer nivån just nu – så att man ser vilken ändring som orsakar det.
+ */
+const clipChip = () => {
+  if (!ui.clipAt || Date.now() - ui.clipAt > 4000) return '';
+  const p = sendParams(), parts = [];
+  if (p.inputGain > 0.05) parts.push(`In ${fmtDb(p.inputGain)}`);
+  const post = p.limiter.postGain + p.outputGain;
+  if (post > 0.05) parts.push(`Ut ${fmtDb(post)} (efter limitern)`);
+  if (ui.status?.correction?.on) parts.push('hörlurskorrigering');
+  if (ui.status?.agc?.on && (ui.status.agc.gain ?? 0) > 0.5) parts.push(`Jämn volym ${fmtDb(ui.status.agc.gain)}`);
+  return `<div class="clipchip" data-testid="clipwarn" role="alert">⚠ Toppar vid 0 dB – risk för distorsion${parts.length ? `<small>Höjer nivån: ${esc(parts.join(' · '))}</small>` : '<small>Sänk In eller Tryck, eller Ut.</small>'}</div>`;
+};
+
 const soloChip = () => {
   if (ui.listen) {
     const [lo, hi] = areaRange(ui.listen.area, heard());
@@ -310,7 +325,7 @@ function topPart(b = block()) {
       <div class="lvb after"><b>${fmtDb(after - before)}</b><div class="lvt"><em style="height:${h(after)}%"></em></div>Efter</div>
       <div class="lvinfo">${ui.constant ? `<b data-testid="compread2">${fmtDb(compensation(effective()))} dB</b>kompenseras så att Efter låter lika högt som Original (Konstant utnivå)` : '<b>av</b>Konstant utnivå – ställ nivån själv med Ut'}</div></div>`;
   }
-  return `<div class="lbl">${statusLine()}<span class="grow"></span></div>${g}${soloChip()}${toast()}`;
+  return `<div class="lbl">${statusLine()}<span class="grow"></span></div>${g}${clipChip()}${soloChip()}${toast()}`;
 }
 
 /** Liten in/ut-kurva för en kompressor eller limiter. */
@@ -474,7 +489,8 @@ export function renderViz(root) {
 }
 export const renderScreen = renderViz;
 /** Live vill ha spektrum när grafen visar det. */
-export const wantsSpectrum = () => ui.view === 'live' && ['quick', 'in', 'eq1', 'eq2'].includes(block());
+/** Spektrum/nivå behövs i hela Live – grafen visar klippvarningen i alla block. */
+export const wantsSpectrum = () => ui.view === 'live';
 /** Status ändrades: rubrikens knappar, raden och grafens statustext. */
 export function refreshStatus(root) {
   const h = root.querySelector('#hdt');

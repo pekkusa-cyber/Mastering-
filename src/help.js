@@ -59,6 +59,10 @@ export const HELP = {
       </ul>
       <h3>Kompressorn</h3>
       <p><b>Hela låten</b> ställer alla fyra band likadant – hela låten trycks ihop jämnt. Eller välj Kick, Mellan, Närvaro eller Luft och ställ bandet för sig.</p>
+      <h3>Klippvarning och tak</h3>
+      <p>Når topparna 0 dB visas en röd varning i grafen i några sekunder, med det som höjer nivån just nu (In, Ut efter limitern,
+      hörlurskorrigering, Jämn volym). Det mäts på det som verkligen spelas, så ljudanalysen (Mer → Behörigheter) måste vara tillåten.
+      Plusnivå på Ut och limiterns Lyft ligger efter Androids limiter – därför sänks limiterns tröskel lika mycket automatiskt, så att taket alltid hålls.</p>
       <h3>Bekräftelse</h3>
       <p>Efter en ändring visas en kort ruta nere till höger i grafen (t.ex. <b>✓ Ändringen hörs nu</b>) som försvinner av sig själv.
       Tar en annan app (t.ex. Wavelet) kontrollen ligger en varning kvar tills du trycker <b>Ta tillbaka</b>.</p>

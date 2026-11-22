@@ -209,3 +209,28 @@ test('varje reglage i Live gör sitt jobb: ändrar det som skickas till motorn',
   expect(n).toBeGreaterThan(50);
   expect(dead, 'reglage som inte ändrar något').toEqual([]);
 });
+
+test('klippvarning: toppar vid 0 dB visar en varning med det som höjer nivån, och den försvinner när toppen sjunker', async ({ page }) => {
+  await page.goto('/?sim=1&mic=1');
+  await page.locator('#onoff').click();
+  await expect(page.getByTestId('clipwarn')).toHaveCount(0);
+  await block(page, 'in');
+  await setRange(page.locator('#p-inputGain'), 6);
+  await page.evaluate(() => { window.__simPeak = -0.1; });
+  await expect(page.getByTestId('clipwarn')).toBeVisible();
+  await expect(page.getByTestId('clipwarn')).toContainText('In +6.0');
+  await block(page, 'comp'); // syns i alla block
+  await expect(page.getByTestId('clipwarn')).toBeVisible();
+  await page.evaluate(() => { window.__simPeak = -6; });
+  await expect(page.getByTestId('clipwarn')).toHaveCount(0, { timeout: 7000 });
+});
+
+test('tak-skydd i Live: positiv Ut sänker limiterns tröskel i det som skickas till motorn', async ({ page }) => {
+  await page.goto('/?sim=1');
+  await page.locator('#onoff').click();
+  await block(page, 'out');
+  await setRange(page.locator('#p-outputGain'), 12);
+  await expect.poll(async () => (await params(page)).limiter.threshold).toBeLessThan(-5); // tröskeln sänkt
+  const p = await params(page);
+  expect(p.limiter.threshold + p.limiter.postGain + p.outputGain).toBeLessThanOrEqual(-0.99); // taket hålls
+});

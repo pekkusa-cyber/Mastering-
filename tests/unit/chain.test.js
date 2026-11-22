@@ -258,3 +258,16 @@ test('Hela låten: samma värde på alla fyra kompressorband', () => {
   const p = setAllBands(BUILTIN_PRESETS.find((x) => x.id === 'mjuk-kick').params, 'ratio', 2.5);
   assert.deepEqual(p.mbc.map((b) => b.ratio), [2.5, 2.5, 2.5, 2.5]);
 });
+
+test('tak-skydd: Ut och limiterns Lyft efter limitern sänker tröskeln, så att det verkliga taket hålls', () => {
+  const base = BUILTIN_PRESETS.find((p) => p.id === 'mjuk-kick').params;
+  const thr = sanitize(base).limiter.threshold;
+  for (const [out, lyft] of [[0, 0], [3, 0], [6, 2], [-4, 0], [12, 12]]) {
+    const n = toNative({ ...base, outputGain: out, limiter: { ...base.limiter, postGain: lyft } });
+    const post = out + lyft;
+    assert.ok(n.limiter.threshold + Math.max(0, post) <= thr + 1e-9 || n.limiter.threshold === -30, `Ut ${out} + Lyft ${lyft}: tak ${n.limiter.threshold + post}`);
+    if (post <= 0) assert.equal(n.limiter.threshold, thr); // minusnivåer rör inte tröskeln
+  }
+  // limitern av (ratio 1) rörs inte
+  assert.equal(toNative({ ...neutral(), outputGain: 6, limiter: { ...neutral().limiter, ratio: 1, threshold: 0 } }).limiter.threshold, 0);
+});

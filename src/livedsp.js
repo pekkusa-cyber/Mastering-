@@ -98,7 +98,7 @@ function simulator() {
       clearInterval(monitor);
       monitor = setInterval(() => {
         const sec = s.analysis.running ? (Date.now() - analysisStart) / 1000 * (window.__simSpeed || 1) : 0;
-        spectrumListeners.forEach((l) => l({ bands: fakeBands(Date.now()), rms: -16, peak: -3, agcGain: s.agc.gain, analysisSeconds: sec }));
+        spectrumListeners.forEach((l) => l({ bands: fakeBands(Date.now()), rms: -16, peak: window.__simPeak ?? -3, agcGain: s.agc.gain, analysisSeconds: sec }));
       }, 150);
     },
     async stopMonitor() { clearInterval(monitor); },
