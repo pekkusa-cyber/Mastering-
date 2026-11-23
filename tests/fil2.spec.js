@@ -232,3 +232,18 @@ test('versionerna hör till låten: en annan låt visar inte den förras version
   await page.getByRole('button', { name: /Jämför versioner/ }).click();
   await expect(page.locator('[data-cslot]')).toHaveCount(1); // bara Original
 });
+
+test('huvudpreset i raden överst: syns i alla block och sätter hela kedjan på en gång', async ({ page }) => {
+  test.setTimeout(120000);
+  await page.goto('/?sim=1&view=fil');
+  await loadSong(page);
+  await block(page, 'lim');
+  await expect(page.locator('#f-preset')).toBeVisible();
+  await page.locator('#f-preset').click();
+  await page.locator('dialog.sheet').getByRole('option', { name: /Suno-fix/ }).click();
+  await expect(page.locator('#f-preset')).toContainText('Suno-fix');
+  await expect(page.locator('#f-clip')).toHaveValue('1.5'); // limiterblocket
+  await block(page, 'quick');
+  await expect(page.locator('#f-deEss')).not.toHaveValue('0'); // och Snabb
+  await expect(page.locator('#spanel')).toContainText('Preset: Suno-fix');
+});

@@ -15,7 +15,7 @@ import { decodeFile, mmss, resample } from '../audio.js';
 import { AbPlayer, RealtimePlayer, renderInWorker } from '../filemaster.js';
 import { encodeWav } from '../dsp/wav.js';
 import { truePeak } from '../dsp/truepeak.js';
-import { allPresets, presetGroups, removeUserPreset } from './live.js';
+import { PRESET_ICONS, allPresets, presetGroups, removeUserPreset } from './live.js';
 import { refGroups } from './analys.js';
 import { saveSong, loadSong, forgetSong, saveFileState, loadFileState } from '../filestore.js';
 import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
@@ -249,7 +249,7 @@ function panelQuick() {
     ['glue.ratio', 'Lim', FILE_RANGES.glueRatio, 'glueRatio', 'glue'], ['width', 'Stereobredd', FILE_RANGES.width, 'width', 'width']]
     .map(([k, l, r, i, e]) => fpath(k, l, r, i, e, fsolo(e, l)));
   return `<div class="phead"><b>Snabb</b>${infoBtn('fileQuick')}<span class="grow"></span>
-      <button class="pick2" id="f-preset" aria-label="Preset för filen">${esc(p?.name || 'Ingen preset')} ▾</button></div>${srows(rows)}`;
+      <small class="dim trunc">${esc(p ? `Preset: ${p.name}` : 'Ingen preset')}</small></div>${srows(rows)}`;
 }
 function panelIn() {
   return `${fhead({ title: 'In', sub: 'först i kedjan', enableKey: 'trim', soloKey: 'trim' })}${srows([fpath('trim', 'Trim', FILE_RANGES.trim, 'trim')])}`;
@@ -412,6 +412,9 @@ function subbar() {
     <button class="abmini ${F.ab === 'master' ? 'on' : ''}" id="f-ab" aria-pressed="${F.ab === 'master'}" aria-label="A Original / B Mastrad" ${F.input ? '' : 'disabled'}><span class="o">A</span><span class="m">B</span></button>
     <button class="rb sm" id="f-undo" aria-label="↶ Ångra i Fil" ${F.undo.length ? '' : 'disabled'}>↶</button>
     <button class="btn small primary" id="f-exportbtn" ${F.input ? '' : 'disabled'}>⤓ Export</button>
+  </div>
+  <div class="subbar fpreset">
+    <button class="pp fpre" id="f-preset" aria-label="Huvudpreset" aria-haspopup="listbox" title="Huvudpreset – hela kedjan"><span class="ico">${PRESET_ICONS[F.presetId] || (presetOf(F.presetId) ? '⭐' : '🎛️')}</span><small class="dim">Huvudpreset</small><b class="pv trunc">${esc(presetOf(F.presetId)?.name || 'Ingen preset')}</b>▾</button>
   </div>`;
 }
 
@@ -745,7 +748,7 @@ export function bindFil(root) {
   root.querySelectorAll('[data-target]').forEach((b) => {
     b.onclick = () => { pushUndo(); F.params.target = b.dataset.target; F.params = sanitizeFile(F.params); app.render(); paramsChanged(); };
   });
-  bindPicker(root, 'f-preset', () => ({ title: 'Preset för filen', value: F.presetId, groups: presetGroups({ withTest: false }), onDelete: async (id) => { const ok = await removeUserPreset(id); if (ok) persist(); return ok; } }), (v) => {
+  bindPicker(root, 'f-preset', () => ({ title: 'Huvudpreset – hela kedjan', value: F.presetId, groups: presetGroups({ withTest: false }), onDelete: async (id) => { const ok = await removeUserPreset(id); if (ok) persist(); return ok; } }), (v) => {
     pushUndo();
     F.presetId = v;
     const matchEq = F.params.matchEq;

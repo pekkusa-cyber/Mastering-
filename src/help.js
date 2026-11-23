@@ -108,12 +108,14 @@ export const HELP = {
       <p>Mastrar en färdig låt (MP3/WAV) och exporterar en WAV för distribution. Allt sker på telefonen. Samma upplägg som
       Live: grafen överst, blocken i ljudets ordning och panelen under.</p>
       <p>En ny låt öppnas <b>helt orörd</b>: ingen preset vald, ingen bearbetning och inget att ångra – välj själv var du börjar
-      (Preset ▾ i Snabb, Assistent eller egna reglage). Bara målnivån (plattform) behålls. Sparade versioner hör till sin låt.
+      (Huvudpreset ▾, Assistent eller egna reglage). Bara målnivån (plattform) behålls. Sparade versioner hör till sin låt.
       Egna presets tas bort med <b>🗑</b> i presetlistan.</p>
       <h3>Raden överst</h3>
       <ul>
         <li><b>🎵 Låt ▾</b> – byt låt, Assistent, Jämför versioner, Album. ✓ = låten är sparad på telefonen.</li>
         <li><b>A | B</b> – original eller mastrat. <b>↶</b> ångrar. <b>⤓ Export</b> – kontroll och export.</li>
+        <li><b>Huvudpreset ▾</b> – raden under: väljer en preset för <b>hela kedjan</b> på en gång (alla block). Vill du bara byta
+          en del (t.ex. EQ eller kompressor) finns Preset ▾ inne i det blocket. 🗑 vid dina egna presets tar bort dem.</li>
       </ul>
       <h3>Grafen</h3>
       <ul>

@@ -758,3 +758,8 @@ button.mbtn.on, .mbtn:has(input:not(:checked)) { background: var(--mute-bg); bor
 .prow .popt { flex: 1; min-width: 0; }
 .pdel { flex: 0 0 44px; border-radius: 14px; border: 1px solid var(--line); background: rgba(255,255,255,.04); color: var(--mute); font-size: 18px; padding: 0; }
 .pdel:active { background: #5a2b2b; }
+/* Fil: huvudpreseten (hela kedjan) på en egen tunn rad under låten */
+.subbar.fpreset { margin-top: -2px; }
+.subbar.fpreset .pp { flex: 1 1 auto; min-width: 0; min-height: 34px; padding-top: 4px; padding-bottom: 4px; }
+.subbar.fpreset .pp small { flex: 0 0 auto; font-size: 11px; }
+.subbar.fpreset .pp .pv { flex: 1 1 auto; min-width: 0; text-align: left; }
