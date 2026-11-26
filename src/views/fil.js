@@ -150,13 +150,35 @@ function paramsChanged({ now = false } = {}) {
   renderTimer = setTimeout(doRender, 900);
 }
 
+/**
+ * Popup med snurra och förloppsmätare medan en låt läses in eller renderas. Ligger utanför vyn (document.body),
+ * så att den står kvar när vyn ritas om. busy(null) stänger den. frac = null: okänd längd (bara snurran).
+ */
+function busy(text, frac = null) {
+  if (typeof document === 'undefined') return;
+  let el = document.getElementById('fbusy');
+  if (text == null) { el?.remove(); return; }
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'fbusy'; el.className = 'busyov'; el.dataset.testid = 'fbusy';
+    el.innerHTML = '<div class="busybox" role="status" aria-live="polite"><div class="spin"><i></i><b></b></div><p></p><div class="bbar"><i></i></div></div>';
+    document.body.appendChild(el);
+  }
+  const pc = frac == null ? null : Math.max(0, Math.min(100, Math.round(frac * 100)));
+  el.querySelector('p').textContent = text;
+  el.querySelector('.spin b').textContent = pc == null ? '' : `${pc}%`;
+  el.classList.toggle('ind', pc == null);
+  el.querySelector('.bbar i').style.width = `${pc ?? 0}%`;
+}
+
 async function doRender() {
   if (!F.input) return;
   const mine = F.rev || 0;
   F.rendering = true; F.progress = 0; F.msg = '';
   app.renderPart('fileStatus');
+  busy('Renderar – räknar mätare och export…', 0);
   try {
-    const r = await renderInWorker(F.input, effective(), (x) => { F.progress = x; app.renderPart('fileProgress'); });
+    const r = await renderInWorker(F.input, effective(), (x) => { F.progress = x; busy('Renderar – räknar mätare och export…', x); app.renderPart('fileProgress'); });
     F.result = r;
     if (realtime) player.setParams(heard(), r.drive);
     else {
@@ -168,6 +190,7 @@ async function doRender() {
   } catch (e) {
     F.msg = `Mastringen misslyckades: ${e.message}`;
   }
+  busy(null);
   F.rendering = false;
   F.stale = (F.rev || 0) !== mine; // ändrades något under renderingen är resultatet redan föråldrat
   app.render();
@@ -185,6 +208,7 @@ async function openSong(file, { fromStore = false } = {}) {
     if (realtime) player.setParams(heard(), 0);
   }
   F.rendering = true; F.progress = 0; F.saved = false;
+  busy(`${fromStore ? 'Öppnar senaste låten' : 'Läser in'} ${file.name}…`);
   app.render();
   try {
     const bytes = await file.arrayBuffer();
@@ -200,6 +224,7 @@ async function openSong(file, { fromStore = false } = {}) {
     await doRender();
   } catch (err) {
     F.rendering = false; F.input = null; F.msg = err.message;
+    busy(null);
     app.render();
   }
 }

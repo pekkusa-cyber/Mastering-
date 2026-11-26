@@ -247,3 +247,24 @@ test('huvudpreset i raden överst: syns i alla block och sätter hela kedjan på
   await expect(page.locator('#f-deEss')).not.toHaveValue('0'); // och Snabb
   await expect(page.locator('#spanel')).toContainText('Preset: Suno-fix');
 });
+
+test('popup med snurra och förlopp när en låt läses in och när den renderas', async ({ page }) => {
+  test.setTimeout(120000);
+  await page.goto('/?sim=1&view=fil');
+  await page.evaluate(() => {
+    window.__busy = [];
+    new MutationObserver(() => { const p = document.querySelector('#fbusy p'); if (p && window.__busy.at(-1) !== p.textContent) window.__busy.push(p.textContent); })
+      .observe(document.body, { childList: true, subtree: true, characterData: true });
+  });
+  await loadSong(page, 'popup.wav');
+  await expect(page.locator('#fbusy')).toHaveCount(0); // stängs när allt är klart
+  let seen = await page.evaluate(() => window.__busy);
+  expect(seen.some((t) => t.startsWith('Läser in popup.wav'))).toBe(true);
+  expect(seen.some((t) => t.startsWith('Renderar'))).toBe(true);
+  await page.evaluate(() => { window.__busy = []; });
+  await page.locator('#f-render-top').click();
+  await expect(page.locator('#f-render-top')).toBeEnabled({ timeout: 60000 });
+  await expect(page.locator('#fbusy')).toHaveCount(0);
+  seen = await page.evaluate(() => window.__busy);
+  expect(seen.some((t) => t.startsWith('Renderar'))).toBe(true);
+});

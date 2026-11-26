@@ -763,3 +763,15 @@ button.mbtn.on, .mbtn:has(input:not(:checked)) { background: var(--mute-bg); bor
 .subbar.fpreset .pp { flex: 1 1 auto; min-width: 0; min-height: 34px; padding-top: 4px; padding-bottom: 4px; }
 .subbar.fpreset .pp small { flex: 0 0 auto; font-size: 11px; }
 .subbar.fpreset .pp .pv { flex: 1 1 auto; min-width: 0; text-align: left; }
+/* Fil: popup med snurra och förloppsmätare när en låt läses in eller renderas */
+.busyov { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; background: rgba(8,10,12,.55); }
+.busybox { width: min(280px, calc(100vw - 48px)); padding: 22px 20px 18px; border-radius: 18px; background: var(--card, #1b1f24); border: 1px solid var(--line); text-align: center; box-shadow: 0 12px 40px #0008; }
+.busybox p { margin: 14px 0 12px; color: var(--text); font-size: 14px; line-height: 1.4; overflow-wrap: anywhere; }
+.busybox .spin { position: relative; width: 64px; height: 64px; margin: 0 auto; display: grid; place-items: center; }
+.busybox .spin i { position: absolute; inset: 0; border-radius: 50%; border: 5px solid #ffffff1a; border-top-color: var(--accent); animation: bspin .9s linear infinite; }
+.busybox .spin b { font-size: 14px; color: var(--text); font-variant-numeric: tabular-nums; }
+.busybox .bbar { height: 6px; border-radius: 3px; background: #ffffff14; overflow: hidden; }
+.busybox .bbar i { display: block; height: 100%; background: var(--accent); transition: width .2s; }
+.busyov.ind .bbar i { width: 35% !important; animation: bslide 1.2s ease-in-out infinite; }
+@keyframes bspin { to { transform: rotate(360deg); } }
+@keyframes bslide { from { transform: translateX(-100%); } to { transform: translateX(290%); } }

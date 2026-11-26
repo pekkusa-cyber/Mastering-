@@ -110,6 +110,7 @@ export const HELP = {
       <p>En ny låt öppnas <b>helt orörd</b>: ingen preset vald, ingen bearbetning och inget att ångra – välj själv var du börjar
       (Huvudpreset ▾, Assistent eller egna reglage). Bara målnivån (plattform) behålls. Sparade versioner hör till sin låt.
       Egna presets tas bort med <b>🗑</b> i presetlistan.</p>
+      <p>När en låt läses in eller renderas visas en ruta med snurra och hur långt det har kommit (%).</p>
       <h3>Raden överst</h3>
       <ul>
         <li><b>🎵 Låt ▾</b> – byt låt, Assistent, Jämför versioner, Album. ✓ = låten är sparad på telefonen.</li>
