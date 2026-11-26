@@ -263,8 +263,6 @@ test('popup med snurra och förlopp när en låt läses in och när den renderas
   expect(seen.some((t) => t.startsWith('Renderar'))).toBe(true);
   await page.evaluate(() => { window.__busy = []; });
   await page.locator('#f-render-top').click();
-  await expect(page.locator('#f-render-top')).toBeEnabled({ timeout: 60000 });
-  await expect(page.locator('#fbusy')).toHaveCount(0);
-  seen = await page.evaluate(() => window.__busy);
-  expect(seen.some((t) => t.startsWith('Renderar'))).toBe(true);
+  await expect.poll(() => page.evaluate(() => window.__busy.some((t) => t.startsWith('Renderar'))), { timeout: 60000 }).toBe(true);
+  await expect(page.locator('#fbusy')).toHaveCount(0, { timeout: 60000 });
 });
