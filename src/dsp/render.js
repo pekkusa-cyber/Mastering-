@@ -16,6 +16,16 @@ function runBlocks(L, R, proc, onBlock) {
   }
 }
 
+/** Fade in/ut (mjuk cosinuskurva) på den färdiga filen – sänker bara, så taket hålls. */
+export function applyFades(channels, fs, inSec, outSec) {
+  const n = channels[0].length;
+  const fi = Math.min(n, Math.round(inSec * fs)), fo = Math.min(n, Math.round(outSec * fs));
+  for (const c of channels) {
+    for (let i = 0; i < fi; i++) c[i] *= 0.5 - 0.5 * Math.cos((Math.PI * i) / fi);
+    for (let i = 0; i < fo; i++) c[n - 1 - i] *= 0.5 - 0.5 * Math.cos((Math.PI * i) / fo);
+  }
+}
+
 /** Kör PostChain och kompenserar limiterns fördröjning så att utsignalen ligger i fas med insignalen. */
 function runPost(pre, fs, p, drive) {
   const post = new PostChain(fs, p, drive);
@@ -79,6 +89,7 @@ export function renderMaster(input, params, { onProgress, bypass = false } = {})
     const k = ceil / tp;
     for (const c of result.channels) for (let i = 0; i < c.length; i++) c[i] *= k;
   }
+  applyFades(result.channels, fs, p.fadeIn / 1000, p.fadeOut);
   progress(1);
   const metrics = measure(result.channels, fs);
   return {

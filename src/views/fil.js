@@ -352,7 +352,7 @@ function panelLim() {
 function panelOut() {
   return `${fhead({ title: 'Ut', sub: 'mål och slutnivå', enableKey: 'output' })}
     <div class="seg">${TARGETS.map((t) => `<button data-target="${t.id}" class="${F.params.target === t.id ? 'sel' : ''}">${t.name}${t.lufs ? ` ${t.lufs}` : ''}</button>`).join('')}</div>
-    ${srows([fpath('output', 'Utgång', FILE_RANGES.output, 'output')])}
+    ${srows([fpath('output', 'Utgång', FILE_RANGES.output, 'output'), fpath('fadeIn', 'Fade in', FILE_RANGES.fadeIn, 'fadeIn'), fpath('fadeOut', 'Fade ut', FILE_RANGES.fadeOut, 'fadeOut')])}
     ${meters()}
     <div class="pfoot"><button class="btn small" id="f-flat">Platt</button><button class="btn small" id="f-all-on">Slå på allt</button><button class="btn small" id="f-reset-all">Återställ alla</button></div>
     <div id="fileStatus">${statusPart()}</div>`;

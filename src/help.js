@@ -151,6 +151,7 @@ export const HELP = {
       <ul>
         <li>Lyssna i <b>mono</b>, som <b>mobil</b> och <b>bil</b> (👂). Lyssna på början, refrängen och slutet med en loop.</li>
         <li>Jämför med referensen i samma nivå och gör ett <b>blindtest</b> (Jämför). Vila öronen: efter en timme hör du sämre.</li>
+        <li>Slutar låten tvärt eller har brus i svansen: <b>Fade ut</b> 2–6 s (Ut). En kort <b>Fade in</b> (50–200 ms) tar klick i starten.</li>
         <li>Exportera <b>WAV 24 bit, 44,1 kHz</b> till distributören. Exportkontrollen visar nivå, PLR, true peak och mono.</li>
       </ul>
       <h3>Vilken preset?</h3>
@@ -189,7 +190,7 @@ export const HELP = {
       <h3>Blocken (ljudets ordning)</h3>
       <p><b>Snabb</b> (genväg) | <b>In</b> → <b>EQ 1</b> (8 band, Match-EQ, Mot referens) → <b>Kompr.</b> (Hela låten eller ett band, Kick-anslag)
       → <b>EQ 2</b> (8 band och fem EQ-punkter) → <b>Färg</b> (S-ljud, Mjuk topp, Bredd, Lim) → <b>Limiter</b> (soft clip och true-peak-tak)
-      → <b>Ut</b> (mål, utgång, mätare). EQ har lodräta fadrar, allt annat vågräta reglage – som i Live.</p>
+      → <b>Ut</b> (mål, utgång, fade in/ut, mätare). EQ har lodräta fadrar, allt annat vågräta reglage – som i Live.</p>
       <ul>
         <li><b>S</b> på en del = bara den delen hörs. <b>M/S på ett band</b> = bara bandets frekvenser / utan dem. <b>Δ</b> på S-ljud = hör det som tas bort.
         En gul rad i grafen visar vad du lyssnar på – ✕ avslutar. Allt detta gäller bara lyssningen, aldrig exporten.</li>

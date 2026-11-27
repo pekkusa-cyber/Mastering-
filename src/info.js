@@ -104,6 +104,8 @@ export const INFO = {
 
   // ---- Fil ----
   fileTarget: { title: 'Mål', text: 'Streaming: −14 LUFS, −1 dBTP – det Spotify/YouTube normaliserar till, bäst dynamik. Hög: −10 LUFS för tätare modern pop/EDM. Eget: du ställer Drive själv.' },
+  fadeIn: { title: 'Fade in', text: 'Tonar in början av den exporterade filen (mjuk kurva). En kort fade (50–200 ms) tar bort klick eller brus precis i starten. 0 = av. Gäller filen efter Rendera – inte direktlyssningen.' },
+  fadeOut: { title: 'Fade ut', text: 'Tonar ut slutet av den exporterade filen. Bra när en Suno-låt slutar tvärt eller har brus/efterklang i svansen: 2–6 s brukar låta naturligt. 0 = av. Gäller filen efter Rendera – inte direktlyssningen.' },
   monoBass: { title: 'Bas i mono', text: 'Gör allt under vald frekvens mono (samma i vänster och höger). Proffs gör nästan alltid så med basen – runt 80–120 Hz: kick och bas blir stabila och centrerade, låter lika i mono, på klubb och i telefon, och ingen bas försvinner i fasproblem. Mer än ca 150 Hz börjar ta bredd från gitarrer och pads. 0 = av.' },
   trim: { title: 'In', text: 'Hur hårt låten driver EQ och kompressor. Appen lägger först låten på −14 LUFS (samma nivå som Live får från en strömningstjänst), så att presetten låter likadant oavsett om låten är tyst eller hög. In är presettens extra lyft ovanpå det – samma värde som In i Live. Slutnivån sätts av målet. Med målet Egen görs ingen nivåanpassning.' },
   matchEq: { title: 'Match-EQ', text: 'Tio oktavband som räknas ut från skillnaden mot vald referens. Tryck "Matcha klang" för att räkna om; varje band kan justeras och nollställas.' },

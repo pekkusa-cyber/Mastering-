@@ -65,3 +65,14 @@ test('renderingen ger både största och genomsnittlig nedtryckning (snittet är
   assert.ok(r.gr.avg.mbc.some((x) => x > 0.3), 'kompressorn arbetar i snitt');
   assert.ok(r.gr.avg.limiter >= 0 && r.gr.avg.limiter <= r.gr.limiter + 1e-9, 'limiterns snitt');
 });
+
+test('fade in/ut: tyst i början och slutet, full nivå däremellan, och taket hålls', async () => {
+  const { applyFades } = await import('../../src/dsp/render.js');
+  const n = FS * 4, c = [new Float32Array(n).fill(0.5), new Float32Array(n).fill(0.5)];
+  applyFades(c, FS, 0.2, 1);
+  assert.equal(c[0][0], 0);
+  assert.ok(Math.abs(c[0][n - 1]) < 1e-6);
+  assert.ok(Math.abs(c[0][Math.round(FS * 0.1)] - 0.25) < 0.01, 'halvvägs i fade in = halv nivå');
+  assert.equal(c[0][FS * 2], 0.5);
+  assert.ok(c[1].every((v) => v <= 0.5 + 1e-9));
+});
