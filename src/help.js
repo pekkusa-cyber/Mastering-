@@ -225,7 +225,9 @@ export const HELP = {
       <p>Medan Fil spelar pausas Live-mastringen och 🎚️ i rubriken är spärrad (grå) – annars skulle låten mastras två gånger,
       en gång i Fil och en gång av Live-effekten, och låta förvrängd. 🎧 (hörlurskorrigeringen) ligger kvar. Pausar du låten släpps spärren.</p>
       <h3>Autosparning</h3>
-      <p>Låten och inställningarna sparas på telefonen och öppnas igen nästa gång – även om appen stängts eller uppdaterats.</p>
+      <p>Låten och inställningarna sparas på telefonen och öppnas igen nästa gång – även om appen stängts eller uppdaterats. Har låten
+      ändringar frågar appen vid start: <b>Fortsätt där jag var</b> eller <b>↺ Börja om</b> (samma låt, helt orörd, utan att läsa in
+      den igen – och <b>↶ Ångra</b> tar tillbaka). Du kan också börja om när som helst under 🎵 Låt ▾. Sparade versioner i Jämför ligger kvar.</p>
       <h3>Varför Fil har fler delar än Live</h3>
       <p>Live använder Androids inbyggda ljudeffekt (In, EQ, kompressor i 4 band, EQ, limiter – inget mer). Fil räknar ljudet själv
       och kan därför ha Match-EQ, kick-anslag, de-esser, mjuk topp, stereobredd, lim, soft clipper och true-peak-limiter. Samma preset

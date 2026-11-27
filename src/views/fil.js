@@ -128,7 +128,37 @@ function restore() {
     } catch { /* trasig sparning – börja om */ }
     F.restoringName = ''; restoring = 'klar';
     app.render();
+    if (F.input && isTouched()) continueOrFresh();
   })();
+}
+
+/** Har låten redan ändringar (annat än orört)? */
+function isTouched() {
+  const fresh = sanitizeFile({ ...fileNeutral(), target: F.params.target });
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  return !same({ ...F.params, inLufs: null }, { ...fresh, inLufs: null }) || !!F.presetId || Object.keys(F.enabled || {}).some((k) => F.enabled[k] === false);
+}
+
+/** Börja om med samma låt, helt orörd (ingen preset, ingen bearbetning). Målnivån behålls. Går att ångra. Sparade versioner ligger kvar. */
+async function freshStart() {
+  stopFilePlayback();
+  pushUndo(); lastSnap = 0;
+  Object.assign(F, { params: sanitizeFile({ ...fileNeutral(), target: F.params.target }), presetId: '', enabled: {}, versionId: '', compare: null, mode: 'blocks',
+    mono: false, sim: 'normal', solo: null, listen: null, delta: false, loop: null, autoActions: null, autoTouched: false, fromLiveMsg: '' });
+  if (realtime) playParams(heard(), F.result?.drive ?? 0);
+  persist(); F.stale = !!F.result; app.render();
+  await doRender();
+}
+
+/** Vid start, när låten öppnats med sparade ändringar: fortsätta eller börja om från orörd. Stänger man rutan fortsätter man. */
+function continueOrFresh() {
+  const d = sheet(`<h2>Fortsätta eller börja om?</h2>
+    <p class="hint">Låten <b>${esc(F.name.replace(/\.[^.]+$/, ''))}</b> öppnades med dina senaste ändringar${presetOf(F.presetId) ? ` (preset ${esc(presetOf(F.presetId).name)})` : ''}.</p>
+    <button class="btn primary wide" id="f-continue">Fortsätt där jag var</button>
+    <button class="btn wide" id="f-fresh">↺ Börja om – orörd låt (ångra går)</button>
+    <p class="hint small">Du behöver inte läsa in låten igen. Sparade versioner i Jämför ligger kvar.</p>`, { cls: 'songsheet', closeText: 'Fortsätt' });
+  d.querySelector('#f-continue').onclick = () => d.close();
+  d.querySelector('#f-fresh').onclick = () => { d.close(); freshStart(); };
 }
 
 let renderTimer = 0;
@@ -782,12 +812,14 @@ function songSheet() {
       <button class="btn wide" data-fmode="assist">🪄 Assistent – mastra i 5 steg</button>
       <button class="btn wide" data-fmode="compare" ${F.input ? '' : 'disabled'}>⚖ Jämför versioner (loop, blindtest)</button>
       <button class="btn wide" data-fmode="album">💿 Album – flera låtar</button>
+      <button class="btn wide" id="f-fresh2" ${F.input ? '' : 'disabled'}>↺ Börja om med orörd låt</button>
       <div class="btnrow"><label class="btn file ${F.input ? '' : 'disabled'}" id="f-import-lbl">⤒ Importera inställning<input type="file" id="f-import" accept=".json,application/json" hidden ${F.input ? '' : 'disabled'}></label>
       <button class="btn" id="f-export-set" ${F.input ? '' : 'disabled'}>⤓ Spara inställning</button></div>
       ${F.input ? '<button class="btn wide ghost" id="f-forget">Glöm låten</button>' : ''}
     </div><p class="hint small" data-testid="impmsg"></p>`, { cls: 'songsheet' });
   d.querySelector('#f-file2').onchange = (e) => { const f = e.target.files?.[0]; d.close(); if (f) openSong(f); };
   d.querySelectorAll('[data-fmode]').forEach((b) => { b.onclick = () => { d.close(); F.mode = b.dataset.fmode; F.assistStep = F.input ? 2 : 1; if (F.mode === 'compare') F.compare = { on: null }; app.render(); }; });
+  d.querySelector('#f-fresh2').onclick = () => { d.close(); freshStart(); };
   d.querySelector('#f-import').onchange = async (e) => {
     const f = e.target.files?.[0]; if (!f) return;
     try {

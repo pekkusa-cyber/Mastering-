@@ -100,6 +100,7 @@ test('autosparning: låten och inställningarna finns kvar efter omstart', async
   await page.goto('/?sim=1&view=fil');
   await expect(page.locator('#f-song')).toContainText('sparad', { timeout: 60000 });
   await expect(page.locator('#f-render-top')).toBeVisible({ timeout: 60000 });
+  await page.locator('#f-continue').click(); // frågan: fortsätta eller börja om
   await block(page, 'quick');
   await expect(page.locator('#f-clip')).toHaveValue('4');
 });
@@ -387,4 +388,36 @@ test('Spara inställning → Importera inställning: kommer in som en version i 
   await page.locator('#f-song').click();
   await page.locator('#f-import').setInputFiles({ name: 'fel.json', mimeType: 'application/json', buffer: Buffer.from('{"foo":1}') });
   await expect(page.getByTestId('impmsg')).toContainText('inte ut som en inställning');
+});
+
+test('efter omstart: Fortsätt behåller ändringarna, Börja om ger en orörd låt utan att läsa in den igen (och går att ångra)', async ({ page }) => {
+  test.setTimeout(180000);
+  await page.goto('/?sim=1&view=fil');
+  await loadSong(page, 'omstart.wav', wav(3));
+  await block(page, 'quick');
+  await setRange(page.locator('#f-clip'), 3);
+  await page.locator('#f-preset').click();
+  await page.locator('dialog.sheet').getByRole('option', { name: /Suno-fix/ }).click();
+  await page.waitForTimeout(800);
+  await page.goto('/?sim=1&view=fil');
+  const ask = page.locator('dialog[open]').filter({ hasText: 'Fortsätta eller börja om?' });
+  await expect(ask).toBeVisible({ timeout: 60000 });
+  await ask.locator('#f-fresh').click();
+  await expect(page.locator('#f-preset')).toContainText('Ingen preset', { timeout: 60000 });
+  await block(page, 'quick');
+  await expect(page.locator('#f-clip')).toHaveValue('0');
+  await expect(page.locator('#f-song')).toContainText('omstart'); // samma låt, inte inläst på nytt
+  // Ångra tar tillbaka Suno-fix
+  await page.locator('#f-undo').click();
+  await expect(page.locator('#f-preset')).toContainText('Suno-fix');
+  // Orörd låt vid nästa omstart frågar inte
+  await page.locator('#f-preset').click();
+  await page.locator('dialog.sheet').getByRole('option', { name: /Orörd/ }).click();
+  await page.locator('#f-song').click();
+  await page.locator('#f-fresh2').click();
+  await page.waitForTimeout(800);
+  await page.goto('/?sim=1&view=fil');
+  await expect(page.locator('#f-song')).toContainText('omstart', { timeout: 60000 });
+  await page.waitForTimeout(1500);
+  await expect(page.locator('dialog[open]')).toHaveCount(0);
 });
