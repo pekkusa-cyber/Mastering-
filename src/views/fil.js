@@ -687,6 +687,15 @@ async function runAlbum() {
 
 
 // ---- Ark: Låt, Export, Lyssna ----
+/** Sparar nuvarande inställning som en version (för Jämför). Högst 6 per låt. */
+async function saveVersion(name) {
+  const v = { id: `v-${Date.now().toString(36)}`, name: name.trim() || 'Version', params: structuredClone(F.params), enabled: { ...F.enabled }, presetId: F.presetId, song: F.name, lufs: F.result?.metrics.integrated ?? null };
+  F.versions = [...F.versions.filter((x) => x.song !== F.name || songVersions().indexOf(x) >= songVersions().length - 5), v].slice(-60);
+  F.versionId = v.id;
+  await save('fileVersions', F.versions);
+  return v;
+}
+
 // ---- Automastring (ett tryck) ----
 load('autoPrefs', null).then((v) => { if (v) F.auto = { ...F.auto, ...v }; });
 F.auto = { style: 'auto', strength: 'balans' };
@@ -747,7 +756,13 @@ function autoResult() {
     <p class="hint small">Resultat: ${m.integrated.toFixed(1).replace('.', ',')} LUFS · true peak ${m.truePeak.toFixed(1).replace('.', ',')} dBTP · PLR ${plr.toFixed(1).replace('.', ',')} dB${r.gr.avg ? ` · i snitt: kompressor ${Math.max(...r.gr.avg.mbc).toFixed(1).replace('.', ',')} dB, lim ${r.gr.avg.glue.toFixed(1).replace('.', ',')} dB, limiter ${r.gr.avg.limiter.toFixed(1).replace('.', ',')} dB` : ''}</p>
     ${warn.length ? `<ul class="checks">${warn.map(([, t]) => `<li class="warn">! ${esc(t)}</li>`).join('')}</ul>` : '<p class="hint small ok">✓ Klarar exportkontrollen.</p>'}
     <p class="hint small">Lyssna med <b>A | B</b> (lika nivå). Vill du ändra något: justera blocken, eller kör igen med en annan stil eller styrka.</p>
-    <div class="btnrow"><button class="btn" id="f-auto-undo">↶ Ångra</button><button class="btn" id="f-auto-again">Igen…</button><button class="btn primary" id="f-auto-export">⤓ Exportera</button></div>`, { cls: 'autosheet', closeText: 'Lyssna' });
+    <div class="btnrow"><button class="btn" id="f-auto-undo">↶ Ångra</button><button class="btn" id="f-auto-again">Igen…</button><button class="btn primary" id="f-auto-export">⤓ Exportera</button></div>
+    <button class="btn wide" id="f-auto-cmp" style="margin-top:8px">⚖ Spara och jämför mot originalet</button>`, { cls: 'autosheet', closeText: 'Lyssna' });
+  d.querySelector('#f-auto-cmp').onclick = async () => {
+    const st = AUTO_STRENGTHS.find((s) => s[0] === F.auto.strength)?.[1] || '';
+    await saveVersion(`Auto ${presetOf(F.presetId)?.name || ''} ${st}`.replace(/\s+/g, ' ').trim().slice(0, 28));
+    d.close(); F.mode = 'compare'; F.compare = null; app.render();
+  };
   d.querySelector('#f-auto-undo').onclick = () => { d.close(); undo(); doRender(); };
   d.querySelector('#f-auto-again').onclick = () => { d.close(); autoSheet(); };
   d.querySelector('#f-auto-export').onclick = () => { d.close(); exportSheet(); };
@@ -1003,10 +1018,7 @@ export function bindFil(root) {
   if (vs) vs.onclick = async () => {
     const name = await ask({ title: 'Spara version', value: `Version ${'ABCDEF'[songVersions().length] || songVersions().length + 1}`, okText: 'Spara' });
     if (name === null) return;
-    const v = { id: `v-${Date.now().toString(36)}`, name: name.trim() || 'Version', params: structuredClone(F.params), enabled: { ...F.enabled }, presetId: F.presetId, song: F.name, lufs: F.result?.metrics.integrated ?? null };
-    F.versions = [...F.versions.filter((x) => x.song !== F.name || songVersions().indexOf(x) >= songVersions().length - 5), v].slice(-60); // högst 6 per låt
-    F.versionId = v.id;
-    await save('fileVersions', F.versions);
+    await saveVersion(name);
     app.render();
   };
   root.querySelectorAll('[data-vdel]').forEach((b) => {

@@ -339,3 +339,23 @@ test('✨ Auto: från startsidan (välj låt → klart) och med knappen bredvid 
   await page.locator('#f-auto-undo').click();
   await expect(page.locator('#f-preset')).toContainText('Suno-fix');
 });
+
+test('Auto → ⚖ Spara och jämför: versionen sparas och Jämför öppnas med Original + versionen', async ({ page }) => {
+  test.setTimeout(180000);
+  await page.goto('/?sim=1&view=fil');
+  await page.locator('#f-file-auto').setInputFiles({ name: 'jamfor.wav', mimeType: 'audio/wav', buffer: wav(4, { wide: true }) });
+  const res = page.locator('dialog[open]').filter({ hasText: 'Automastring klar' });
+  await expect(res).toBeVisible({ timeout: 90000 });
+  await res.locator('#f-auto-cmp').click();
+  await expect(page.locator('[data-cslot]')).toHaveCount(2); // Original + Auto
+  await expect(page.locator('[data-cslot]').nth(1)).toContainText('Auto');
+  // Kör Auto igen med Kraftig och spara – nu tre
+  await page.locator('#f-mode-exit').click();
+  await page.locator('#f-auto').click();
+  const s = page.locator('dialog[open]').filter({ hasText: '✨ Automastra' });
+  await s.locator('[data-av="kraftig"]').click(); await s.locator('#f-auto-go').click();
+  const r2 = page.locator('dialog[open]').filter({ hasText: 'Automastring klar' });
+  await expect(r2).toBeVisible({ timeout: 90000 });
+  await r2.locator('#f-auto-cmp').click();
+  await expect(page.locator('[data-cslot]')).toHaveCount(3);
+});

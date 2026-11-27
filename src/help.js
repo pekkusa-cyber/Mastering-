@@ -207,7 +207,9 @@ export const HELP = {
         skimmer, bas i mono om basen är bred, mindre tryck om låten redan är pressad, fade om den börjar/slutar tvärt. Överst visas en
         <b>diagnos</b>: behöver låten mastras alls? Suno-låtar är ofta redan en färdig, polerad mix (nivå, toppar och dynamik som färdig
         musik) – då föreslås Varsam, och skillnaden blir liten. Det är normalt. Med en
-        referens vald matchas klangen mot den. Du ser vad som gjordes, kan ångra, köra igen eller exportera.</li>
+        referens vald matchas klangen mot den. Du ser vad som gjordes, kan ångra, köra igen eller exportera.
+        <b>⚖ Spara och jämför</b> sparar resultatet som en version och öppnar Jämför: kör Auto flera gånger (Varsam, Balanserad,
+        Kraftig, olika stilar), spara varje, och växla mellan Original och versionerna i samma nivå – gärna med blindtest.</li>
         <li><b>🪄 Assistent:</b> Låt → Mål → Förslag (Före, A Varsam, B Balanserad, C Kraftig – växla medan låten spelar) → Finjustera → Export.</li>
         <li><b>⚖ Jämför:</b> Original och dina versioner i samma nivå, med loop och <b>blindtest</b>. Behåll den bästa.</li>
         <li><b>💿 Album:</b> flera låtar med samma inställning och nivå.</li>
