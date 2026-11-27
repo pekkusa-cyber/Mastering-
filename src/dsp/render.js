@@ -34,9 +34,10 @@ function runPost(pre, fs, p, drive) {
 export function renderMaster(input, params, { onProgress, bypass = false } = {}) {
   const fs = input.fs;
   const src = stereo(input.channels);
-  const p = sanitizeFile(params);
   const progress = (x) => onProgress?.(Math.min(1, x));
   const original = measure(src, fs);
+  // Låtens egen nivå in (för nivåanpassningen) – mäts här om den inte redan är känd
+  const p = sanitizeFile({ ...params, inLufs: params?.inLufs ?? (Number.isFinite(original.integrated) ? original.integrated : null) });
   if (bypass) {
     progress(1);
     return { channels: copy(src), fs, drive: 0, metrics: original, original, gr: { limiter: 0, mbc: [0, 0, 0, 0], glue: 0 }, bypass: true };

@@ -5,7 +5,7 @@ import { Crossover4 } from './crossover.js';
 import { Compressor, TransientShaper, softClip, coef } from './dynamics.js';
 import { TruePeakLimiter } from './limiter.js';
 import { deEsser, glitterFilter } from './splitdyn.js';
-import { EQ_CUTOFFS, MBC_CUTOFFS, MATCH_FREQS } from '../master.js';
+import { EQ_CUTOFFS, MBC_CUTOFFS, MATCH_FREQS, inputStage } from '../master.js';
 import { PEQ_BANDS } from '../chain.js';
 
 export const BLOCK = 1024;
@@ -95,7 +95,7 @@ export class PreChain {
 
   set(p, immediate = false) {
     this.p = p;
-    this.trim.set(p.trim);
+    this.trim.set(p.trim + inputStage(p)); // In + nivåanpassning till −14 LUFS
     this.pre.setGains(p.preEq.map((b) => b.gain));
     this.match.setGains(p.matchEq.map((b) => b.gain));
     this.post.setGains(p.postEq.map((b) => b.gain));

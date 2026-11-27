@@ -110,6 +110,8 @@ export const HELP = {
       <p>En ny låt öppnas <b>helt orörd</b>: ingen preset vald, ingen bearbetning och inget att ångra – välj själv var du börjar
       (Huvudpreset ▾, Assistent eller egna reglage). Bara målnivån (plattform) behålls. Sparade versioner hör till sin låt.
       Egna presets tas bort med <b>🗑</b> i presetlistan.</p>
+      <p><b>Nivåanpassning:</b> låten läggs först på −14 LUFS innan EQ och kompressor, som i Live. Därför betyder presettens In och trösklar
+      samma sak i Fil som i Live, oavsett hur hög låten var från början.</p>
       <p>När en låt läses in eller renderas visas en ruta med snurra och hur långt det har kommit (%).</p>
       <h3>Raden överst</h3>
       <ul>

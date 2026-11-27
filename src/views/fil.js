@@ -15,6 +15,7 @@ import { decodeFile, mmss, resample } from '../audio.js';
 import { AbPlayer, RealtimePlayer, renderInWorker } from '../filemaster.js';
 import { encodeWav } from '../dsp/wav.js';
 import { truePeak } from '../dsp/truepeak.js';
+import { measure } from '../dsp/loudness.js';
 import { PRESET_ICONS, allPresets, presetGroups, removeUserPreset } from './live.js';
 import { refGroups } from './analys.js';
 import { saveSong, loadSong, forgetSong, saveFileState, loadFileState } from '../filestore.js';
@@ -39,7 +40,9 @@ const presetOf = (id) => allPresets().find((p) => p.id === id);
 const fileDeps = () => ({ isNative, Filesystem, Directory, Encoding, Share });
 const en = (k) => F.enabled[k] !== false;
 /** Inställningen som exporteras: avslagna delar neutrala. */
-const effective = () => applyFileEnables(F.params, F.enabled);
+/** Till direktlyssningen: alltid med låtens nivå in (nivåanpassningen), även för versioner och förslag. */
+const playParams = (p, drive) => player.setParams({ ...p, inLufs: F.inLufs ?? null }, drive);
+const effective = () => ({ ...applyFileEnables(F.params, F.enabled), inLufs: F.inLufs ?? null });
 
 /** Solo på en hel del: bara den delen är på (ingen annan bearbetning), resten av kedjan neutral. Bara i spelaren. */
 const SOLO_STAGES = { trim: ['trim'], preEq: ['preEq'], match: ['match'], mbc: ['mbc0', 'mbc1', 'mbc2', 'mbc3', 'kick'], kick: ['kick', 'mbc0'],
@@ -50,7 +53,7 @@ function heard() {
   const on = new Set(SOLO_STAGES[F.solo] || [F.solo]);
   const e = Object.fromEntries(FILE_STAGES.map((k) => [k, on.has(k) && en(k)]));
   e.output = en('output');
-  return applyFileEnables(F.params, e);
+  return { ...applyFileEnables(F.params, e), inLufs: F.inLufs ?? null };
 }
 
 /** ↺ och "Återställ alla" går tillbaka till: vald preset med valt mål. */
@@ -131,7 +134,7 @@ let renderTimer = 0;
 function paramsChanged({ now = false } = {}) {
   F.params = sanitizeFile(F.params);
   F.rev = (F.rev || 0) + 1;
-  if (realtime) player.setParams(heard(), F.result?.drive ?? 0);
+  if (realtime) playParams(heard(), F.result?.drive ?? 0);
   persist();
   const u = typeof document !== 'undefined' && document.querySelector('#f-undo');
   if (u) u.disabled = !F.undo.length;
@@ -176,7 +179,7 @@ async function doRender() {
   try {
     const r = await renderInWorker(F.input, effective(), (x) => { F.progress = x; busy('Renderar – räknar mätare och export…', x); app.renderPart('fileProgress'); });
     F.result = r;
-    if (realtime) player.setParams(heard(), r.drive);
+    if (realtime) playParams(heard(), r.drive);
     else {
       const pos = player.position();
       player.setBuffer('master', r.channels, r.fs);
@@ -201,7 +204,7 @@ async function openSong(file, { fromStore = false, state = null } = {}) {
     // Ny låt = helt orörd: ingen preset, ingen bearbetning, allt på, inget att ångra. Bara målnivån (vald plattform) behålls.
     Object.assign(F, { params: sanitizeFile({ ...fileNeutral(), target: F.params.target }), presetId: '', enabled: {}, undo: [], versionId: '',
       compare: null, assistStep: 1, assistPick: 'B', mono: false, sim: 'normal', fromLiveMsg: '' });
-    if (realtime) player.setParams(heard(), 0);
+    if (realtime) playParams(heard(), 0);
   }
   F.rendering = true; F.progress = 0; F.saved = false;
   busy(`${fromStore ? 'Öppnar senaste låten' : 'Läser in'} ${file.name}…`);
@@ -211,13 +214,15 @@ async function openSong(file, { fromStore = false, state = null } = {}) {
     const a = await decodeFile(file);
     F.input = { channels: a.channels, fs: a.fs };
     F.profile = profileFromChannels(a.channels, a.fs);
+    F.inLufs = measure(a.channels, a.fs, { withTruePeak: false }).integrated;
+    if (!Number.isFinite(F.inLufs)) F.inLufs = null;
     F._clip = null;
     if (realtime) player.setBuffer(a.channels, a.fs);
     else { player.bufs = {}; player.setBuffer('orig', a.channels, a.fs); }
     F.saved = fromStore || await saveSong(file.name, bytes);
     if (state) {
       F.params = sanitizeFile(state.params); F.enabled = state.enabled || {}; F.presetId = state.presetId ?? ''; F.matchAmount = state.matchAmount ?? 70;
-      if (realtime) player.setParams(heard(), 0);
+      if (realtime) playParams(heard(), 0);
     }
     persist();
     F.rendering = false;
@@ -646,7 +651,7 @@ async function exportWav(channels, fs, baseName) {
 
 async function runAlbum() {
   F.albumBusy = true;
-  const p = effective();
+  const p = { ...effective(), inLufs: null }; // varje låt mäts för sig
   for (const t of F.album) {
     try {
       t.status = 'läser…'; app.render();
@@ -748,7 +753,7 @@ async function playToggle(root) {
   else {
     await pauseLive();
     setFilePlaying(true);
-    if (realtime) player.setParams(heard(), F.result?.drive ?? 0);
+    if (realtime) playParams(heard(), F.result?.drive ?? 0);
     applyAb(); sendMonitor();
     await player.play();
     clearInterval(ticker);
@@ -861,11 +866,11 @@ export function bindFil(root) {
   };
 
   // Lägen
-  (root.querySelector('#f-mode-exit') || {}).onclick = () => { F.mode = 'blocks'; F.compare = null; if (realtime) player.setParams(heard(), F.result?.drive ?? 0); applyAb(); app.render(); };
+  (root.querySelector('#f-mode-exit') || {}).onclick = () => { F.mode = 'blocks'; F.compare = null; if (realtime) playParams(heard(), F.result?.drive ?? 0); applyAb(); app.render(); };
   root.querySelectorAll('[data-astep]').forEach((b) => {
     b.onclick = async () => {
       const step = Number(b.dataset.astep);
-      if (step === 3 && realtime) { F.assistPick = 'B'; player.setParams(assistVariants().B.p, F.result?.drive ?? 0); }
+      if (step === 3 && realtime) { F.assistPick = 'B'; playParams(assistVariants().B.p, F.result?.drive ?? 0); }
       if (step === 4 || step === 5) { // välj förslaget
         pushUndo();
         F.params = assistVariants()[F.assistPick].p; F.enabled = {}; F.presetId = F.presetId || '';
@@ -879,7 +884,7 @@ export function bindFil(root) {
   root.querySelectorAll('[data-apick]').forEach((b) => {
     b.onclick = () => {
       F.assistPick = b.dataset.apick;
-      if (F.assistPick === 'before') { F.ab = 'orig'; } else { F.ab = 'master'; if (realtime) player.setParams(assistVariants()[F.assistPick].p, F.result?.drive ?? 0); }
+      if (F.assistPick === 'before') { F.ab = 'orig'; } else { F.ab = 'master'; if (realtime) playParams(assistVariants()[F.assistPick].p, F.result?.drive ?? 0); }
       applyAb();
       app.render();
     };
@@ -889,7 +894,7 @@ export function bindFil(root) {
       const id = b.dataset.cslot;
       F.compare = { ...F.compare, on: id };
       if (id === 'orig') F.ab = 'orig';
-      else { F.ab = 'master'; const v = F.versions.find((x) => x.id === id); if (v && realtime) player.setParams(applyFileEnables(sanitizeFile(v.params), v.enabled || {}), F.result?.drive ?? 0); }
+      else { F.ab = 'master'; const v = F.versions.find((x) => x.id === id); if (v && realtime) playParams(applyFileEnables(sanitizeFile(v.params), v.enabled || {}), F.result?.drive ?? 0); }
       applyAb();
       app.render();
     };

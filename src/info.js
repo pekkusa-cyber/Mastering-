@@ -104,7 +104,7 @@ export const INFO = {
 
   // ---- Fil ----
   fileTarget: { title: 'Mål', text: 'Streaming: −14 LUFS, −1 dBTP – det Spotify/YouTube normaliserar till, bäst dynamik. Hög: −10 LUFS för tätare modern pop/EDM. Eget: du ställer Drive själv.' },
-  trim: { title: 'Trim', text: 'Nivån in i kedjan. Behövs sällan – målet sköter slutnivån.' },
+  trim: { title: 'In', text: 'Hur hårt låten driver EQ och kompressor. Appen lägger först låten på −14 LUFS (samma nivå som Live får från en strömningstjänst), så att presetten låter likadant oavsett om låten är tyst eller hög. In är presettens extra lyft ovanpå det – samma värde som In i Live. Slutnivån sätts av målet. Med målet Egen görs ingen nivåanpassning.' },
   matchEq: { title: 'Match-EQ', text: 'Tio oktavband som räknas ut från skillnaden mot vald referens. Tryck "Matcha klang" för att räkna om; varje band kan justeras och nollställas.' },
   matchAmount: { title: 'Hur mycket att matcha', text: 'Hur stor del av skillnaden mot referensen som rättas. 70 % brukar låta naturligt; 100 % kan bli överdrivet.' },
   kickPunch: { title: 'Kick-anslag', text: 'Transient shaper på kickbandet. Åt vänster mjukar upp anslaget (hård, klickig kick blir rundare), åt höger ger mer slag.' },

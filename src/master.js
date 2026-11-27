@@ -110,7 +110,19 @@ export function sanitizeFile(p) {
     targetLufs: c(s.targetLufs, R.targetLufs, n.targetLufs),
     drive: c(s.drive, R.drive, n.drive),
     output: c(s.output, R.output, n.output),
+    inLufs: Number.isFinite(s.inLufs) ? s.inLufs : null,
   };
+}
+
+/**
+ * Nivåanpassning in (gain staging), som i en riktig mastring: låten läggs på samma nivå som Live-kedjan får från
+ * en strömningstjänst (−14 LUFS) innan EQ och kompressor, så att en presets trösklar och In betyder samma sak i
+ * Fil som i Live – oavsett om låten är tyst eller redan hög. Slutnivån sätts ändå av målet. Inte med målet Egen.
+ */
+export const STAGE_REF_LUFS = -14;
+export function inputStage(p) {
+  if (p.inLufs == null || !Number.isFinite(p.inLufs) || p.target === 'egen') return 0;
+  return Math.max(-12, Math.min(12, STAGE_REF_LUFS - p.inLufs));
 }
 
 /**
@@ -163,7 +175,7 @@ export function fileCharacter(presetId) {
 
 export function liveToFile(liveParams, extra = {}, presetId = null) {
   const l = sanitizeLive(liveParams);
-  return sanitizeFile({ ...fileNeutral(), preEq: l.preEq, mbc: l.mbc, postEq: l.postEq, peq: l.peq, ...fileCharacter(presetId), ...extra });
+  return sanitizeFile({ ...fileNeutral(), trim: l.inputGain, preEq: l.preEq, mbc: l.mbc, postEq: l.postEq, peq: l.peq, ...fileCharacter(presetId), ...extra });
 }
 
 /** Målet som LUFS-värde (null = ingen automatisk nivå). */
