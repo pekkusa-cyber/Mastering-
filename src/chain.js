@@ -153,6 +153,9 @@ function spec({ in: inputGain, pre, post, mbc, lim }) {
   });
 }
 
+/** Höjs när de inbyggda presetsen ändras, så att appen kan säga till att en sparad inställning bygger på en äldre version. */
+export const PRESETS_VERSION = 2;
+
 // Startvärden att justera med örat – inte facit.
 export const BUILTIN_PRESETS = [
   {

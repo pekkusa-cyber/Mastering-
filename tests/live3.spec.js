@@ -257,3 +257,18 @@ test('Mastringsguiden finns i ☰-menyn i alla vyer och menyn stängs', async ({
     await page.locator('dialog.sheet').getByRole('button', { name: 'Stäng' }).click();
   }
 });
+
+test('sparad inställning från en äldre presetversion: en tydlig rad om att välja presetten igen, en gång', async ({ page }) => {
+  await page.addInitScript(() => {
+    if (!sessionStorage.getItem('seeded')) {
+      localStorage.setItem('CapacitorStorage.state', JSON.stringify({ presetId: 'suno-fix', base: {}, macros: {} }));
+      sessionStorage.setItem('seeded', '1');
+    }
+  });
+  await page.goto('/?sim=1');
+  await expect(page.locator('#msg')).toContainText('Presetsen är uppdaterade');
+  await page.reload();
+  await expect(page.locator('#onoff')).toBeVisible();
+  await page.waitForTimeout(500);
+  await expect(page.getByText('Presetsen är uppdaterade')).toHaveCount(0);
+});

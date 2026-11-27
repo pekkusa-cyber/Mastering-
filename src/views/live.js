@@ -7,7 +7,7 @@ import { load, save } from '../store.js';
 import {
   BUILTIN_PRESETS, EQ_CUTOFFS, MACROS, MODULES, PEQ_BANDS, AMOUNT_KEYS, areaRange, listenCurve, withListen, applyAmounts, noAmounts, applyModule, moduleActive, soloParams, MACRO_GROUPS, MBC_CUTOFFS, presetEffects, MBC_NAMES, RANGES, activeMacros, allEnabled, applyEnables,
   applyMacros, bandLabel, deletePreset, exportPresets, importPresets, neutral, noMacros, renamePreset, sanitize,
-  savePreset, toNative,
+  savePreset, toNative, PRESETS_VERSION,
 } from '../chain.js';
 import { ask, bindPicker, bindSliders, esc, fmtDb, getPath, infoBtn, picker, setPath, sheet, slider, saveFile, soloBtn, split, toggle, vfader } from '../ui.js';
 import { gainComputer } from '../dsp/dynamics.js';
@@ -81,7 +81,7 @@ export function changed({ now = false, user = true, keepUndo = false, undone = f
   };
   if (now) send(); else sendTimer = setTimeout(send, 60);
   clearTimeout(saveTimer);
-  saveTimer = setTimeout(() => save('state', { presetId: ui.presetId, base: ui.base, macros: ui.macros, mode: ui.mode, enabled: ui.enabled, constant: ui.constant, mods: ui.mods, amounts: ui.amounts, liveBlock: ui.liveBlock }), 300);
+  saveTimer = setTimeout(() => save('state', { presetsVersion: PRESETS_VERSION, presetId: ui.presetId, base: ui.base, macros: ui.macros, mode: ui.mode, enabled: ui.enabled, constant: ui.constant, mods: ui.mods, amounts: ui.amounts, liveBlock: ui.liveBlock }), 300);
   const d = document.querySelector('#dirty');
   if (d) d.hidden = !isDirty();
   const u = document.querySelector('#undo');
@@ -107,6 +107,11 @@ export async function initLive() {
     ui.enabled = { ...allEnabled(), ...st.enabled };
     ui.constant = st.constant !== false;
     ui.mods = st.mods || {};
+    // Inställningen bygger på en äldre version av en inbyggd preset: säg till (en gång) – skriv aldrig över det man ställt in
+    if ((st.presetsVersion ?? 1) < PRESETS_VERSION && BUILTIN_PRESETS.some((p) => p.id === ui.presetId && p.id !== 'flat')) {
+      say('Presetsen är uppdaterade (kalibrerade på riktiga låtar). Välj din preset igen för att få den nya versionen.');
+      save('state', { ...st, presetsVersion: PRESETS_VERSION });
+    }
   }
   ui.solo = null; ui.listen = null; // solo och områdeslyssning gäller bara medan man lyssnar
   ui.amounts ||= noAmounts();
