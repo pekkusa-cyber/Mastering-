@@ -213,6 +213,9 @@ export const HELP = {
         <li><b>🪄 Assistent:</b> Låt → Mål → Förslag (Före, A Varsam, B Balanserad, C Kraftig – växla medan låten spelar) → Finjustera → Export.</li>
         <li><b>⚖ Jämför:</b> Original och dina versioner i samma nivå, med loop och <b>blindtest</b>. Behåll den bästa.</li>
         <li><b>💿 Album:</b> flera låtar med samma inställning och nivå.</li>
+        <li><b>⤒ Importera inställning / ⤓ Spara inställning</b> (🎵 Låt ▾): spara hela kedjan som en liten fil och läs in den igen – på en
+        annan låt eller telefon, eller en inställning någon har tagit fram åt dig. Importen läggs som en version i Jämför, så att du hör den
+        mot Original och dina andra versioner i samma nivå.</li>
         <li><b>Skicka till Fil</b> (i Live under ⋯) tar din Live-inställning hit.</li>
       </ul>
       <h3>Exportera</h3>

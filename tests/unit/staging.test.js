@@ -76,3 +76,19 @@ test('fade in/ut: tyst i början och slutet, full nivå däremellan, och taket h
   assert.equal(c[0][FS * 2], 0.5);
   assert.ok(c[1].every((v) => v <= 0.5 + 1e-9));
 });
+
+test('inställningsfil: rundtur, gränser klipps och fel ger svensk text', async () => {
+  const { exportFileSettings, parseFileSettings, fileNeutral, sanitizeFile } = await import('../../src/master.js');
+  const p = sanitizeFile({ ...fileNeutral(), deEss: 40, monoBass: 100, fadeOut: 3, target: 'hog' });
+  p.postEq[7].gain = -2; p.matchEq[3].gain = 1.5;
+  const s = parseFileSettings(exportFileSettings({ name: 'Home v2', params: p, enabled: { mbc1: false, glue: true }, presetId: 'suno-fix' }));
+  assert.equal(s.name, 'Home v2'); assert.equal(s.presetId, 'suno-fix');
+  assert.equal(s.params.deEss, 40); assert.equal(s.params.monoBass, 100); assert.equal(s.params.fadeOut, 3); assert.equal(s.params.target, 'hog');
+  assert.equal(s.params.postEq[7].gain, -2); assert.equal(s.params.matchEq[3].gain, 1.5);
+  assert.deepEqual(s.enabled, { mbc1: false }); // bara avstängda delar sparas
+  const wild = parseFileSettings(JSON.stringify({ kind: 'fil-installning', params: { deEss: 9999, preEq: [{ gain: 99 }] } }));
+  assert.equal(wild.params.deEss, 100); assert.equal(wild.params.preEq[0].gain, 12);
+  assert.throws(() => parseFileSettings('inte json'), /giltig JSON/);
+  assert.throws(() => parseFileSettings('{"foo":1}'), /inte ut som en inställning/);
+  assert.throws(() => parseFileSettings('{"presets":[]}'), /preset-fil för Live/);
+});

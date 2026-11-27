@@ -224,3 +224,27 @@ export function masterChecks(m, gr = {}) {
   if ((avg.glue ?? 0) > 3) out.push(['warn', `Limmet trycker ned ${f1(avg.glue)} dB i snitt – 1–2 dB brukar räcka för att hålla ihop mixen.`]);
   return out;
 }
+
+/**
+ * Fil-inställning som fil: hela kedjan (EQ, kompressor, Färg, Limiter, Ut) med ett namn, så att den kan skickas mellan
+ * telefon och dator – t.ex. en inställning jag har tagit fram åt dig – och läggas in som en version i Jämför.
+ * inLufs (låtens egen nivå) tas inte med: den mäts om för låten som öppnas.
+ */
+export function exportFileSettings({ name = 'Inställning', params, enabled = {}, presetId = '' }) {
+  const p = sanitizeFile(params); delete p.inLufs;
+  return JSON.stringify({ app: 'masterlab', kind: 'fil-installning', version: 1, name, presetId, enabled, params: p }, null, 2);
+}
+
+/** Läser en inställningsfil. Kastar ett fel med svensk text om den inte går att använda. Okända fält ignoreras, värden klipps till tillåtna gränser. */
+export function parseFileSettings(text) {
+  let d;
+  try { d = JSON.parse(text); } catch { throw new Error('Filen är inte giltig JSON.'); }
+  if (d?.kind === 'fil-installning') { /* vår fil */ }
+  else if (d?.params && typeof d.params === 'object' && ('preEq' in d.params || 'mbc' in d.params || 'postEq' in d.params)) { /* en ensam inställning */ }
+  else if (Array.isArray(d?.presets)) throw new Error('Det här är en preset-fil för Live. Importera den under ⋯ Hantera presets i Live.');
+  else throw new Error('Det här ser inte ut som en inställning från Masterlab (Fil).');
+  const params = sanitizeFile(d.params); delete params.inLufs;
+  const enabled = d.enabled && typeof d.enabled === 'object' ? Object.fromEntries(Object.entries(d.enabled).filter(([k, v]) => FILE_STAGES.includes(k) && v === false)) : {};
+  return { name: String(d.name || 'Importerad').slice(0, 28), presetId: typeof d.presetId === 'string' ? d.presetId : '', enabled, params };
+}
+

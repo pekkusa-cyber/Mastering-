@@ -359,3 +359,32 @@ test('Auto → ⚖ Spara och jämför: versionen sparas och Jämför öppnas med
   await r2.locator('#f-auto-cmp').click();
   await expect(page.locator('[data-cslot]')).toHaveCount(3);
 });
+
+test('Spara inställning → Importera inställning: kommer in som en version i Jämför, felaktig fil ger tydligt fel', async ({ page }) => {
+  test.setTimeout(180000);
+  await page.goto('/?sim=1&view=fil');
+  await loadSong(page, 'a.wav');
+  await block(page, 'quick');
+  await setRange(page.locator('#f-deEss'), 42);
+  await page.locator('#f-song').click();
+  const dl = page.waitForEvent('download');
+  await page.locator('#f-export-set').click();
+  await page.locator('dialog.ask input').fill('Min inställning');
+  await page.locator('dialog.ask').getByRole('button', { name: 'Spara' }).click();
+  const file = await (await dl).path();
+  await expect(page.getByTestId('impmsg')).toContainText('masterlab.json');
+  await page.keyboard.press('Escape');
+  // En ny låt (orörd) och importera
+  await loadSong(page, 'b.wav', wav(3, { seed: 3 }));
+  await page.locator('#f-song').click();
+  await page.locator('#f-import').setInputFiles(file);
+  await expect(page.locator('[data-cslot]')).toHaveCount(2); // Original + importerad
+  await expect(page.locator('[data-cslot]').nth(1)).toContainText('Min inställning');
+  await page.locator('#f-mode-exit').click();
+  await block(page, 'quick');
+  await expect(page.locator('#f-deEss')).toHaveValue('42');
+  // Fel fil
+  await page.locator('#f-song').click();
+  await page.locator('#f-import').setInputFiles({ name: 'fel.json', mimeType: 'application/json', buffer: Buffer.from('{"foo":1}') });
+  await expect(page.getByTestId('impmsg')).toContainText('inte ut som en inställning');
+});

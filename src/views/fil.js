@@ -6,7 +6,7 @@ import { isNative, LiveDsp } from '../livedsp.js';
 import { ui, app } from '../state.js';
 import { save, load } from '../store.js';
 import { BUILTIN_PRESETS, EQ_CUTOFFS, MBC_CUTOFFS, MBC_NAMES, RANGES, PEQ_BANDS, MODULES, bandLabel, areaRange, moduleActive, presetEffects } from '../chain.js';
-import { FILE_RANGES, FILE_STAGES, MATCH_FREQS, TARGETS, applyFileEnables, fileCharacter, masterChecks, fileNeutral, liveToFile, sanitizeFile } from '../master.js';
+import { FILE_RANGES, FILE_STAGES, MATCH_FREQS, TARGETS, applyFileEnables, fileCharacter, masterChecks, fileNeutral, liveToFile, sanitizeFile, exportFileSettings, parseFileSettings } from '../master.js';
 import { compareProfiles, matchEqCurve, profileFromChannels, toFileMatchEq } from '../analysis.js';
 import { currentRef, selectRef } from '../refs.js';
 import { ask, bindPicker, bindSliders, esc, fmtDb, getPath, infoBtn, picker, saveFile, setPath, sheet, slider, soloBtn, split, toggle, vfader } from '../ui.js';
@@ -687,6 +687,12 @@ async function runAlbum() {
 
 
 // ---- Ark: Låt, Export, Lyssna ----
+async function saveSettingsFile(name) {
+  const fname = `${name.replace(/[^\p{L}\p{N} _-]/gu, '').trim() || 'installning'} - masterlab.json`;
+  await saveFile(fname, exportFileSettings({ name, params: F.params, enabled: F.enabled, presetId: F.presetId }), 'application/json', fileDeps());
+  return { name: fname };
+}
+
 /** Sparar nuvarande inställning som en version (för Jämför). Högst 6 per låt. */
 async function saveVersion(name) {
   const v = { id: `v-${Date.now().toString(36)}`, name: name.trim() || 'Version', params: structuredClone(F.params), enabled: { ...F.enabled }, presetId: F.presetId, song: F.name, lufs: F.result?.metrics.integrated ?? null };
@@ -776,10 +782,29 @@ function songSheet() {
       <button class="btn wide" data-fmode="assist">🪄 Assistent – mastra i 5 steg</button>
       <button class="btn wide" data-fmode="compare" ${F.input ? '' : 'disabled'}>⚖ Jämför versioner (loop, blindtest)</button>
       <button class="btn wide" data-fmode="album">💿 Album – flera låtar</button>
+      <div class="btnrow"><label class="btn file ${F.input ? '' : 'disabled'}" id="f-import-lbl">⤒ Importera inställning<input type="file" id="f-import" accept=".json,application/json" hidden ${F.input ? '' : 'disabled'}></label>
+      <button class="btn" id="f-export-set" ${F.input ? '' : 'disabled'}>⤓ Spara inställning</button></div>
       ${F.input ? '<button class="btn wide ghost" id="f-forget">Glöm låten</button>' : ''}
-    </div>`, { cls: 'songsheet' });
+    </div><p class="hint small" data-testid="impmsg"></p>`, { cls: 'songsheet' });
   d.querySelector('#f-file2').onchange = (e) => { const f = e.target.files?.[0]; d.close(); if (f) openSong(f); };
   d.querySelectorAll('[data-fmode]').forEach((b) => { b.onclick = () => { d.close(); F.mode = b.dataset.fmode; F.assistStep = F.input ? 2 : 1; if (F.mode === 'compare') F.compare = { on: null }; app.render(); }; });
+  d.querySelector('#f-import').onchange = async (e) => {
+    const f = e.target.files?.[0]; if (!f) return;
+    try {
+      const s = parseFileSettings(await f.text());
+      pushUndo();
+      Object.assign(F, { params: { ...s.params, target: s.params.target }, enabled: s.enabled, presetId: s.presetId });
+      await saveVersion(s.name);
+      d.close(); F.mode = 'compare'; F.compare = { on: null }; F.msg = '';
+      if (realtime) playParams(heard(), F.result?.drive ?? 0);
+      persist(); F.stale = !!F.result; app.render(); paramsChanged();
+    } catch (err) { d.querySelector('[data-testid=impmsg]').textContent = err.message; }
+  };
+  d.querySelector('#f-export-set').onclick = async () => {
+    const name = await ask({ title: 'Spara inställning', value: F.name.replace(/\.[^.]+$/, '').slice(0, 24) || 'Inställning', okText: 'Spara' });
+    if (name === null) return;
+    try { const { name: fn } = await saveSettingsFile(name); d.querySelector('[data-testid=impmsg]').textContent = `Sparad: ${fn}`; } catch (err) { d.querySelector('[data-testid=impmsg]').textContent = `Misslyckades: ${err.message}`; }
+  };
   const fg = d.querySelector('#f-forget');
   if (fg) fg.onclick = async () => { d.close(); stopFilePlayback(); await forgetSong(); Object.assign(F, { input: null, result: null, name: '', profile: null, saved: false }); app.render(); };
 }
