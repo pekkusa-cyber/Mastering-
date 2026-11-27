@@ -104,6 +104,7 @@ export const INFO = {
 
   // ---- Fil ----
   fileTarget: { title: 'Mål', text: 'Streaming: −14 LUFS, −1 dBTP – det Spotify/YouTube normaliserar till, bäst dynamik. Hög: −10 LUFS för tätare modern pop/EDM. Eget: du ställer Drive själv.' },
+  diagnos: { title: 'Behöver låten mastras?', text: 'Appen jämför originalet med vad en färdig master brukar ha: nivå (nära −14 LUFS?), toppar (under −1 dBTP?), dynamik (redan komprimerad?), klang (resonanser, hårdhet, skimmer), bas (stereobred?) och slut (tvärt?). Suno-låtar kommer ofta ut som en färdig, polerad mix – då ska man röra den så lite som möjligt, och skillnaden efter mastring blir liten. Det är normalt och betyder att låten redan låter bra. Förvalet i ✨ Auto följer diagnosen.' },
   fadeIn: { title: 'Fade in', text: 'Tonar in början av den exporterade filen (mjuk kurva). En kort fade (50–200 ms) tar bort klick eller brus precis i starten. 0 = av. Gäller filen efter Rendera – inte direktlyssningen.' },
   fadeOut: { title: 'Fade ut', text: 'Tonar ut slutet av den exporterade filen. Bra när en Suno-låt slutar tvärt eller har brus/efterklang i svansen: 2–6 s brukar låta naturligt. 0 = av. Gäller filen efter Rendera – inte direktlyssningen.' },
   monoBass: { title: 'Bas i mono', text: 'Gör allt under vald frekvens mono (samma i vänster och höger). Proffs gör nästan alltid så med basen – runt 80–120 Hz: kick och bas blir stabila och centrerade, låter lika i mono, på klubb och i telefon, och ingen bas försvinner i fasproblem. Mer än ca 150 Hz börjar ta bredd från gitarrer och pads. 0 = av.' },

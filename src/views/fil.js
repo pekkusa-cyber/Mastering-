@@ -16,7 +16,7 @@ import { AbPlayer, RealtimePlayer, renderInWorker } from '../filemaster.js';
 import { encodeWav } from '../dsp/wav.js';
 import { truePeak } from '../dsp/truepeak.js';
 import { measure } from '../dsp/loudness.js';
-import { AUTO_STRENGTHS, AUTO_STYLES, autoMaster, edgeLevels } from '../automaster.js';
+import { AUTO_STRENGTHS, AUTO_STYLES, autoMaster, diagnose, edgeLevels } from '../automaster.js';
 import { PRESET_ICONS, allPresets, presetGroups, removeUserPreset } from './live.js';
 import { refGroups } from './analys.js';
 import { saveSong, loadSong, forgetSong, saveFileState, loadFileState } from '../filestore.js';
@@ -208,7 +208,7 @@ async function openSong(file, { fromStore = false, state = null } = {}) {
   if (!fromStore) {
     // Ny låt = helt orörd: ingen preset, ingen bearbetning, allt på, inget att ångra. Bara målnivån (vald plattform) behålls.
     Object.assign(F, { params: sanitizeFile({ ...fileNeutral(), target: F.params.target }), presetId: '', enabled: {}, undo: [], versionId: '',
-      compare: null, assistStep: 1, assistPick: 'B', mono: false, sim: 'normal', fromLiveMsg: '' });
+      compare: null, assistStep: 1, assistPick: 'B', mono: false, sim: 'normal', fromLiveMsg: '', autoTouched: false });
     if (realtime) playParams(heard(), 0);
   }
   F.rendering = true; F.progress = 0; F.saved = false;
@@ -403,12 +403,12 @@ function meterPart() {
   // Röd = mer nedtryckning än en mastring brukar ha. Medan låten spelar visas nedtryckningen just nu (toppar: ≈ 6 dB för
   // kompressor/de-esser, 3 dB för lim och limiter); efter en rendering visas snittet under låten (riktvärden: kompressor
   // 1–4 dB, lim 1–2,5 dB, limiter högst ca 2 dB i snitt).
-  const LIMIT = live ? { 'Kompr.': 6, 'S-ljud': 6, 'Mjuk topp': 6, Lim: 3, Limiter: 3 } : { 'Kompr.': 4, 'S-ljud': 4, 'Mjuk topp': 4, Lim: 2.5, Limiter: 2 };
+  const LIMIT = live ? { 'Kompr.': 5, 'S-ljud': 5, 'Mjuk topp': 5, Lim: 3, Limiter: 3 } : { 'Kompr.': 4, 'S-ljud': 4, 'Mjuk topp': 4, Lim: 2.5, Limiter: 2 };
   return `<div class="fmeters" data-testid="livemeters">${bars.map(([n, v, , kind]) => {
     const h = kind === 'lvl' ? Math.max(2, Math.min(100, ((v + 40) / 40) * 100)) : Math.max(0, Math.min(100, (v || 0) * 10));
     const hot = kind === 'gr' && v > (LIMIT[n] ?? 99);
     return `<div class="fmb ${kind}${hot ? ' hot' : ''}" title="${hot ? `Mer än ca ${LIMIT[n]} dB – mer än en mastring brukar` : ''}"><b>${kind === 'gr' ? (v > 0.05 ? `−${v.toFixed(1)}` : '0.0') : Number.isFinite(v) ? v.toFixed(1) : '–'}</b><div class="fmt"><em style="height:${h.toFixed(0)}%"></em></div><span>${n}</span></div>`;
-  }).join('')}</div><small class="fmnote">${live ? 'just nu' : 'snitt under låten (senaste renderingen)'} · röd = mer än proffsens riktvärde</small>`;
+  }).join('')}</div><small class="fmnote">${live ? 'just nu (utjämnat ~1 s)' : 'snitt under låten (senaste renderingen)'} · röd = mer än proffsens riktvärde</small>`;
 }
 function filTop() {
   if (!F.input) {
@@ -692,12 +692,24 @@ load('autoPrefs', null).then((v) => { if (v) F.auto = { ...F.auto, ...v }; });
 F.auto = { style: 'auto', strength: 'balans' };
 const refProfile = () => currentRef()?.profile || null;
 
-/** Väljaren: stil, styrka, mål och (om du har en) referens. */
+/** Behöver låten mastras? Diagnos av originalet (samma mätningar som renderingen gör). */
+function songDiagnosis() {
+  if (!F.input || !F.profile) return null;
+  if (F._clip == null) { let c = 0; for (const ch of F.input.channels) for (let i = 0; i < ch.length; i++) if (Math.abs(ch[i]) >= 0.999) c++; F._clip = c; }
+  return diagnose({ profile: F.profile, original: F.result?.original || {}, stereo: F.result?.originalStereo || null, clipped: F._clip, edges: F.edges });
+}
+const diagHtml = (dg) => `<div class="diag ${dg.verdict}" data-testid="diagnos"><b>${esc(dg.title)}</b>
+  <ul class="checks">${dg.points.map(([k, t]) => `<li class="${k === 'info' ? 'ok' : k}">${k === 'warn' ? '!' : k === 'info' ? 'ℹ' : '✓'} ${esc(t)}</li>`).join('')}</ul></div>`;
+
+/** Väljaren: diagnos, stil, styrka, mål och (om du har en) referens. */
 function autoSheet() {
+  const dg = songDiagnosis();
+  if (dg && !F.autoTouched) F.auto.strength = dg.strength; // förval efter diagnosen tills du själv väljer styrka
   const seg = (name, cur, opts) => `<div class="seg" data-aseg="${name}">${opts.map(([v, l]) => `<button data-av="${esc(v)}" class="${cur === v ? 'sel' : ''}">${esc(l)}</button>`).join('')}</div>`;
   const refs = ui.refs || [];
   const d = sheet(`<h2>✨ Automastra</h2>
-    <p class="hint small">Appen analyserar låten och ställer in hela kedjan: preset efter stil, tämjer det som sticker ut i klangen,
+    ${dg ? `<div class="phead"><b>Behöver låten mastras?</b>${infoBtn('diagnos')}</div>${diagHtml(dg)}` : ''}
+    <p class="hint small">✨ ställer in hela kedjan efter analysen: preset efter stil, tämjer det som sticker ut i klangen,
     rättar hårda s-ljud, skimmer och bred bas, sätter nivå och fade. Du kan ändra allt efteråt – och ↶ ångrar.</p>
     <div class="phead"><b>Stil</b></div><div class="chips autostyles">${AUTO_STYLES.map(([v, l]) => `<button class="chip${F.auto.style === v ? ' sel' : ''}" data-astyle="${esc(v)}">${esc(l)}</button>`).join('')}</div>
     <div class="phead" style="margin-top:10px"><b>Hur mycket</b></div>${seg('strength', F.auto.strength, AUTO_STRENGTHS)}
@@ -707,7 +719,7 @@ function autoSheet() {
   let target = F.params.target === 'hog' ? 'hog' : 'streaming';
   d.querySelectorAll('[data-astyle]').forEach((b) => { b.onclick = () => { F.auto.style = b.dataset.astyle; d.querySelectorAll('[data-astyle]').forEach((x) => x.classList.toggle('sel', x === b)); }; });
   d.querySelectorAll('[data-aseg]').forEach((g) => g.querySelectorAll('[data-av]').forEach((b) => {
-    b.onclick = () => { g.querySelectorAll('[data-av]').forEach((x) => x.classList.toggle('sel', x === b)); if (g.dataset.aseg === 'strength') F.auto.strength = b.dataset.av; else target = b.dataset.av; };
+    b.onclick = () => { g.querySelectorAll('[data-av]').forEach((x) => x.classList.toggle('sel', x === b)); if (g.dataset.aseg === 'strength') { F.auto.strength = b.dataset.av; F.autoTouched = true; } else target = b.dataset.av; };
   }));
   d.querySelectorAll('[data-aref]').forEach((b) => { b.onclick = () => { selectRef(b.dataset.aref); d.querySelectorAll('[data-aref]').forEach((x) => x.classList.toggle('sel', x === b)); }; });
   d.querySelector('#f-auto-go').onclick = async () => { save('autoPrefs', F.auto); d.close(); await runAuto({ target }); };
@@ -732,7 +744,7 @@ function autoResult() {
   const warn = masterChecks(m, r.gr).filter(([k]) => k !== 'ok');
   const d = sheet(`<h2>✨ Automastring klar</h2>
     <ul class="autoacts" data-testid="autoactions">${F.autoActions.map((a) => `<li>${esc(a)}</li>`).join('')}</ul>
-    <p class="hint small">Resultat: ${m.integrated.toFixed(1).replace('.', ',')} LUFS · true peak ${m.truePeak.toFixed(1).replace('.', ',')} dBTP · PLR ${plr.toFixed(1).replace('.', ',')} dB</p>
+    <p class="hint small">Resultat: ${m.integrated.toFixed(1).replace('.', ',')} LUFS · true peak ${m.truePeak.toFixed(1).replace('.', ',')} dBTP · PLR ${plr.toFixed(1).replace('.', ',')} dB${r.gr.avg ? ` · i snitt: kompressor ${Math.max(...r.gr.avg.mbc).toFixed(1).replace('.', ',')} dB, lim ${r.gr.avg.glue.toFixed(1).replace('.', ',')} dB, limiter ${r.gr.avg.limiter.toFixed(1).replace('.', ',')} dB` : ''}</p>
     ${warn.length ? `<ul class="checks">${warn.map(([, t]) => `<li class="warn">! ${esc(t)}</li>`).join('')}</ul>` : '<p class="hint small ok">✓ Klarar exportkontrollen.</p>'}
     <p class="hint small">Lyssna med <b>A | B</b> (lika nivå). Vill du ändra något: justera blocken, eller kör igen med en annan stil eller styrka.</p>
     <div class="btnrow"><button class="btn" id="f-auto-undo">↶ Ångra</button><button class="btn" id="f-auto-again">Igen…</button><button class="btn primary" id="f-auto-export">⤓ Exportera</button></div>`, { cls: 'autosheet', closeText: 'Lyssna' });
@@ -833,7 +845,9 @@ async function playToggle(root) {
 }
 let meterAt = 0;
 player.onMeter = (m) => {
-  F.meter = m;
+  // Nedtryckningen jämnas ut över ungefär en sekund – en enskild trumträff ska inte se ut som för hård kompression
+  const p = F.meter, k = 0.85, sm = (a, b) => (p ? k * a + (1 - k) * b : b);
+  F.meter = { ...m, gr: p ? { mbc: m.gr.mbc.map((v, i) => sm(p.gr.mbc[i], v)), deEss: sm(p.gr.deEss, m.gr.deEss), glitter: sm(p.gr.glitter, m.gr.glitter), glue: sm(p.gr.glue, m.gr.glue), limiter: sm(p.gr.limiter, m.gr.limiter) } : m.gr };
   const now = Date.now();
   if (ui.view === 'fil' && F.graph === 'meter' && now - meterAt > 150) { meterAt = now; app.renderPart('fileMeter'); }
 };

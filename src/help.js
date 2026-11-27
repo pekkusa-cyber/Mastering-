@@ -204,7 +204,9 @@ export const HELP = {
       <ul>
         <li><b>✨ Auto</b> (startsidan eller bredvid Huvudpreset): appen analyserar låten och mastrar med ett tryck – preset efter stil
         (Auto = Suno-fix), sänker det som sticker ut i klangen (aldrig höjningar), mer de-esser vid hårt 2,5–5 kHz, Mjuk topp vid
-        skimmer, bas i mono om basen är bred, mindre tryck om låten redan är pressad, fade om den börjar/slutar tvärt. Med en
+        skimmer, bas i mono om basen är bred, mindre tryck om låten redan är pressad, fade om den börjar/slutar tvärt. Överst visas en
+        <b>diagnos</b>: behöver låten mastras alls? Suno-låtar är ofta redan en färdig, polerad mix (nivå, toppar och dynamik som färdig
+        musik) – då föreslås Varsam, och skillnaden blir liten. Det är normalt. Med en
         referens vald matchas klangen mot den. Du ser vad som gjordes, kan ångra, köra igen eller exportera.</li>
         <li><b>🪄 Assistent:</b> Låt → Mål → Förslag (Före, A Varsam, B Balanserad, C Kraftig – växla medan låten spelar) → Finjustera → Export.</li>
         <li><b>⚖ Jämför:</b> Original och dina versioner i samma nivå, med loop och <b>blindtest</b>. Behåll den bästa.</li>

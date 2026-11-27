@@ -57,3 +57,28 @@ test('kanterna: tyst början och slut mäts som tysta', () => {
   assert.ok(e.startDb < -40 && e.endDb < -40);
   assert.ok(selfDeviation(BAND_CENTERS.map(tilt)).every((v, i) => BAND_CENTERS[i] < 200 || BAND_CENTERS[i] > 10000 || Math.abs(v) < 0.6), 'jämn lutning = ingen avvikelse i mellanregistret');
 });
+
+test('diagnos: en färdig, polerad låt säger "rör så lite som möjligt" och föreslår Varsam', async () => {
+  const { diagnose } = await import('../../src/automaster.js');
+  const d = diagnose({ profile: flat(), original: { integrated: -15, truePeak: -2.5, lra: 6 } });
+  assert.equal(d.verdict, 'klar');
+  assert.equal(d.strength, 'varsam');
+  assert.match(d.title, /redan färdig/);
+});
+
+test('diagnos: låg nivå, toppar över taket och hårdhet ger "Behöver mastras"', async () => {
+  const { diagnose } = await import('../../src/automaster.js');
+  const p = flat(); p.bands = p.bands.map((v, i) => v + (BAND_CENTERS[i] > 2800 && BAND_CENTERS[i] < 5500 ? 3 : 0));
+  const d = diagnose({ profile: p, original: { integrated: -22, truePeak: -0.2, lra: 8 }, edges: { endDb: -3 } });
+  assert.equal(d.verdict, 'mer');
+  assert.equal(d.strength, 'balans');
+  const t = d.points.map((x) => x[1]).join(' ');
+  assert.match(t, /Nivån är låg/); assert.match(t, /över −1 dBTP/); assert.match(t, /hårt i 2,5–5 kHz/); assert.match(t, /tvärt/);
+});
+
+test('redan komprimerad låt: kompressor och lim halveras', () => {
+  const p = flat(); p.crest = 7.4;
+  const soft = autoMaster({ profile: p, style: 'tat-pop', strength: 'kraftig' }).params;
+  const norm = autoMaster({ profile: flat(), style: 'tat-pop', strength: 'kraftig' }).params;
+  assert.ok(soft.mbc[1].ratio < norm.mbc[1].ratio && soft.glue.ratio < norm.glue.ratio);
+});

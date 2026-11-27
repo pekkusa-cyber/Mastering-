@@ -802,3 +802,7 @@ button.mbtn.on, .mbtn:has(input:not(:checked)) { background: var(--mute-bg); bor
 .subbar.fpreset #f-auto { flex: 0 0 auto; height: 34px; }
 .btnrow.startrow { display: flex; gap: 8px; margin-top: 8px; }
 .btnrow.startrow > * { flex: 1; min-width: 0; text-align: center; }
+.diag { border: 1px solid var(--line); border-radius: 12px; padding: 8px 10px; margin: 4px 0 8px; }
+.diag > b { display: block; font-size: 14px; margin-bottom: 4px; }
+.diag.klar { border-color: var(--accent-line, #2c6e64); }
+.diag .checks { margin: 0; }

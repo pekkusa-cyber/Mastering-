@@ -85,7 +85,13 @@ export function autoMaster({ profile, stereo = null, ref = null, style = 'auto',
   if (fizz > 1.5) { p.glitter += 15 * k; actions.push(`Skimmer över 9 kHz (+${f1(fizz)} dB): mer Mjuk topp.`); }
   const bass = stereo?.bands?.find((b) => b.id === 'bas');
   if (bass && (bass.corr < 0.8 || bass.monoLoss < -1)) { p.monoBass = Math.max(p.monoBass, 120); actions.push(`Basen är stereobred (korrelation ${bass.corr.toFixed(2).replace('.', ',')}): bas i mono under 120 Hz.`); }
-  if (profile.crest < 7.5) { p.trim -= 2; p.clip = Math.min(p.clip, 0.5); actions.push(`Låten är redan hårt komprimerad (toppighet ${f1(profile.crest)} dB): mindre tryck och nästan ingen soft clip.`); }
+  if (profile.crest < 8) {
+    // Redan komprimerad (som en färdig master): mer kompression ger lite och gör det plattare – halvera den
+    p.trim -= 2; p.clip = Math.min(p.clip, 0.5);
+    p.mbc = p.mbc.map((m) => ({ ...m, ratio: 1 + (m.ratio - 1) * 0.5 }));
+    p.glue = { ...p.glue, ratio: 1 + (p.glue.ratio - 1) * 0.5 };
+    actions.push(`Låten är redan komprimerad (toppighet ${f1(profile.crest)} dB, som en färdig master): kompressor och lim halverade, mindre In, nästan ingen soft clip.`);
+  }
   else if (profile.crest > 11) actions.push(`Dynamisk låt (toppighet ${f1(profile.crest)} dB): kompressorn får jämna ut lite mer.`);
   if (edges && edges.endDb > -15) { p.fadeOut = Math.max(p.fadeOut, 2); actions.push('Låten slutar tvärt: fade ut 2 s.'); }
   if (edges && edges.startDb > -15) { p.fadeIn = Math.max(p.fadeIn, 50); actions.push('Låten börjar tvärt: kort fade in (50 ms) mot klick.'); }
@@ -99,4 +105,39 @@ export function edgeLevels(channels, fs) {
   const rms = (a, b) => { let e = 0; for (let i = a; i < b; i++) e += (L[i] * L[i] + R[i] * R[i]) / 2; return 10 * Math.log10(e / Math.max(1, b - a) + 1e-12); };
   const all = rms(0, n);
   return { startDb: rms(0, Math.min(n, Math.round(fs * 0.05))) - all, endDb: rms(n - w, n) - all };
+}
+
+/**
+ * Behöver låten mastras? Jämför originalet med vad en färdig master brukar ha: nivå, toppar, dynamik, klang, bas
+ * och kanter. Svarar { verdict: 'klar' | 'lite' | 'mer', title, points: [[ 'ok'|'warn'|'info', text ]], strength }.
+ * Rekommendationen styr förvalet i ✨ Auto: en låt som redan låter färdig ska röras så lite som möjligt.
+ */
+export function diagnose({ profile, original = {}, stereo = null, clipped = 0, edges = null }) {
+  const pts = [], L = original.integrated, tp = original.truePeak, lra = original.lra;
+  let need = 0;
+  if (Number.isFinite(L)) {
+    if (L < -18) { pts.push(['warn', `Nivån är låg (${f1(L)} LUFS) – behöver lyftas och ett tak sättas.`]); need += 2; }
+    else pts.push(['ok', `Nivån (${f1(L)} LUFS) är redan nära plattformarnas −14 LUFS.`]);
+  }
+  if (Number.isFinite(tp)) {
+    if (tp > -1) { pts.push(['warn', `Toppar på ${f1(tp)} dBTP – över −1 dBTP, kan förvrängas när Spotify m.fl. kodar om. En limiter behövs.`]); need += 1; }
+    else pts.push(['ok', `Topparna (${f1(tp)} dBTP) har marginal till −1 dBTP.`]);
+  }
+  if (profile.crest < 8 || (Number.isFinite(lra) && lra < 4)) pts.push(['info', `Redan komprimerad (toppighet ${f1(profile.crest)} dB${Number.isFinite(lra) ? `, loudness range ${f1(lra)} LU` : ''}) – som en färdig master. Mer kompression ger lite och kan göra det plattare.`]);
+  else if (profile.crest > 11) { pts.push(['warn', `Mycket dynamisk (toppighet ${f1(profile.crest)} dB) – en kompressor kan hålla ihop den.`]); need += 1; }
+  else pts.push(['ok', `Dynamiken (toppighet ${f1(profile.crest)} dB) är som i färdig musik.`]);
+  const dev = selfDeviation(profile.bands, 6), bumps = selfDeviation(profile.bands)
+    .map((v, i) => [v, BAND_CENTERS[i]]).filter(([v, f]) => f >= 120 && f <= 10000 && v > 2);
+  const harsh = region(2500, 5000, dev), fizz = region(9000, 16000, dev);
+  if (harsh > 1) { pts.push(['warn', `Lite hårt i 2,5–5 kHz (+${f1(harsh)} dB) – röst och kanter kan kännas vassa.`]); need += 1; }
+  if (fizz > 1.5) { pts.push(['warn', `Skimmer/fräs över 9 kHz (+${f1(fizz)} dB) – typiskt för AI-genererat ljud.`]); need += 1; }
+  if (bumps.length) { pts.push(['warn', `Klangen sticker ut vid ${bumps.slice(0, 3).map(([, f]) => hz(f)).join(', ')}.`]); need += bumps.length > 2 ? 2 : 1; }
+  if (!(harsh > 1) && !(fizz > 1.5) && !bumps.length) pts.push(['ok', 'Klangen är jämn – inga tydliga resonanser, hårdhet eller skimmer.']);
+  const bass = stereo?.bands?.find((b) => b.id === 'bas');
+  if (bass && (bass.corr < 0.8 || bass.monoLoss < -1)) { pts.push(['warn', `Basen är stereobred (korrelation ${bass.corr.toFixed(2).replace('.', ',')}) – lägg den i mono.`]); need += 1; }
+  if (clipped > 20) pts.push(['warn', `Originalet är redan klippt på ${clipped} ställen – det går inte att laga i mastringen.`]);
+  if (edges && edges.endDb > -15) { pts.push(['warn', 'Slutar tvärt – en fade ut låter bättre.']); need += 1; }
+  const verdict = need === 0 ? 'klar' : need <= 2 ? 'lite' : 'mer';
+  const title = { klar: 'Låten låter redan färdig – rör den så lite som möjligt (Varsam).', lite: 'Lite att rätta – en varsam mastring räcker (Varsam/Balanserad).', mer: 'Behöver mastras (Balanserad).' }[verdict];
+  return { verdict, title, points: pts, strength: verdict === 'mer' ? 'balans' : 'varsam' };
 }
