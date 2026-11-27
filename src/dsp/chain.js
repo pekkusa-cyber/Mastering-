@@ -90,6 +90,7 @@ export class PreChain {
     this.bands = MBC_CUTOFFS.map(() => [new Float32Array(BLOCK), new Float32Array(BLOCK)]);
     this.gr = { mbc: [0, 0, 0, 0], glue: 0, deEss: 0, glitter: 0 };
     this.now = { mbc: [0, 0, 0, 0], glue: 0 }; // nedtryckning just nu (för mätarna i direktlyssningen)
+    this.sum = { mbc: [0, 0, 0, 0], glue: 0, deEss: 0, glitter: 0, n: 0 }; // för genomsnittlig nedtryckning (tysta block räknas inte)
     this.delta = null; // 'deEss': ge bara det som de-essern tar bort (Δ-lyssning)
     this.tmp = [new Float32Array(BLOCK), new Float32Array(BLOCK)];
     this.set(p, true);
@@ -116,7 +117,24 @@ export class PreChain {
     if (immediate) { this.trim.g = this.trim.t; this.widthNow = this.width; }
   }
 
+  /** Genomsnittlig nedtryckning (dB) medan det låter – det proffs menar med "2 dB kompression". */
+  get avg() {
+    const k = this.sum.n || 1;
+    return { mbc: this.sum.mbc.map((x) => x / k), glue: this.sum.glue / k, deEss: this.sum.deEss / k, glitter: this.sum.glitter / k };
+  }
+
   run(L, R, n) {
+    let e = 0; for (let i = 0; i < n; i += 4) e += L[i] * L[i] + R[i] * R[i];
+    const sounding = e / (n / 2) > 1e-6; // över ca −60 dBFS
+    this.runInner(L, R, n);
+    if (sounding) {
+      const s = this.sum;
+      for (let b = 0; b < 4; b++) s.mbc[b] += this.now.mbc[b];
+      s.glue += this.now.glue; s.deEss += this.deEss.gr || 0; s.glitter += this.glitter.gr || 0; s.n++;
+    }
+  }
+
+  runInner(L, R, n) {
     this.trim.run(L, R, n);
     this.pre.run(L, R, n);
     this.match.run(L, R, n);

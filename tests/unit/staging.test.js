@@ -56,3 +56,12 @@ test('bas i mono: sidosignalen under gränsen tas bort, ovanför lämnas den', a
   assert.ok(20 * Math.log10(tone(40) / 0.3) < -20, `40 Hz i sidan: ${(20 * Math.log10(tone(40) / 0.3)).toFixed(1)} dB`);
   assert.ok(Math.abs(20 * Math.log10(tone(2000) / 0.3)) < 0.5, '2 kHz orört');
 });
+
+test('renderingen ger både största och genomsnittlig nedtryckning (snittet är mindre än toppen)', () => {
+  const p = liveToFile(BUILTIN_PRESETS.find((x) => x.id === 'gym').params, { target: 'streaming' }, 'gym');
+  const r = renderMaster({ channels: song(1), fs: FS }, p);
+  assert.ok(r.gr.avg, 'snitt finns');
+  for (let b = 0; b < 4; b++) assert.ok(r.gr.avg.mbc[b] <= r.gr.mbc[b] + 1e-9, `band ${b}`);
+  assert.ok(r.gr.avg.mbc.some((x) => x > 0.3), 'kompressorn arbetar i snitt');
+  assert.ok(r.gr.avg.limiter >= 0 && r.gr.avg.limiter <= r.gr.limiter + 1e-9, 'limiterns snitt');
+});

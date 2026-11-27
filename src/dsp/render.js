@@ -22,8 +22,15 @@ function runPost(pre, fs, p, drive) {
   const lat = post.latency, n = pre[0].length;
   const L = new Float32Array(n + lat), R = new Float32Array(n + lat);
   L.set(pre[0]); R.set(pre[1]);
-  runBlocks(L, R, post);
-  return { channels: [L.slice(lat), R.slice(lat)], limiter: post.limiter, clipped: post.clipped };
+  // Limiterns genomsnittliga nedtryckning medan det låter (env = förstärkning just nu, 1 = ingen)
+  let sum = 0, k = 0, s = 0;
+  runBlocks(L, R, post, () => {
+    const e = Math.min(n + lat, s + BLOCK); let en = 0;
+    for (let i = s; i < e; i += 8) en += L[i] * L[i];
+    if (en / ((e - s) / 8) > 1e-6) { sum += -20 * Math.log10(Math.max(post.limiter.env ?? 1, 1e-9)); k++; }
+    s = e;
+  });
+  return { channels: [L.slice(lat), R.slice(lat)], limiter: post.limiter, clipped: post.clipped, limAvg: k ? sum / k : 0 };
 }
 
 /**
@@ -76,7 +83,8 @@ export function renderMaster(input, params, { onProgress, bypass = false } = {})
   const metrics = measure(result.channels, fs);
   return {
     channels: result.channels, fs, drive, metrics, original,
-    gr: { limiter: -toDb(result.limiter.minGain), mbc: chain.gr.mbc, glue: chain.gr.glue, deEss: chain.deEss.maxSeen, glitter: chain.glitter.maxSeen },
+    gr: { limiter: -toDb(result.limiter.minGain), mbc: chain.gr.mbc, glue: chain.gr.glue, deEss: chain.deEss.maxSeen, glitter: chain.glitter.maxSeen,
+      avg: { ...chain.avg, limiter: result.limAvg } }, // största och genomsnittlig nedtryckning (dB)
     clippedSamples: result.clipped, bypass: false,
   };
 }

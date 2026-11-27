@@ -121,7 +121,7 @@ export const INFO = {
   fileLimRelease: { title: 'Limiterns release', text: 'Hur snabbt limitern släpper. 50–100 ms är normalt.' },
   drive: { title: 'Drive', text: 'Förstärkningen in i clipper och limiter. Räknas ut automatiskt mot målet; med "Eget" ställer du den själv.' },
   output: { title: 'Utgång', text: 'Slutnivån efter limitern (kan bara sänkas, så att taket hålls).' },
-  meters: { title: 'Mätare', text: 'Integrerad loudness (LUFS, hela låten enligt EBU R128), högsta short-term (3 s), true peak (dBTP, även mellan samplen), loudness range (LU, dynamik) och hur mycket limitern som mest sänkte (dB).' },
+  meters: { title: 'Mätare', text: 'Integrerad loudness (LUFS, hela låten enligt EBU R128), högsta short-term (3 s), true peak (dBTP, även mellan samplen), loudness range (LU, dynamik) och hur mycket limitern som mest sänkte (dB). I grafen (Mätare) visas nedtryckningen per del: just nu medan låten spelar, annars den största under hela låten. Röd = mer än en mastring brukar ha – riktvärden i snitt: kompressor 1–4 dB, lim 1–2 dB, limiter högst 2–3 dB. Toppar under en låt får vara högre än snittet.' },
   ab: { title: 'A/B', text: 'Växla mellan original och mastrad under uppspelning. Med "Nivåmatchad" spelas originalet lika högt som den mastrade – då hör du klangskillnaden, inte volymen.' },
   export: { title: 'Exportera', text: 'WAV med dither. 24 bit för distribution (DistroKid m.fl. tar emot det), 16 bit för CD-format. 44,1 kHz är standard för musik, 48 kHz för video.' },
   fileDeEss: { title: 'S-ljud (de-esser)', text: 'Sänker vassa s-, t- och sch-ljud (5–10 kHz) bara när de sticker ut jämfört med resten – rösten i övrigt rörs inte. 20–40 % räcker oftast.' },

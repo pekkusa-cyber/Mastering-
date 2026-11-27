@@ -210,8 +210,11 @@ export function masterChecks(m, gr = {}) {
   else if (plr < 8) out.push(['ok', `PLR ${f1(plr)} dB: tätt och högt, som modern pop/EDM.`]);
   else out.push(['ok', `PLR ${f1(plr)} dB: bra dynamik kvar (8–12 dB är vanligt för musik som ska andas).`]);
   if (L > -14 && tp > -2) out.push(['warn', `Mastern är högre än −14 LUFS: Spotify rekommenderar då true peak under −2 dBTP (nu ${f1(tp)}) för att undvika distorsion när filen kodas om. Sänk taket till −2 under Limiter.`]);
-  if ((gr.limiter ?? 0) > 3) out.push(['warn', `Limitern trycker ned upp till ${f1(gr.limiter)} dB. Över ca 3 dB börjar det höras (pumpande, tappade anslag). Sänk målnivån eller ta lite av det med Soft clip.`]);
-  const mbcMax = Math.max(0, ...(gr.mbc || []));
-  if (mbcMax > 10) out.push(['warn', `Kompressorn trycker ned upp till ${f1(mbcMax)} dB i ett band – mer än vad en mastring brukar (oftast 1–4 dB). Höj tröskeln eller sänk In.`]);
+  // Nedtryckning: snittet medan det låter är det proffs menar ("2 dB kompression"); enstaka toppar får vara större
+  const avg = gr.avg || {};
+  if ((avg.limiter ?? 0) > 2 || (gr.limiter ?? 0) > 6) out.push(['warn', `Limitern trycker ned ${f1(avg.limiter ?? 0)} dB i snitt (upp till ${f1(gr.limiter ?? 0)} dB). Mer än ca 2 dB i snitt börjar höras (pumpande, tappade anslag). Sänk målnivån eller ta lite av det med Soft clip.`]);
+  const mbcAvg = Math.max(0, ...(avg.mbc || []));
+  if (mbcAvg > 5) out.push(['warn', `Kompressorn trycker ned ${f1(mbcAvg)} dB i snitt i ett band – mer än en mastring brukar (oftast 1–4 dB). Höj tröskeln eller sänk In.`]);
+  if ((avg.glue ?? 0) > 3) out.push(['warn', `Limmet trycker ned ${f1(avg.glue)} dB i snitt – 1–2 dB brukar räcka för att hålla ihop mixen.`]);
   return out;
 }

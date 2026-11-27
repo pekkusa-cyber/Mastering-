@@ -394,16 +394,18 @@ function meterPart() {
   const bars = live
     ? [['Nivå', m.level, m.level, 'lvl'], ['Topp', m.peak, m.peak, 'lvl'], ['Kompr.', Math.max(...m.gr.mbc), null, 'gr'], ['S-ljud', m.gr.deEss, null, 'gr'],
       ['Mjuk topp', m.gr.glitter, null, 'gr'], ['Lim', m.gr.glue, null, 'gr'], ['Limiter', m.gr.limiter, null, 'gr']]
-    : r ? [['LUFS', r.metrics.integrated, r.metrics.integrated, 'lvl'], ['Topp', r.metrics.truePeak, r.metrics.truePeak, 'lvl'], ['Kompr.', Math.max(...r.gr.mbc), null, 'gr'],
-      ['S-ljud', r.gr.deEss, null, 'gr'], ['Mjuk topp', r.gr.glitter || 0, null, 'gr'], ['Lim', r.gr.glue, null, 'gr'], ['Limiter', r.gr.limiter, null, 'gr']] : [];
+    : r ? (() => { const g = r.gr.avg || r.gr; return [['LUFS', r.metrics.integrated, r.metrics.integrated, 'lvl'], ['Topp', r.metrics.truePeak, r.metrics.truePeak, 'lvl'], ['Kompr.', Math.max(...g.mbc), null, 'gr'],
+      ['S-ljud', g.deEss || 0, null, 'gr'], ['Mjuk topp', g.glitter || 0, null, 'gr'], ['Lim', g.glue || 0, null, 'gr'], ['Limiter', g.limiter || 0, null, 'gr']]; })() : [];
   if (!bars.length) return '<p class="hint" style="padding:30px 10px">Mätarna visas när låten spelas eller är renderad.</p>';
-  // Röd = mer nedtryckning än en mastring brukar ha (riktvärden: kompressor/de-esser ≈ 6 dB, lim och limiter ≈ 3 dB)
-  const LIMIT = { 'Kompr.': 6, 'S-ljud': 6, 'Mjuk topp': 6, Lim: 3, Limiter: 3 };
+  // Röd = mer nedtryckning än en mastring brukar ha. Medan låten spelar visas nedtryckningen just nu (toppar: ≈ 6 dB för
+  // kompressor/de-esser, 3 dB för lim och limiter); efter en rendering visas snittet under låten (riktvärden: kompressor
+  // 1–4 dB, lim 1–2,5 dB, limiter högst ca 2 dB i snitt).
+  const LIMIT = live ? { 'Kompr.': 6, 'S-ljud': 6, 'Mjuk topp': 6, Lim: 3, Limiter: 3 } : { 'Kompr.': 4, 'S-ljud': 4, 'Mjuk topp': 4, Lim: 2.5, Limiter: 2 };
   return `<div class="fmeters" data-testid="livemeters">${bars.map(([n, v, , kind]) => {
     const h = kind === 'lvl' ? Math.max(2, Math.min(100, ((v + 40) / 40) * 100)) : Math.max(0, Math.min(100, (v || 0) * 10));
     const hot = kind === 'gr' && v > (LIMIT[n] ?? 99);
     return `<div class="fmb ${kind}${hot ? ' hot' : ''}" title="${hot ? `Mer än ca ${LIMIT[n]} dB – mer än en mastring brukar` : ''}"><b>${kind === 'gr' ? (v > 0.05 ? `−${v.toFixed(1)}` : '0.0') : Number.isFinite(v) ? v.toFixed(1) : '–'}</b><div class="fmt"><em style="height:${h.toFixed(0)}%"></em></div><span>${n}</span></div>`;
-  }).join('')}</div><small class="fmnote">${live ? 'just nu' : 'från senaste renderingen'} · röd = mer än proffsens riktvärde</small>`;
+  }).join('')}</div><small class="fmnote">${live ? 'just nu' : 'snitt under låten (senaste renderingen)'} · röd = mer än proffsens riktvärde</small>`;
 }
 function filTop() {
   if (!F.input) {
