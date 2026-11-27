@@ -118,9 +118,52 @@ export function sanitizeFile(p) {
  * kedjans ingångsförstärkning, och limitern blir en true-peak-limiter med tak −1 dBTP. Live (Androids DSP) och
  * fil (egen DSP) låter därför inte exakt lika.
  */
-export function liveToFile(liveParams, extra = {}) {
+/**
+ * Det som bara finns i Fil (Färg, Limiter, Kick-anslag) – eget för varje inbyggd preset, så att presetten märks i
+ * alla block och inte bara i EQ och kompressor. [kick, S-ljud %, Mjuk topp %, bredd %, lim ratio, lim tröskel,
+ * lim attack, lim release, soft clip dB, limiterns release ms]. Okänd/egen preset får DEFAULT_CHARACTER.
+ */
+export const DEFAULT_CHARACTER = [0, 25, 20, 100, 1.5, -16, 30, 200, 1.5, 80];
+export const FILE_CHARACTER = {
+  'mjuk-kick': [-30, 20, 15, 100, 1.5, -16, 30, 200, 1, 80],
+  'radio-ljus': [10, 30, 25, 110, 2, -18, 10, 150, 2.5, 50],
+  'silkeslen-rost': [0, 45, 35, 100, 1.3, -16, 30, 250, 0.5, 100],
+  'varm-lim': [-10, 20, 25, 105, 2.5, -20, 30, 300, 1, 120],
+  transparent: [0, 10, 5, 100, 1.2, -14, 30, 200, 0, 100],
+  'suno-fix': [-15, 30, 30, 100, 1.5, -16, 30, 200, 1.5, 80],
+  'bas-varm': [10, 15, 20, 95, 1.8, -18, 30, 250, 1, 100],
+  'tat-pop': [15, 30, 20, 115, 2.5, -20, 10, 150, 2.5, 50],
+  'hiphop-punch': [40, 20, 10, 100, 2, -18, 30, 120, 2, 60],
+  'edm-hogt': [30, 20, 15, 120, 3, -20, 10, 100, 3.5, 40],
+  akustisk: [0, 20, 10, 110, 1.2, -14, 40, 300, 0, 150],
+  ballad: [-10, 35, 25, 105, 1.5, -16, 30, 250, 0.5, 120],
+  rock: [20, 25, 15, 110, 2, -18, 20, 150, 2, 60],
+  lofi: [-20, 15, 40, 90, 2, -20, 40, 400, 1.5, 150],
+  natt: [-20, 30, 30, 90, 3, -24, 10, 200, 2, 80],
+  horlurar: [-10, 35, 40, 90, 1.5, -16, 30, 200, 0.5, 100],
+  'rnb-silke': [5, 35, 30, 110, 1.8, -18, 30, 250, 1, 100],
+  'trap-808': [20, 25, 10, 115, 2, -18, 20, 150, 3, 50],
+  schlager: [15, 30, 20, 100, 2, -18, 20, 150, 2, 60],
+  indie: [0, 20, 15, 115, 1.3, -14, 30, 250, 0.5, 120],
+  metal: [30, 25, 20, 105, 2, -18, 10, 120, 2.5, 50],
+  jazz: [0, 10, 5, 105, 1.1, -12, 40, 300, 0, 200],
+  film: [0, 10, 10, 120, 1.2, -14, 50, 400, 0, 200],
+  reggaeton: [35, 25, 15, 105, 2, -18, 30, 120, 2, 60],
+  bil: [10, 35, 30, 95, 2, -18, 20, 150, 2, 60],
+  telefon: [20, 40, 30, 80, 2.5, -20, 10, 120, 2.5, 50],
+  gym: [40, 25, 15, 115, 3, -20, 10, 100, 4, 40],
+  'demo-check': [0, 0, 0, 100, 1, -16, 30, 200, 0, 80],
+  test: [100, 80, 80, 180, 5, -24, 10, 100, 6, 40],
+};
+/** Fil-delarna (Färg, Limiter, Kick) för en preset. */
+export function fileCharacter(presetId) {
+  const [kickPunch, deEss, glitter, width, ratio, threshold, attack, release, clip, limRelease] = FILE_CHARACTER[presetId] || DEFAULT_CHARACTER;
+  return { kickPunch, deEss, glitter, width, glue: { threshold, ratio, attack, release, makeup: 0 }, clip, limRelease };
+}
+
+export function liveToFile(liveParams, extra = {}, presetId = null) {
   const l = sanitizeLive(liveParams);
-  return sanitizeFile({ ...fileNeutral(), preEq: l.preEq, mbc: l.mbc, postEq: l.postEq, peq: l.peq, glue: { threshold: -16, ratio: 1.5, attack: 30, release: 200, makeup: 0 }, clip: 1.5, deEss: 25, glitter: 20, ...extra });
+  return sanitizeFile({ ...fileNeutral(), preEq: l.preEq, mbc: l.mbc, postEq: l.postEq, peq: l.peq, ...fileCharacter(presetId), ...extra });
 }
 
 /** Målet som LUFS-värde (null = ingen automatisk nivå). */

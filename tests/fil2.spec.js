@@ -266,3 +266,26 @@ test('popup med snurra och förlopp när en låt läses in och när den renderas
   await expect.poll(() => page.evaluate(() => window.__busy.some((t) => t.startsWith('Renderar'))), { timeout: 60000 }).toBe(true);
   await expect(page.locator('#fbusy')).toHaveCount(0, { timeout: 60000 });
 });
+
+test('presetsen skiljer sig i Färg och Limiter, och Färg/Limiter har egna delpresets', async ({ page }) => {
+  test.setTimeout(120000);
+  await page.goto('/?sim=1&view=fil');
+  await loadSong(page);
+  const choose = async (sel, name) => { await page.locator(sel).click(); await page.locator('dialog.sheet').getByRole('option', { name: new RegExp(name) }).first().click(); };
+  await choose('#f-preset', 'Silkeslen röst');
+  await block(page, 'farg');
+  await expect(page.locator('#f-deEss')).toHaveValue('45');
+  await block(page, 'lim');
+  await expect(page.locator('#f-clip')).toHaveValue('0.5');
+  await choose('#f-preset', 'Gym');
+  await expect(page.locator('#f-clip')).toHaveValue('4');
+  await block(page, 'farg');
+  await expect(page.locator('#f-deEss')).toHaveValue('25');
+  // Delpreset: bara Färg byts, limitern ligger kvar
+  await choose('#fmod-farg', 'Jazz');
+  await expect(page.locator('#f-deEss')).toHaveValue('10');
+  await block(page, 'lim');
+  await expect(page.locator('#f-clip')).toHaveValue('4');
+  await choose('#fmod-lim', 'Akustisk');
+  await expect(page.locator('#f-clip')).toHaveValue('0');
+});

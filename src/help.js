@@ -116,7 +116,7 @@ export const HELP = {
         <li><b>🎵 Låt ▾</b> – byt låt, Assistent, Jämför versioner, Album. ✓ = låten är sparad på telefonen.</li>
         <li><b>A | B</b> – original eller mastrat. <b>↶</b> ångrar. <b>⤓ Export</b> – kontroll och export.</li>
         <li><b>Huvudpreset ▾</b> – raden under: väljer en preset för <b>hela kedjan</b> på en gång (alla block). Vill du bara byta
-          en del (t.ex. EQ eller kompressor) finns Preset ▾ inne i det blocket. 🗑 vid dina egna presets tar bort dem.</li>
+          en del (EQ, kompressor, Färg eller Limiter) finns Preset ▾ inne i det blocket. 🗑 vid dina egna presets tar bort dem.</li>
       </ul>
       <h3>Grafen</h3>
       <ul>
@@ -132,7 +132,8 @@ export const HELP = {
       <ul>
         <li><b>S</b> på en del = bara den delen hörs. <b>M/S på ett band</b> = bara bandets frekvenser / utan dem. <b>Δ</b> på S-ljud = hör det som tas bort.
         En gul rad i grafen visar vad du lyssnar på – ✕ avslutar. Allt detta gäller bara lyssningen, aldrig exporten.</li>
-        <li><b>Preset ▾</b> i EQ och Kompr. byter bara den delen.</li>
+        <li><b>Preset ▾</b> i EQ, Kompr., Färg och Limiter byter bara den delen. Varje preset har egna värden i alla block –
+          även S-ljud, Mjuk topp, Bredd, Lim, Kick-anslag och Soft clip, som bara finns i Fil.</li>
       </ul>
       <h3>Rendera</h3>
       <p>Allt hörs <b>direkt</b>. Mätare, spektrum och export räknas om när du trycker <b>Rendera</b>. Export kräver färsk rendering.</p>

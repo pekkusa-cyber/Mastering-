@@ -6,7 +6,7 @@ import { isNative, LiveDsp } from '../livedsp.js';
 import { ui, app } from '../state.js';
 import { save, load } from '../store.js';
 import { BUILTIN_PRESETS, EQ_CUTOFFS, MBC_CUTOFFS, MBC_NAMES, RANGES, PEQ_BANDS, MODULES, bandLabel, areaRange, moduleActive, presetEffects } from '../chain.js';
-import { FILE_RANGES, FILE_STAGES, MATCH_FREQS, TARGETS, applyFileEnables, fileNeutral, liveToFile, sanitizeFile } from '../master.js';
+import { FILE_RANGES, FILE_STAGES, MATCH_FREQS, TARGETS, applyFileEnables, fileCharacter, fileNeutral, liveToFile, sanitizeFile } from '../master.js';
 import { compareProfiles, matchEqCurve, profileFromChannels, toFileMatchEq } from '../analysis.js';
 import { currentRef, selectRef } from '../refs.js';
 import { ask, bindPicker, bindSliders, esc, fmtDb, getPath, infoBtn, picker, saveFile, setPath, sheet, slider, soloBtn, split, toggle, vfader } from '../ui.js';
@@ -58,7 +58,7 @@ function presetFileParams() {
   const p = presetOf(F.presetId);
   // Orörd: ingen bearbetning – bara målnivån och true-peak-taket (som alltid måste hållas för en exportfil)
   if (!p || p.id === 'flat') return sanitizeFile({ ...fileNeutral(), target: F.params.target });
-  return liveToFile(p.params, { target: F.params.target });
+  return liveToFile(p.params, { target: F.params.target }, p.id);
 }
 /** Lika nivå från senaste renderingen (används när den automatiska är av, eller utan realtidsspelare). */
 const matchGain = () => {
@@ -249,10 +249,13 @@ function areaBtns(area, label) {
     + `<button type="button" class="solo${on('solo') ? ' on' : ''}" data-fasolo="${area}" aria-pressed="${on('solo')}" aria-label="Bara ${esc(label)}">S</button>`;
 }
 /** Panelens rubrik: på/av, namn, solo och delpreset – som i Live. */
+/** Delpresets i Fil: EQ och kompressor som i Live, plus Färg och Limiter (de delar som bara finns i Fil). */
+const FMODS = { eq: { name: 'EQ', keys: ['preEq', 'postEq', 'peq'] }, comp: { name: 'Kompressor', keys: ['mbc'] },
+  farg: { name: 'Färg', keys: ['deEss', 'glitter', 'width', 'glue'] }, lim: { name: 'Limiter', keys: ['clip', 'limRelease'] } };
 function fhead({ title, sub = '', enableKey = null, soloKey = null, mod = null, right = '' }) {
   const on = enableKey ? (enableKey === 'grp_comp' ? [0, 1, 2, 3].some((i) => en(`mbc${i}`)) : en(enableKey)) : false;
   return `<div class="phead">${enableKey ? toggle(enableKey, on, title) : ''}<b>${esc(title)}</b>${soloKey ? fsolo(soloKey, title) : ''}${sub ? `<small>${esc(sub)}</small>` : ''}
-    <span class="grow"></span>${mod ? `<button class="pick2" id="fmod-${mod}" aria-label="${MODULES[mod].name}-preset för filen">Preset ▾</button>` : ''}${right}</div>`;
+    <span class="grow"></span>${mod ? `<button class="pick2" id="fmod-${mod}" aria-label="${FMODS[mod].name}-preset för filen">Preset ▾</button>` : ''}${right}</div>`;
 }
 
 // ---- Blocken (samma ordning som ljudet går) ----
@@ -330,10 +333,10 @@ function panelFarg() {
       fpath('glue.makeup', 'Lyft efter', FILE_RANGES.glueMakeup, 'glue.makeup')]),
   }[s];
   const name = { deEss: 'S-ljud', glitter: 'Mjuk topp', width: 'Bredd', glue: 'Lim' }[s];
-  return `${fhead({ title: 'Färg', sub: 'polering efter EQ 2', soloKey: s, right: infoBtn('farg') })}${chips}<div class="bandrow"><small class="dim grow">${name}</small></div>${body}`;
+  return `${fhead({ title: 'Färg', sub: 'polering efter EQ 2', soloKey: s, mod: 'farg', right: infoBtn('farg') })}${chips}<div class="bandrow"><small class="dim grow">${name}</small></div>${body}`;
 }
 function panelLim() {
-  return `${fhead({ title: 'Limiter', sub: 'alltid på (true peak)', right: infoBtn('sec_limiter') })}
+  return `${fhead({ title: 'Limiter', sub: 'alltid på (true peak)', mod: 'lim', right: infoBtn('sec_limiter') })}
     ${srows([fpath('clip', 'Soft clip', FILE_RANGES.clip, 'clip', 'clip', fsolo('clip', 'Soft clip')), fpath('ceiling', 'Tak (true peak)', FILE_RANGES.ceiling, 'ceiling'),
       fpath('limRelease', 'Släpper (release)', FILE_RANGES.limRelease, 'limRelease'), ...(F.params.target === 'egen' ? [fpath('drive', 'Drive', FILE_RANGES.drive, 'drive')] : [])])}`;
 }
@@ -447,17 +450,19 @@ function subbar() {
 const STEPS = ['Låt', 'Mål', 'Förslag', 'Finjustera', 'Export'];
 /** De tre förslagen (A Varsam, B Balanserad, C Kraftig) utifrån vald preset, mål och ev. referens. */
 function assistVariants() {
-  const base = presetFileParams(), ref = currentRef(), own = F.profile;
-  const v = (amount, deEss, glitter, clip, glue) => {
+  // Utgår från vald presets egen Färg/Limiter (eller standardvärdena utan preset) och skalar den: A mindre, B som den är, C mer
+  const base = { ...presetFileParams(), ...(presetOf(F.presetId) && F.presetId !== 'flat' ? {} : fileCharacter(null)) }, ref = currentRef(), own = F.profile;
+  const v = (amount, k) => {
     const p = structuredClone(base);
     if (ref && own) { const add = toFileMatchEq(matchEqCurve(own, ref.profile, { amount })); p.matchEq = p.matchEq.map((b, i) => ({ gain: add[i] })); }
-    Object.assign(p, { deEss, glitter, clip }); p.glue = { ...p.glue, ratio: glue };
+    Object.assign(p, { deEss: base.deEss * k, glitter: base.glitter * k, clip: k > 1 ? base.clip + 1.5 : base.clip * k });
+    p.glue = { ...p.glue, ratio: 1 + (base.glue.ratio - 1) * k };
     return sanitizeFile(p);
   };
   return {
-    A: { name: 'Varsam', desc: ref ? 'Lite närmare referensen, mjuka s-ljud' : 'Lätt hand: mjuka s-ljud, lite lim', p: v(0.4, 15, 10, 0.5, 1.2) },
-    B: { name: 'Balanserad', desc: ref ? 'Tydligt närmare referensen, tätare' : 'Som A + mer lim och mjukare topp', p: v(0.7, 25, 20, 1.5, 1.5) },
-    C: { name: 'Kraftig', desc: ref ? 'Hela vägen mot referensen, tätast' : 'Tätt och högt: mer av allt', p: v(1, 35, 30, 3, 2) },
+    A: { name: 'Varsam', desc: ref ? 'Lite närmare referensen, mjuka s-ljud' : 'Lätt hand: mjuka s-ljud, lite lim', p: v(0.4, 0.6) },
+    B: { name: 'Balanserad', desc: ref ? 'Tydligt närmare referensen, tätare' : 'Presetten som den är', p: v(0.7, 1) },
+    C: { name: 'Kraftig', desc: ref ? 'Hela vägen mot referensen, tätast' : 'Tätt och högt: mer av allt', p: v(1, 1.4) },
   };
 }
 function assistView() {
@@ -760,7 +765,7 @@ player.onMeter = (m) => {
 };
 
 function moduleGroups(mod) {
-  const ok = (p) => p.id !== 'test' && (p.id === 'flat' || moduleActive(p.params, mod));
+  const ok = (p) => p.id !== 'test' && (p.id === 'flat' || !MODULES[mod] || moduleActive(p.params, mod));
   const o = (p) => ({ value: p.id, label: p.name, desc: presetEffects(p.params).join(' · '), icon: '🎚️' });
   return [{ label: '', options: allPresets().filter(ok).map(o) }];
 }
@@ -782,12 +787,12 @@ export function bindFil(root) {
     app.render();
     paramsChanged();
   });
-  for (const mod of ['eq', 'comp']) {
-    bindPicker(root, `fmod-${mod}`, () => ({ title: `${MODULES[mod].name}-preset – bara ${MODULES[mod].name.toLowerCase()} byts`, value: '', groups: moduleGroups(mod) }), (id) => {
+  for (const mod of Object.keys(FMODS)) {
+    bindPicker(root, `fmod-${mod}`, () => ({ title: `${FMODS[mod].name}-preset – bara ${FMODS[mod].name.toLowerCase()} byts`, value: '', groups: moduleGroups(mod) }), (id) => {
       const p = presetOf(id); if (!p) return;
       pushUndo();
-      const lp = liveToFile(p.params);
-      for (const k of mod === 'eq' ? ['preEq', 'postEq', 'peq'] : ['mbc']) F.params[k] = structuredClone(lp[k]);
+      const lp = p.id === 'flat' ? sanitizeFile(fileNeutral()) : liveToFile(p.params, {}, p.id);
+      for (const k of FMODS[mod].keys) F.params[k] = structuredClone(lp[k]);
       app.render(); paramsChanged();
     });
   }

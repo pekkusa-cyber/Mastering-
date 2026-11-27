@@ -409,6 +409,34 @@ export const BUILTIN_PRESETS = [
 ];
 
 /**
+ * Varje preset ska ha sin egen limiter och sin egen EQ 1 – tidigare hade drygt hälften exakt samma limiter
+ * (1 ms / 60 ms / 10:1) och nästan alla en helt platt EQ 1. [attack ms, release ms, ratio, tröskel dB].
+ * Tröskeln (taket) är −1 dB nästan överallt; mjukare genrer har längre release och lägre ratio.
+ */
+const PRESET_LIMITER = {
+  'silkeslen-rost': [1, 80, 8, -1], transparent: [2, 100, 6, -1], 'bas-varm': [1, 100, 10, -1.5], 'hiphop-punch': [2, 50, 12, -1],
+  akustisk: [3, 150, 6, -1], ballad: [2, 120, 8, -1], rock: [1, 70, 12, -1], lofi: [5, 200, 6, -1.5], horlurar: [2, 120, 8, -1],
+  'rnb-silke': [2, 100, 10, -1], schlager: [0.5, 60, 15, -1], indie: [2, 120, 8, -1], jazz: [3, 200, 4, -1], reggaeton: [1, 50, 12, -1],
+  bil: [0.5, 60, 15, -1], telefon: [0.5, 40, 20, -1],
+};
+/** EQ 1 (före kompressorn, 60 Hz … 20 kHz): små sänkningar så att kompressorn inte reagerar på det som inte ska vara där. */
+const PRESET_PRE_EQ = {
+  'radio-ljus': [0, 0, -0.5, 0, 0, 0, 0, 0], 'silkeslen-rost': [0, 0, 0, 0, 0, -1, -0.5, 0],
+  'bas-varm': [0, 0, 0, -0.5, 0, 0, 0, 0], 'tat-pop': [0, 0, -1, 0, 0, 0, 0, 0], 'hiphop-punch': [0, 0, -1, 0, 0, 0, 0, 0],
+  'edm-hogt': [0, 0, -1, -0.5, 0, 0, 0, 0], akustisk: [-1, 0, 0, 0, 0, 0, 0, 0], ballad: [-0.5, 0, -0.5, 0, 0, 0, 0, 0],
+  rock: [0, 0, -1, -0.5, 0, 0, 0, 0], lofi: [0, 0, 0, 0, 0, 0, -1, -1], natt: [-1, 0, 0, 0, 0, 0, 0, 0], horlurar: [0, 0, 0, 0, 0, 0, -0.5, 0],
+  'rnb-silke': [0, 0, -0.5, 0, 0, 0, 0, 0], 'trap-808': [0, 0, -1, 0, 0, 0, 0, 0], schlager: [0, 0, -0.5, 0, 0, 0, 0, 0],
+  indie: [0, 0, 0, -0.5, 0, 0, 0, 0], metal: [-0.5, 0, 0, -1, 0, 0, 0, 0], reggaeton: [0, 0, -0.5, 0, 0, 0, 0, 0],
+  bil: [0, 0, -0.5, 0, 0, 0, 0, 0], telefon: [-2, -1, 0, 0, 0, 0, 0, 0], gym: [0, 0, -1, 0, 0, 0, 0, 0],
+};
+for (const p of BUILTIN_PRESETS) {
+  const l = PRESET_LIMITER[p.id];
+  if (l) Object.assign(p.params.limiter, { attack: l[0], release: l[1], ratio: l[2], threshold: l[3] });
+  const e = PRESET_PRE_EQ[p.id];
+  if (e && p.params.preEq.every((b) => !b.gain)) e.forEach((g, i) => { p.params.preEq[i].gain = g; });
+}
+
+/**
  * Skydd mot skärpa och distorsion i de inbyggda presetsen: ingen kompressor snabbare än 3 ms attack / 100 ms
  * release (snabbare skapar övertoner i basen som låter vasst), och limitern släpper aldrig snabbare än 60 ms.
  * Gäller inte Test och Orörd.
