@@ -45,3 +45,7 @@ test('Fil: Färg och Limiter följer presetten, egen preset får standardvärden
   const own = liveToFile({}, {});
   assert.equal(own.deEss, 25); assert.equal(own.clip, 1.5);
 });
+
+test('Live: limiterns attack är högst 1 ms i alla presets (Androids limiter ser inte framåt)', () => {
+  for (const p of BUILTIN_PRESETS) assert.ok(sanitize(p.params).limiter.attack <= 1, `${p.id}: ${p.params.limiter.attack} ms`);
+});
