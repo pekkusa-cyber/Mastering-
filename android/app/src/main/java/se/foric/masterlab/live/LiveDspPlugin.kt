@@ -110,7 +110,7 @@ class LiveDspPlugin : Plugin() {
     @PluginMethod
     fun setBypass(call: PluginCall) {
         val value = call.getBoolean("on", false) == true
-        LiveDspEngine.setBypass(value)
+        LiveDspEngine.setBypass(value, call.getBoolean("temporary", false) == true)
         if (!value && !LiveDspEngine.running) LiveDspService.start(context)
         stopIfIdle()
         call.resolve(statusObj())

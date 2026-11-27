@@ -421,3 +421,20 @@ test('efter omstart: Fortsätt behåller ändringarna, Börja om ger en orörd l
   await page.waitForTimeout(1500);
   await expect(page.locator('dialog[open]')).toHaveCount(0);
 });
+
+test('🎧 på, Fil spelar, 🎧 av: motorn stängs inte (pausen är tillfällig) och Live-mastringen kommer tillbaka efter paus', async ({ page }) => {
+  test.setTimeout(120000);
+  await page.goto('/?sim=1');
+  await page.locator('#onoff').click(); // Live-mastring på
+  await page.locator('#corr').check({ force: true }); // 🎧 på
+  await go(page, 'fil');
+  await loadSong(page, 'a.wav', wav(3));
+  await page.getByRole('button', { name: 'Spela' }).click();
+  await expect.poll(() => page.evaluate(async () => (await window.__sim.getStatus()).bypass)).toBe(true);
+  await page.locator('label.rb:has(#corr)').click({ force: true }); // 🎧 av medan Fil spelar
+  await expect.poll(() => page.evaluate(async () => (await window.__sim.getStatus()).correction.on)).toBe(false);
+  expect(await page.evaluate(async () => (await window.__sim.getStatus()).running)).toBe(true); // motorn står kvar
+  await page.locator('#f-play').click();
+  await expect.poll(() => page.evaluate(async () => (await window.__sim.getStatus()).bypass)).toBe(false);
+  expect(await page.evaluate(async () => (await window.__sim.getStatus()).running)).toBe(true);
+});
