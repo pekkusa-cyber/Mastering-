@@ -136,268 +136,119 @@ function build(fn) {
   return sanitize(p);
 }
 
+/**
+ * En preset uttryckt som avsikt: In, EQ 1 (pre), EQ 2 (post), kompressorns fyra band [tröskel, ratio, attack, release,
+ * efterförstärkning] och limitern [attack, release, ratio] (taket −1 dB). Trösklarna är kalibrerade mot riktiga
+ * Suno-låtar (nivåanpassade till −14 LUFS + In) så att varje band trycker ned så mycket som presetten avser:
+ * 0,3 dB (Jazz) … 6 dB (Nattlyssning). Riktvärden från mastringspraxis: lim 1–3 dB, attack 10–30 ms för punch,
+ * breda EQ-drag på 0,5–3 dB.
+ */
+function spec({ in: inputGain, pre, post, mbc, lim }) {
+  return build((p) => {
+    p.inputGain = inputGain;
+    pre.forEach((g, i) => { p.preEq[i].gain = g; });
+    post.forEach((g, i) => { p.postEq[i].gain = g; });
+    mbc.forEach(([threshold, ratio, attack, release, postGain = 0], i) => Object.assign(p.mbc[i], { threshold, ratio, attack, release, knee: 6, postGain }));
+    p.limiter = { attack: lim[0], release: lim[1], ratio: lim[2], threshold: -1, postGain: 0 };
+  });
+}
+
 // Startvärden att justera med örat – inte facit.
 export const BUILTIN_PRESETS = [
   {
     id: 'flat', name: 'Orörd', builtin: true, desc: 'Ingen bearbetning alls – inte ens limitern. Låten som den är: en ren grund att bygga från.',
     params: build((p) => { p.limiter = { attack: 1, release: 60, ratio: 1, threshold: 0, postGain: 0 }; }),
   },
-  {
-    id: 'mjuk-kick', name: 'Mjuk kick', builtin: true, desc: 'Tämjer en hård kick: kick-bandet komprimeras snabbt, limitern tar topparna.',
-    params: build((p) => {
-      p.inputGain = 3;
-      Object.assign(p.mbc[0], { threshold: -24, ratio: 4, attack: 1, release: 80, knee: 6, postGain: 2 });
-      Object.assign(p.mbc[1], { threshold: -18, ratio: 1.5, attack: 10, release: 150 });
-      p.limiter = { attack: 0.5, release: 50, ratio: 12, threshold: -1, postGain: 0 };
-    }),
-  },
-  {
-    id: 'radio-ljus', name: 'Radio ljus', builtin: true, desc: 'Ljust, tätt och högt som radio: lätt glans över 8 kHz och hård limiter.',
-    params: build((p) => {
-      p.inputGain = 5;
-      p.mbc.forEach((b) => Object.assign(b, { threshold: -18, ratio: 2, attack: 5, release: 120 }));
-      p.postEq[6].gain = 1;
-      p.postEq[7].gain = 3;
-      p.limiter = { attack: 0.5, release: 40, ratio: 20, threshold: -1, postGain: 0 };
-    }),
-  },
-  {
-    id: 'silkeslen-rost', name: 'Silkeslen röst', builtin: true, desc: 'Mjukar upp hårda 3–8 kHz så att rösten blir len men tydlig.',
-    params: build((p) => {
-      p.inputGain = 2;
-      Object.assign(p.mbc[1], { threshold: -20, ratio: 1.8, attack: 8, release: 150 });
-      Object.assign(p.mbc[2], { threshold: -22, ratio: 3, attack: 3, release: 120, knee: 8 });
-      p.postEq[6].gain = -2.5;
-      p.postEq[7].gain = 1;
-      p.limiter = { attack: 1, release: 60, ratio: 10, threshold: -1, postGain: 0 };
-    }),
-  },
-  {
-    id: 'varm-lim', name: 'Varm lim', builtin: true, desc: 'Mild, bred kompression som håller ihop mixen. Lite värme.',
-    params: build((p) => {
-      p.inputGain = 2;
-      p.mbc.forEach((b) => Object.assign(b, { threshold: -20, ratio: 2, attack: 20, release: 200, knee: 10 }));
-      p.preEq[2].gain = 1;
-      p.preEq[7].gain = -0.5;
-      p.limiter = { attack: 1, release: 80, ratio: 10, threshold: -1, postGain: 0 };
-    }),
-  },
-  {
-    id: 'transparent', name: 'Transparent', builtin: true, desc: 'Nästan ingen färgning – bara lite lim och en limiter som skydd.',
-    params: build((p) => {
-      p.inputGain = 1;
-      p.mbc.forEach((b) => Object.assign(b, { threshold: -14, ratio: 1.2, attack: 20, release: 200, knee: 10 }));
-    }),
-  },
-  {
-    id: 'suno-fix', name: 'Suno-fix', builtin: true, desc: 'För typiska Suno-låtar: mjukare kick, mindre hårdhet 3–8 kHz, mindre fräs i toppen och mindre grumlighet.',
-    params: build((p) => {
-      p.inputGain = 3;
-      Object.assign(p.mbc[0], { threshold: -22, ratio: 3, attack: 2, release: 90, knee: 6 });
-      Object.assign(p.mbc[2], { threshold: -24, ratio: 2.5, attack: 3, release: 110, knee: 8 });
-      Object.assign(p.mbc[3], { threshold: -26, ratio: 2, attack: 2, release: 80, knee: 8 });
-      p.preEq[2].gain = -1;
-      p.postEq[6].gain = -2;
-      p.postEq[7].gain = -1;
-      p.limiter = { attack: 0.5, release: 50, ratio: 12, threshold: -1, postGain: 0 };
-    }),
-  },
-  {
-    id: 'bas-varm', name: 'Bas varm', builtin: true, desc: 'Fylligare och varmare botten, med kontroll så att basen inte svämmar över.',
-    params: build((p) => {
-      p.inputGain = 2;
-      Object.assign(p.mbc[0], { threshold: -20, ratio: 2.5, attack: 8, release: 140 });
-      p.postEq[1].gain = 2;
-      p.postEq[2].gain = 1;
-      p.postEq[7].gain = -0.5;
-    }),
-  },
-  {
-    id: 'tat-pop', name: 'Tät pop', builtin: true, desc: 'Modern, tät och glansig pop. Mer kompression i alla band.',
-    params: build((p) => {
-      p.inputGain = 5;
-      p.mbc.forEach((b) => Object.assign(b, { threshold: -22, ratio: 2.5, attack: 5, release: 120 }));
-      p.postEq[6].gain = 0.5;
-      p.postEq[7].gain = 2;
-      p.limiter = { attack: 0.5, release: 40, ratio: 20, threshold: -1, postGain: 0 };
-    }),
-  },
-  {
-    id: 'hiphop-punch', name: 'Hiphop punch', builtin: true, desc: 'Kicken får slå igenom (långsam attack) men hålls på plats; mer kropp i basen.',
-    params: build((p) => {
-      p.inputGain = 4;
-      Object.assign(p.mbc[0], { threshold: -18, ratio: 2, attack: 15, release: 100 });
-      Object.assign(p.mbc[1], { threshold: -20, ratio: 1.6, attack: 10, release: 150 });
-      p.postEq[1].gain = 1.5;
-    }),
-  },
-  {
-    id: 'edm-hogt', name: 'EDM högt', builtin: true, desc: 'Högt och pumpande för elektroniskt. Kraftig kompression och limiter.',
-    params: build((p) => {
-      p.inputGain = 7;
-      p.mbc.forEach((b) => Object.assign(b, { threshold: -20, ratio: 3, attack: 3, release: 80 }));
-      p.postEq[0].gain = 1;
-      p.postEq[7].gain = 2;
-      p.limiter = { attack: 0.5, release: 40, ratio: 20, threshold: -1, postGain: 0 };
-    }),
-  },
-  {
-    id: 'akustisk', name: 'Akustisk luftig', builtin: true, desc: 'Varsam för akustiskt och lugnt: behåller dynamiken, lägger till luft.',
-    params: build((p) => {
-      p.inputGain = 2;
-      p.mbc.forEach((b) => Object.assign(b, { threshold: -16, ratio: 1.4, attack: 20, release: 250, knee: 10 }));
-      p.postEq[3].gain = -1;
-      p.postEq[7].gain = 2.5;
-    }),
-  },
-  {
-    id: 'ballad', name: 'Ballad – rösten fram', builtin: true, desc: 'Lyfter rösten (1–3 kHz) utan att den blir vass. Jämnar ut mellanregistret.',
-    params: build((p) => {
-      p.inputGain = 2;
-      Object.assign(p.mbc[1], { threshold: -20, ratio: 2, attack: 10, release: 160 });
-      Object.assign(p.mbc[2], { threshold: -20, ratio: 2, attack: 5, release: 120 });
-      p.postEq[5].gain = 1.5;
-      p.postEq[6].gain = -1;
-    }),
-  },
-  {
-    id: 'rock', name: 'Rock', builtin: true, desc: 'Gitarrer och trummor fram, mindre lådigt (250–500 Hz), mer attack.',
-    params: build((p) => {
-      p.inputGain = 4;
-      Object.assign(p.mbc[1], { threshold: -20, ratio: 2.5, attack: 8, release: 120 });
-      p.postEq[3].gain = -1;
-      p.postEq[5].gain = 1;
-      p.postEq[6].gain = 1;
-    }),
-  },
-  {
-    id: 'lofi', name: 'Lo-fi mjuk', builtin: true, desc: 'Mörkt, mjukt och varmt. Diskanten rullas av, långsam kompression.',
-    params: build((p) => {
-      p.inputGain = 2;
-      p.mbc.forEach((b) => Object.assign(b, { threshold: -20, ratio: 2, attack: 30, release: 300 }));
-      p.postEq[1].gain = 1.5;
-      p.postEq[6].gain = -2;
-      p.postEq[7].gain = -4;
-    }),
-  },
-  {
-    id: 'natt', name: 'Nattlyssning', builtin: true, desc: 'Kraftigt utjämnad dynamik så att allt hörs på låg volym.',
-    params: build((p) => {
-      p.inputGain = 6;
-      p.mbc.forEach((b) => Object.assign(b, { threshold: -30, ratio: 4, attack: 5, release: 200 }));
-      p.limiter = { attack: 0.5, release: 60, ratio: 20, threshold: -1, postGain: 0 };
-    }),
-  },
-  {
-    id: 'horlurar', name: 'Hörlurar – len topp', builtin: true, desc: 'Lite mjukare diskant för långa lyssningspass i hörlurar.',
-    params: build((p) => {
-      p.inputGain = 1;
-      p.mbc.forEach((b) => Object.assign(b, { threshold: -16, ratio: 1.3, attack: 15, release: 200 }));
-      p.postEq[6].gain = -1.5;
-      p.postEq[7].gain = -1;
-    }),
-  },
-  {
-    id: 'rnb-silke', name: 'R&B silke', builtin: true, desc: 'Len topp, varm botten och mjuk, jämn kompression – för sång i fokus.',
-    params: build((p) => {
-      p.inputGain = 3;
-      p.mbc.forEach((b) => Object.assign(b, { threshold: -20, ratio: 2, attack: 15, release: 200, knee: 10 }));
-      Object.assign(p.mbc[2], { threshold: -24, ratio: 2.5, attack: 4, release: 120 });
-      p.postEq[1].gain = 1.5; p.postEq[6].gain = -1.5; p.postEq[7].gain = 1;
-    }),
-  },
-  {
-    id: 'trap-808', name: 'Trap 808', builtin: true, desc: 'Djup 808 under kontroll, krispig hi-hat och tät limiter.',
-    params: build((p) => {
-      p.inputGain = 5;
-      Object.assign(p.mbc[0], { threshold: -20, ratio: 3, attack: 10, release: 120, postGain: 1.5 });
-      Object.assign(p.mbc[3], { threshold: -24, ratio: 2, attack: 3, release: 80 });
-      p.postEq[0].gain = 1.5; p.postEq[3].gain = -1; p.postEq[7].gain = 1.5;
-      p.limiter = { attack: 0.5, release: 40, ratio: 20, threshold: -1, postGain: 0 };
-    }),
-  },
-  {
-    id: 'schlager', name: 'Schlager/dansband', builtin: true, desc: 'Rak, tydlig och glad: rösten fram, tät mitt, glans i toppen.',
-    params: build((p) => {
-      p.inputGain = 4;
-      p.mbc.forEach((b) => Object.assign(b, { threshold: -20, ratio: 2.2, attack: 6, release: 120 }));
-      p.postEq[5].gain = 1.5; p.postEq[7].gain = 1.5; p.postEq[3].gain = -1;
-    }),
-  },
-  {
-    id: 'indie', name: 'Indie luftig', builtin: true, desc: 'Öppen och luftig med naturlig dynamik och lite värme.',
-    params: build((p) => {
-      p.inputGain = 2;
-      p.mbc.forEach((b) => Object.assign(b, { threshold: -16, ratio: 1.5, attack: 20, release: 220, knee: 10 }));
-      p.postEq[2].gain = 0.5; p.postEq[3].gain = -1; p.postEq[7].gain = 2;
-    }),
-  },
-  {
-    id: 'metal', name: 'Metal tight', builtin: true, desc: 'Tight bas, kontrollerad mitt och tydliga gitarrer utan fräs.',
-    params: build((p) => {
-      p.inputGain = 5;
-      Object.assign(p.mbc[0], { threshold: -22, ratio: 3, attack: 3, release: 80 });
-      Object.assign(p.mbc[1], { threshold: -20, ratio: 2.5, attack: 5, release: 100 });
-      Object.assign(p.mbc[2], { threshold: -22, ratio: 2, attack: 3, release: 90 });
-      p.postEq[3].gain = -1.5; p.postEq[5].gain = 1; p.postEq[7].gain = -1;
-      p.limiter = { attack: 0.5, release: 40, ratio: 15, threshold: -1, postGain: 0 };
-    }),
-  },
-  {
-    id: 'jazz', name: 'Jazz naturlig', builtin: true, desc: 'Nästan orörd dynamik, bara lite värme och luft.',
-    params: build((p) => {
-      p.inputGain = 1;
-      p.mbc.forEach((b) => Object.assign(b, { threshold: -12, ratio: 1.2, attack: 30, release: 300, knee: 12 }));
-      p.postEq[2].gain = 0.5; p.postEq[7].gain = 1;
-    }),
-  },
-  {
-    id: 'film', name: 'Film/orkester', builtin: true, desc: 'Varsam för stort och dynamiskt: bara toppskydd och lite lim.',
-    params: build((p) => {
-      p.mbc.forEach((b) => Object.assign(b, { threshold: -10, ratio: 1.3, attack: 30, release: 400, knee: 12 }));
-      p.limiter = { attack: 1, release: 120, ratio: 10, threshold: -1, postGain: 0 };
-    }),
-  },
-  {
-    id: 'reggaeton', name: 'Reggaeton/afro', builtin: true, desc: 'Studsig kick och bas, tydlig rytm och sång fram.',
-    params: build((p) => {
-      p.inputGain = 4;
-      Object.assign(p.mbc[0], { threshold: -18, ratio: 2, attack: 12, release: 90 });
-      Object.assign(p.mbc[2], { threshold: -20, ratio: 2, attack: 5, release: 110 });
-      p.postEq[1].gain = 1.5; p.postEq[5].gain = 1; p.postEq[7].gain = 1;
-    }),
-  },
-  {
-    id: 'bil', name: 'Bilstereo', builtin: true, desc: 'För bilen: lite mer bas (vägbruset äter den), mindre vass topp, jämnare nivå.',
-    params: build((p) => {
-      p.inputGain = 4;
-      p.mbc.forEach((b) => Object.assign(b, { threshold: -22, ratio: 2.5, attack: 8, release: 150 }));
-      p.postEq[0].gain = 2; p.postEq[1].gain = 1.5; p.postEq[6].gain = -1.5;
-    }),
-  },
-  {
-    id: 'telefon', name: 'Telefonhögtalare', builtin: true, desc: 'För telefonens högtalare: mindre djupbas (den hörs ändå inte), mer mitt och närvaro.',
-    params: build((p) => {
-      p.inputGain = 5;
-      p.mbc.forEach((b) => Object.assign(b, { threshold: -22, ratio: 2.5, attack: 5, release: 120 }));
-      p.postEq[0].gain = -6; p.postEq[1].gain = -2; p.postEq[4].gain = 1.5; p.postEq[5].gain = 2;
-    }),
-  },
-  {
-    id: 'gym', name: 'Gym/energi', builtin: true, desc: 'Maximalt tryck: mycket bas, glans och hård limiter.',
-    params: build((p) => {
-      p.inputGain = 8;
-      p.mbc.forEach((b) => Object.assign(b, { threshold: -22, ratio: 3, attack: 3, release: 70 }));
-      p.postEq[1].gain = 2; p.postEq[7].gain = 2;
-      p.limiter = { attack: 0.5, release: 35, ratio: 25, threshold: -1, postGain: 0 };
-    }),
-  },
-  {
-    id: 'demo-check', name: 'Demo-kontroll', builtin: true, desc: 'Avslöjar problem: höjer lågmellan och skärpa lite så att grumlighet och hårdhet hörs tydligt.',
-    params: build((p) => {
-      p.postEq[3].gain = 3; p.postEq[6].gain = 3;
-    }),
-  },
+  { id: 'suno-fix', name: 'Suno-fix', builtin: true, desc: 'För typiska Suno-låtar: mindre grumligt (200–400 Hz) före kompressorn, tämjer hårdhet 3–8 kHz och skimmer i toppen, mjukare kick.',
+    params: spec({ in: 2, pre: [0, 0, -1, -1, 0, 0, 0, 0], post: [0, 0.5, 0, 0, 0, 0, -2, -1.5],
+      mbc: [[-21, 2, 20, 120], [-18, 1.5, 30, 200], [-25.5, 2.5, 5, 100], [-31, 2, 3, 80]], lim: [0.5, 50, 12] }) },
+  { id: 'transparent', name: 'Transparent', builtin: true, desc: 'Nästan ingen färgning: 0,5 dB kompression i alla band, ett nyp luft och en limiter som skydd. För låtar som redan låter bra.',
+    params: spec({ in: 0, pre: [-0.5, 0, 0, 0, 0, 0, 0, 0], post: [0, 0, 0, 0, 0, 0, 0, 0.5],
+      mbc: [[-20, 1.3, 30, 250], [-17.5, 1.3, 30, 250], [-25.5, 1.3, 30, 250], [-30.5, 1.3, 30, 250]], lim: [1, 100, 6] }) },
+  { id: 'mjuk-kick', name: 'Mjuk kick', builtin: true, desc: 'Tämjer en hård kick: kick-bandet komprimeras snabbt (4:1), limitern tar topparna. Ingen EQ.',
+    params: spec({ in: 3, pre: [0, 0, 0, 0, 0, 0, 0, 0], post: [0, 0, 0, 0, 0, 0, 0, 0],
+      mbc: [[-19.5, 4, 1, 80, 2], [-15, 1.5, 10, 150], [0, 1, 10, 150], [0, 1, 10, 150]], lim: [0.5, 50, 12] }) },
+  { id: 'radio-ljus', name: 'Radio ljus', builtin: true, desc: 'Ljust, tätt och högt som radio: 2 dB kompression i alla band, glans över 8 kHz och hård limiter.',
+    params: spec({ in: 4, pre: [0, 0, -0.5, 0, 0, 0, 0, 0], post: [0, 0, 0, -0.5, 0, 0.5, 1, 3],
+      mbc: [[-17.5, 2.5, 5, 120], [-14, 2.5, 5, 120], [-22, 2.5, 5, 120], [-28, 2.5, 5, 120]], lim: [0.5, 40, 20] }) },
+  { id: 'silkeslen-rost', name: 'Silkeslen röst', builtin: true, desc: 'Mjukar upp hårda 3–8 kHz så att rösten blir len: snabb kompression i närvaroband, sänkt 5 kHz och mer de-esser.',
+    params: spec({ in: 2, pre: [0, 0, 0, 0, 0, 0, -1, -0.5], post: [0, 0, 0.5, 0, 0, 0.5, -2.5, -1],
+      mbc: [[-16.5, 1.5, 20, 150], [-15.5, 1.8, 15, 150], [-25, 3, 2, 120], [-29, 2, 3, 100]], lim: [1, 80, 8] }) },
+  { id: 'varm-lim', name: 'Varm lim', builtin: true, desc: 'Varm botten, mjuk topp och långsam, jämn kompression (2 dB, 30 ms attack) som håller ihop mixen.',
+    params: spec({ in: 2, pre: [0, 0, 1, 0, 0, 0, 0, -0.5], post: [1.5, 1, 0.5, 0, 0, 0, -1, -1.5],
+      mbc: [[-21, 2, 30, 300], [-18, 2, 30, 300], [-26.5, 2, 30, 300], [-33, 2, 30, 300]], lim: [1, 80, 10] }) },
+  { id: 'bas-varm', name: 'Bas varm', builtin: true, desc: 'Fylligare och varmare botten (+2,5 dB under 120 Hz) med en basbandskompressor som håller den på plats.',
+    params: spec({ in: 2, pre: [0, 0, 0, -0.5, 0, 0, 0, 0], post: [2.5, 2, 0.5, -0.5, 0, 0, 0, -0.5],
+      mbc: [[-21.5, 2.5, 15, 150], [-16, 1.3, 20, 200], [0, 1, 10, 150], [0, 1, 10, 150]], lim: [1, 100, 10] }) },
+  { id: 'tat-pop', name: 'Tät pop', builtin: true, desc: 'Modern, tät och glansig pop: 3 dB kompression i alla band, lite luft och bredd.',
+    params: spec({ in: 5, pre: [0, 0, -1, 0, 0, 0, 0, 0], post: [0.5, 0, 0, -1, 0, 0.5, 1, 2],
+      mbc: [[-20, 2.5, 5, 100], [-16, 2.5, 5, 100], [-24, 2.5, 5, 100], [-30, 2.5, 5, 100]], lim: [0.5, 40, 20] }) },
+  { id: 'hiphop-punch', name: 'Hiphop punch', builtin: true, desc: 'Kicken slår igenom (30 ms attack) men hålls på plats; mer kropp i 60–120 Hz och starkt anslag.',
+    params: spec({ in: 4, pre: [0, 0, -1, 0, 0, 0, 0, 0], post: [1.5, 2, 0, -1, 0, 0.5, 0, 0.5],
+      mbc: [[-22, 2, 30, 100], [-16.5, 1.6, 15, 150], [-20.5, 1.3, 10, 150], [0, 1, 10, 150]], lim: [2, 50, 12] }) },
+  { id: 'trap-808', name: 'Trap 808', builtin: true, desc: 'Djup 808 under kontroll (+3 dB sub), krispig hi-hat och tät limiter.',
+    params: spec({ in: 5, pre: [0, 0, -1, 0, 0, 0, 0, 0], post: [3, 1, -0.5, -1, 0, 0, 0.5, 2],
+      mbc: [[-19.5, 3, 10, 120, 1.5], [-13.5, 1.5, 10, 150], [-19.5, 1.3, 10, 150], [-28, 2, 3, 80]], lim: [0.5, 40, 20] }) },
+  { id: 'edm-hogt', name: 'EDM högt', builtin: true, desc: 'Högt och tätt för elektroniskt: 3–4 dB kompression, mycket sub och luft, bred stereo, snabb limiter.',
+    params: spec({ in: 7, pre: [0, 0, -1, -0.5, 0, 0, 0, 0], post: [2, 0.5, 0, -1.5, 0, 0, 1, 2.5],
+      mbc: [[-20, 3, 3, 60], [-15, 3, 5, 60], [-21, 3, 3, 60], [-27.5, 3, 3, 60]], lim: [0.5, 30, 25] }) },
+  { id: 'rnb-silke', name: 'R&B silke', builtin: true, desc: 'Len topp, varm botten och jämn kompression – rösten i fokus utan vassa s-ljud.',
+    params: spec({ in: 3, pre: [0, 0, -0.5, 0, 0, 0, 0, 0], post: [1, 2, 0.5, -0.5, 0, 0, -1.5, 1],
+      mbc: [[-18, 2, 15, 200], [-15.5, 2, 15, 200], [-24, 2.5, 4, 120], [-29, 2, 15, 200]], lim: [2, 100, 10] }) },
+  { id: 'reggae', name: 'Reggae/dub', builtin: true, desc: 'Rund, djup bas och one-drop i fokus: varm botten, mjuk topp och luftig bredd – utan att basen tar över.',
+    params: spec({ in: 3, pre: [-0.5, 0, 0, -0.5, 0, 0, 0, 0], post: [1.5, 2.5, 0, -1, -0.5, 0, -1, 0.5],
+      mbc: [[-21.5, 2, 20, 150], [-15.5, 1.5, 15, 180], [-22.5, 2, 5, 120], [-26.5, 1.3, 10, 150]], lim: [1, 80, 10] }) },
+  { id: 'reggaeton', name: 'Reggaeton/afro', builtin: true, desc: 'Studsig kick och bas, tydlig rytm och sång fram.',
+    params: spec({ in: 4, pre: [0, 0, -0.5, 0, 0, 0, 0, 0], post: [1.5, 2, 0, -1, 0, 1, 0, 1],
+      mbc: [[-21, 2, 15, 90], [-14, 1.5, 10, 150], [-23, 2, 5, 110], [-25.5, 1.3, 10, 150]], lim: [1, 50, 12] }) },
+  { id: 'rock', name: 'Rock', builtin: true, desc: 'Gitarrer och trummor fram, mindre lådigt (250–500 Hz), mer attack och närvaro.',
+    params: spec({ in: 4, pre: [0, 0, -1, -0.5, 0, 0, 0, 0], post: [0.5, 1, 0, -2, 0, 1.5, 1.5, 0.5],
+      mbc: [[-20.5, 2, 15, 120], [-16.5, 2.5, 10, 120], [-22, 1.5, 10, 150], [-25.5, 1.3, 10, 150]], lim: [1, 70, 12] }) },
+  { id: 'metal', name: 'Metal tight', builtin: true, desc: 'Tight bas, mindre lådigt och kontrollerad mitt, tydliga gitarrer utan fräs.',
+    params: spec({ in: 5, pre: [-0.5, 0, 0, -1, 0, 0, 0, 0], post: [-0.5, 1.5, 0, -2.5, 0, 1.5, 0, -1.5],
+      mbc: [[-19, 3, 3, 80], [-14.5, 2.5, 5, 100], [-21.5, 2, 3, 90], [-24.5, 1.3, 10, 150]], lim: [0.5, 40, 15] }) },
+  { id: 'country', name: 'Country/americana', builtin: true, desc: 'Sång och gitarrer fram (1–3 kHz), ren botten utan lådighet, naturlig dynamik med lite lim.',
+    params: spec({ in: 3, pre: [-0.5, 0, -0.5, -0.5, 0, 0, 0, 0], post: [0, 0.5, 0, -1, 0, 1.5, 1, 1],
+      mbc: [[-19.5, 2, 15, 120], [-17, 2, 10, 150], [-23, 1.8, 5, 120], [-28.5, 1.5, 10, 150]], lim: [1, 70, 10] }) },
+  { id: 'schlager', name: 'Schlager/dansband', builtin: true, desc: 'Rak, tydlig och glad: rösten fram, tät mitt, glans i toppen.',
+    params: spec({ in: 4, pre: [0, 0, -0.5, 0, 0, 0, 0, 0], post: [0, 0.5, 0, -1, 0.5, 2, 0.5, 1.5],
+      mbc: [[-20, 2.2, 6, 120], [-16, 2.2, 6, 120], [-24, 2.2, 6, 120], [-30.5, 2.2, 6, 120]], lim: [0.5, 60, 15] }) },
+  { id: 'indie', name: 'Indie luftig', builtin: true, desc: 'Öppen och luftig med naturlig dynamik, lite värme och bred stereo.',
+    params: spec({ in: 2, pre: [0, 0, 0, -0.5, 0, 0, 0, 0], post: [0, 0.5, 1, -1, 0, 0, 0.5, 2],
+      mbc: [[-19, 1.5, 20, 220], [-16.5, 1.5, 20, 220], [-24.5, 1.5, 20, 220], [-30, 1.5, 20, 220]], lim: [2, 120, 8] }) },
+  { id: 'akustisk', name: 'Akustisk luftig', builtin: true, desc: 'Varsam för akustiskt: knappt någon kompression, muller bort under 60 Hz och luft i toppen. Behåller dynamiken.',
+    params: spec({ in: 1, pre: [-1.5, 0, 0, 0, 0, 0, 0, 0], post: [-1, 0, 0, -1, 0, 0.5, 0.5, 2.5],
+      mbc: [[-20.5, 1.3, 30, 300], [-18, 1.3, 30, 300], [-26, 1.3, 30, 300], [-31.5, 1.3, 30, 300]], lim: [3, 150, 6] }) },
+  { id: 'ballad', name: 'Ballad – rösten fram', builtin: true, desc: 'Lyfter rösten (1–3 kHz) utan att den blir vass; mellanregistret jämnas ut, dynamiken får vara kvar.',
+    params: spec({ in: 2, pre: [-0.5, 0, -0.5, 0, 0, 0, 0, 0], post: [0, 0, 0, -0.5, 0.5, 2, -1, 0.5],
+      mbc: [[-18, 1.3, 20, 200], [-16, 2, 10, 160], [-23, 2, 5, 120], [-27.5, 1.3, 10, 150]], lim: [2, 120, 8] }) },
+  { id: 'jazz', name: 'Jazz naturlig', builtin: true, desc: 'Nästan orörd dynamik (0,3 dB kompression), bara lite värme och luft.',
+    params: spec({ in: 1, pre: [0, 0, 0, 0, 0, 0, 0, 0], post: [0, 0, 0.5, 0, 0, 0, 0, 1.5],
+      mbc: [[-17.5, 1.2, 30, 300], [-15.5, 1.2, 30, 300], [-23, 1.2, 30, 300], [-27.5, 1.2, 30, 300]], lim: [3, 200, 4] }) },
+  { id: 'film', name: 'Film/orkester', builtin: true, desc: 'Varsam för stort och dynamiskt: bara toppskydd, lite lim och bred stereo.',
+    params: spec({ in: 0, pre: [-0.5, 0, 0, 0, 0, 0, 0, 0], post: [0.5, 0, 0, 0, 0, 0, 0, 1],
+      mbc: [[-18.5, 1.3, 30, 400], [-17, 1.3, 30, 400], [-24.5, 1.3, 30, 400], [-29.5, 1.3, 30, 400]], lim: [1, 120, 10] }) },
+  { id: 'lofi', name: 'Lo-fi mjuk', builtin: true, desc: 'Mörkt, mjukt och varmt: diskanten rullas av kraftigt, långsam kompression och smalare stereo.',
+    params: spec({ in: 2, pre: [0, 0, 0, 0, 0, 0, -1, -1], post: [1, 2, 1, 0, 0, -1, -3, -6],
+      mbc: [[-22, 2, 30, 400], [-19, 2, 30, 400], [-28, 2, 30, 400], [-34.5, 2, 30, 400]], lim: [5, 200, 6] }) },
+  { id: 'natt', name: 'Nattlyssning', builtin: true, desc: 'Kraftigt utjämnad dynamik (6 dB) så att allt hörs på låg volym. För lyssning, inte för släpp.',
+    params: spec({ in: 6, pre: [-1, 0, 0, 0, 0, 0, 0, 0], post: [-1, 0, 0, 0, 0.5, 1, 0, 0],
+      mbc: [[-22.5, 4, 5, 200], [-17, 4, 5, 200], [-25.5, 4, 5, 200], [-31.5, 4, 5, 200]], lim: [0.5, 60, 20] }) },
+  { id: 'horlurar', name: 'Hörlurar – len topp', builtin: true, desc: 'Mjukare diskant för långa lyssningspass i hörlurar. För lyssning.',
+    params: spec({ in: 1, pre: [0, 0, 0, 0, 0, 0, -0.5, 0], post: [0, 0, 0, 0, 0, 0, -2, -2.5],
+      mbc: [[-22.5, 1.3, 15, 200], [-19, 1.3, 15, 200], [-28, 1.3, 15, 200], [-33.5, 1.3, 15, 200]], lim: [2, 120, 8] }) },
+  { id: 'bil', name: 'Bilstereo', builtin: true, desc: 'För bilen: mer bas (vägbruset äter den), mindre vass topp, jämnare nivå. För lyssning.',
+    params: spec({ in: 4, pre: [0, 0, -0.5, 0, 0, 0, 0, 0], post: [2.5, 1.5, 0, 0, 0, 0, -1.5, -0.5],
+      mbc: [[-19, 2.5, 8, 150], [-15.5, 2.5, 8, 150], [-23.5, 2.5, 8, 150], [-29.5, 2.5, 8, 150]], lim: [0.5, 60, 15] }) },
+  { id: 'telefon', name: 'Telefonhögtalare', builtin: true, desc: 'För telefonens högtalare: ingen djupbas (den hörs ändå inte), mer mitt och närvaro. För lyssning.',
+    params: spec({ in: 5, pre: [-2, -1, 0, 0, 0, 0, 0, 0], post: [-8, -3, 0, 0, 1.5, 2.5, 0.5, 0],
+      mbc: [[-21, 2.5, 5, 120], [-15.5, 2.5, 5, 120], [-23.5, 2.5, 5, 120], [-29.5, 2.5, 5, 120]], lim: [0.5, 40, 20] }) },
+  { id: 'gym', name: 'Gym/energi', builtin: true, desc: 'Maximalt tryck: 4 dB kompression, mycket bas, glans och hård limiter.',
+    params: spec({ in: 8, pre: [0, 0, -1, 0, 0, 0, 0, 0], post: [1.5, 2.5, 0, -1, 0, 0, 0.5, 2.5],
+      mbc: [[-19, 3, 3, 70], [-14, 3, 3, 70], [-22, 3, 3, 70], [-28.5, 3, 3, 70]], lim: [0.5, 35, 25] }) },
+  { id: 'demo-check', name: 'Demo-kontroll', builtin: true, desc: 'Avslöjar problem: höjer lågmellan och skärpa 3 dB så att grumlighet och hårdhet hörs tydligt. Inte för släpp.',
+    params: spec({ in: 0, pre: [0, 0, 0, 0, 0, 0, 0, 0], post: [0, 0, 0, 3, 0, 0, 3, 0],
+      mbc: [[0, 1, 10, 150], [0, 1, 10, 150], [0, 1, 10, 150], [0, 1, 10, 150]], lim: [1, 60, 10] }) },
   {
     // Fas 1:s testläge – överdrivet med flit, för att höra att effekten sitter på
     id: 'test', name: 'Test (överdrivet)', builtin: true, desc: 'Överdrivet med flit – bara för att höra att effekten sitter på.',
@@ -407,34 +258,6 @@ export const BUILTIN_PRESETS = [
     }),
   },
 ];
-
-/**
- * Varje preset ska ha sin egen limiter och sin egen EQ 1 – tidigare hade drygt hälften exakt samma limiter
- * (1 ms / 60 ms / 10:1) och nästan alla en helt platt EQ 1. [attack ms, release ms, ratio, tröskel dB].
- * Tröskeln (taket) är −1 dB nästan överallt; mjukare genrer har längre release och lägre ratio.
- */
-const PRESET_LIMITER = {
-  'silkeslen-rost': [1, 80, 8, -1], transparent: [2, 100, 6, -1], 'bas-varm': [1, 100, 10, -1.5], 'hiphop-punch': [2, 50, 12, -1],
-  akustisk: [3, 150, 6, -1], ballad: [2, 120, 8, -1], rock: [1, 70, 12, -1], lofi: [5, 200, 6, -1.5], horlurar: [2, 120, 8, -1],
-  'rnb-silke': [2, 100, 10, -1], schlager: [0.5, 60, 15, -1], indie: [2, 120, 8, -1], jazz: [3, 200, 4, -1], reggaeton: [1, 50, 12, -1],
-  bil: [0.5, 60, 15, -1], telefon: [0.5, 40, 20, -1],
-};
-/** EQ 1 (före kompressorn, 60 Hz … 20 kHz): små sänkningar så att kompressorn inte reagerar på det som inte ska vara där. */
-const PRESET_PRE_EQ = {
-  'radio-ljus': [0, 0, -0.5, 0, 0, 0, 0, 0], 'silkeslen-rost': [0, 0, 0, 0, 0, -1, -0.5, 0],
-  'bas-varm': [0, 0, 0, -0.5, 0, 0, 0, 0], 'tat-pop': [0, 0, -1, 0, 0, 0, 0, 0], 'hiphop-punch': [0, 0, -1, 0, 0, 0, 0, 0],
-  'edm-hogt': [0, 0, -1, -0.5, 0, 0, 0, 0], akustisk: [-1, 0, 0, 0, 0, 0, 0, 0], ballad: [-0.5, 0, -0.5, 0, 0, 0, 0, 0],
-  rock: [0, 0, -1, -0.5, 0, 0, 0, 0], lofi: [0, 0, 0, 0, 0, 0, -1, -1], natt: [-1, 0, 0, 0, 0, 0, 0, 0], horlurar: [0, 0, 0, 0, 0, 0, -0.5, 0],
-  'rnb-silke': [0, 0, -0.5, 0, 0, 0, 0, 0], 'trap-808': [0, 0, -1, 0, 0, 0, 0, 0], schlager: [0, 0, -0.5, 0, 0, 0, 0, 0],
-  indie: [0, 0, 0, -0.5, 0, 0, 0, 0], metal: [-0.5, 0, 0, -1, 0, 0, 0, 0], reggaeton: [0, 0, -0.5, 0, 0, 0, 0, 0],
-  bil: [0, 0, -0.5, 0, 0, 0, 0, 0], telefon: [-2, -1, 0, 0, 0, 0, 0, 0], gym: [0, 0, -1, 0, 0, 0, 0, 0],
-};
-for (const p of BUILTIN_PRESETS) {
-  const l = PRESET_LIMITER[p.id];
-  if (l) Object.assign(p.params.limiter, { attack: l[0], release: l[1], ratio: l[2], threshold: l[3] });
-  const e = PRESET_PRE_EQ[p.id];
-  if (e && p.params.preEq.every((b) => !b.gain)) e.forEach((g, i) => { p.params.preEq[i].gain = g; });
-}
 
 /**
  * Skydd mot skärpa och distorsion i de inbyggda presetsen: ingen kompressor snabbare än 3 ms attack / 100 ms

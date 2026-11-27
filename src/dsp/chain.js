@@ -85,6 +85,8 @@ export class PreChain {
     this.glitter = glitterFilter(fs);
     this.glue = new Compressor(fs);
     this.width = 1; this.widthNow = 1; this.wk = coef(15, fs);
+    // Bas i mono: sidosignalen (L−R) högpassfiltreras (4:e ordningen) under vald frekvens
+    this.monoHz = 0; this.monoF = [new Biquad(coeffs('highpass', fs, 100)), new Biquad(coeffs('highpass', fs, 100))]; this.side = new Float32Array(BLOCK);
     this.bands = MBC_CUTOFFS.map(() => [new Float32Array(BLOCK), new Float32Array(BLOCK)]);
     this.gr = { mbc: [0, 0, 0, 0], glue: 0, deEss: 0, glitter: 0 };
     this.now = { mbc: [0, 0, 0, 0], glue: 0 }; // nedtryckning just nu (för mätarna i direktlyssningen)
@@ -107,6 +109,10 @@ export class PreChain {
     this.glitter.set(p.glitter);
     this.glue.set({ threshold: p.glue.threshold, ratio: p.glue.ratio, attack: p.glue.attack, release: p.glue.release, knee: 6, preGain: 0, postGain: p.glue.makeup });
     this.width = p.width / 100;
+    if (p.monoBass !== this.monoHz) {
+      if (p.monoBass > 0) this.monoF.forEach((b) => b.set(coeffs('highpass', this.fs, p.monoBass, Math.SQRT1_2)));
+      this.monoHz = p.monoBass;
+    }
     if (immediate) { this.trim.g = this.trim.t; this.widthNow = this.width; }
   }
 
@@ -150,6 +156,13 @@ export class PreChain {
         L[i] = m + s; R[i] = m - s;
       }
       this.widthNow = Math.abs(w - t) < 1e-7 ? t : w;
+    }
+    if (this.monoHz > 0) {
+      if (this.side.length < n) this.side = new Float32Array(n);
+      const S = this.side;
+      for (let i = 0; i < n; i++) S[i] = (L[i] - R[i]) * 0.5;
+      this.monoF[0].run(S, 0, 0, n); this.monoF[1].run(S, 0, 0, n);
+      for (let i = 0; i < n; i++) { const m = (L[i] + R[i]) * 0.5; L[i] = m + S[i]; R[i] = m - S[i]; }
     }
     if (this.p.glue.ratio > 1.0001 || this.p.glue.makeup !== 0) {
       const gr = this.glue.run(L, R, n);

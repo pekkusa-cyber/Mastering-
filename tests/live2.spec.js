@@ -60,7 +60,7 @@ test('på/av per del: bara kicken mjukas upp, EQ och resten av', async ({ page }
   await expect.poll(async () => (await sent(page)).postEq[6].gain).toBe(0);
   const p = await sent(page);
   expect(p.preEq.every((b) => b.gain === 0)).toBe(true);
-  expect(p.mbc[0].ratio).toBe(3); // kompressorn kvar
+  expect(p.mbc[0].ratio).toBe(2); // kompressorn kvar (Suno-fix: kickbandet 2:1)
   await page.getByRole('button', { name: 'Slå på allt' }).click();
   await expect.poll(async () => (await sent(page)).postEq[6].gain).toBe(-2);
 });

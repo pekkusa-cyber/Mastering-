@@ -17,6 +17,7 @@ export const FILE_RANGES = {
   trim: [-12, 12, 0.5, 'dB'],
   kickPunch: [-100, 100, 1, ''],
   width: [0, 200, 5, '%'],
+  monoBass: [0, 250, 10, 'Hz'],
   glueThreshold: [-40, 0, 1, 'dB'],
   glueRatio: [1, 10, 0.1, ':1'],
   glueAttack: [1, 100, 1, 'ms'],
@@ -47,7 +48,7 @@ export function applyFileEnables(params, enabled = {}) {
   if (off('postEq')) { p.postEq.forEach((b) => { b.gain = 0; }); p.peq.forEach((b) => { b.gain = 0; }); }
   if (off('deEss')) p.deEss = 0;
   if (off('glitter')) p.glitter = 0;
-  if (off('width')) p.width = 100;
+  if (off('width')) { p.width = 100; p.monoBass = 0; }
   if (off('glue')) Object.assign(p.glue, { ratio: 1, makeup: 0 });
   if (off('clip')) p.clip = 0;
   if (off('output')) p.output = 0;
@@ -69,6 +70,7 @@ export function fileNeutral() {
     deEss: 0,
     glitter: 0,
     width: 100,
+    monoBass: 0,
     glue: { threshold: -18, ratio: 1, attack: 30, release: 200, makeup: 0 },
     clip: 0,
     ceiling: -1,
@@ -96,6 +98,7 @@ export function sanitizeFile(p) {
     deEss: c(s.deEss, R.deEss, n.deEss),
     glitter: c(s.glitter, R.glitter, n.glitter),
     width: c(s.width, R.width, n.width),
+    monoBass: c(s.monoBass, R.monoBass, n.monoBass),
     glue: {
       threshold: c(s.glue?.threshold, R.glueThreshold, n.glue.threshold),
       ratio: c(s.glue?.ratio, R.glueRatio, n.glue.ratio),
@@ -133,44 +136,46 @@ export function inputStage(p) {
 /**
  * Det som bara finns i Fil (Färg, Limiter, Kick-anslag) – eget för varje inbyggd preset, så att presetten märks i
  * alla block och inte bara i EQ och kompressor. [kick, S-ljud %, Mjuk topp %, bredd %, lim ratio, lim tröskel,
- * lim attack, lim release, soft clip dB, limiterns release ms]. Okänd/egen preset får DEFAULT_CHARACTER.
+ * lim attack, lim release, soft clip dB, limiterns release ms, bas i mono Hz]. Okänd/egen preset får DEFAULT_CHARACTER.
  */
-export const DEFAULT_CHARACTER = [0, 25, 20, 100, 1.5, -16, 30, 200, 1.5, 80];
+export const DEFAULT_CHARACTER = [0, 25, 20, 100, 1.5, -16, 30, 200, 1.5, 80, 0];
 export const FILE_CHARACTER = {
-  'mjuk-kick': [-30, 20, 15, 100, 1.5, -16, 30, 200, 1, 80],
-  'radio-ljus': [10, 30, 25, 110, 2, -18, 10, 150, 2.5, 50],
-  'silkeslen-rost': [0, 45, 35, 100, 1.3, -16, 30, 250, 0.5, 100],
-  'varm-lim': [-10, 20, 25, 105, 2.5, -20, 30, 300, 1, 120],
-  transparent: [0, 10, 5, 100, 1.2, -14, 30, 200, 0, 100],
-  'suno-fix': [-15, 30, 30, 100, 1.5, -16, 30, 200, 1.5, 80],
-  'bas-varm': [10, 15, 20, 95, 1.8, -18, 30, 250, 1, 100],
-  'tat-pop': [15, 30, 20, 115, 2.5, -20, 10, 150, 2.5, 50],
-  'hiphop-punch': [40, 20, 10, 100, 2, -18, 30, 120, 2, 60],
-  'edm-hogt': [30, 20, 15, 120, 3, -20, 10, 100, 3.5, 40],
-  akustisk: [0, 20, 10, 110, 1.2, -14, 40, 300, 0, 150],
-  ballad: [-10, 35, 25, 105, 1.5, -16, 30, 250, 0.5, 120],
-  rock: [20, 25, 15, 110, 2, -18, 20, 150, 2, 60],
-  lofi: [-20, 15, 40, 90, 2, -20, 40, 400, 1.5, 150],
-  natt: [-20, 30, 30, 90, 3, -24, 10, 200, 2, 80],
-  horlurar: [-10, 35, 40, 90, 1.5, -16, 30, 200, 0.5, 100],
-  'rnb-silke': [5, 35, 30, 110, 1.8, -18, 30, 250, 1, 100],
-  'trap-808': [20, 25, 10, 115, 2, -18, 20, 150, 3, 50],
-  schlager: [15, 30, 20, 100, 2, -18, 20, 150, 2, 60],
-  indie: [0, 20, 15, 115, 1.3, -14, 30, 250, 0.5, 120],
-  metal: [30, 25, 20, 105, 2, -18, 10, 120, 2.5, 50],
-  jazz: [0, 10, 5, 105, 1.1, -12, 40, 300, 0, 200],
-  film: [0, 10, 10, 120, 1.2, -14, 50, 400, 0, 200],
-  reggaeton: [35, 25, 15, 105, 2, -18, 30, 120, 2, 60],
-  bil: [10, 35, 30, 95, 2, -18, 20, 150, 2, 60],
-  telefon: [20, 40, 30, 80, 2.5, -20, 10, 120, 2.5, 50],
-  gym: [40, 25, 15, 115, 3, -20, 10, 100, 4, 40],
-  'demo-check': [0, 0, 0, 100, 1, -16, 30, 200, 0, 80],
-  test: [100, 80, 80, 180, 5, -24, 10, 100, 6, 40],
+  'suno-fix': [-15, 35, 40, 100, 1.5, -16, 30, 200, 1.5, 80, 90],
+  'transparent': [0, 10, 5, 100, 1.2, -16, 30, 250, 0, 100, 0],
+  'mjuk-kick': [-40, 20, 15, 100, 1.5, -15, 30, 200, 1, 80, 90],
+  'radio-ljus': [10, 30, 15, 110, 2, -14.5, 10, 150, 2.5, 50, 100],
+  'silkeslen-rost': [0, 50, 40, 100, 1.3, -14.5, 30, 250, 0.5, 100, 80],
+  'varm-lim': [-10, 20, 25, 105, 2.5, -15.5, 30, 300, 1, 120, 90],
+  'bas-varm': [10, 15, 20, 95, 1.8, -14.5, 30, 250, 1, 100, 100],
+  'tat-pop': [15, 30, 20, 115, 2.5, -14.5, 10, 150, 2.5, 50, 100],
+  'hiphop-punch': [40, 20, 10, 100, 2, -13.5, 30, 120, 2, 60, 100],
+  'trap-808': [20, 25, 10, 115, 2, -13, 20, 150, 3, 50, 110],
+  'edm-hogt': [30, 20, 15, 120, 3, -14, 10, 100, 3.5, 40, 120],
+  'rnb-silke': [5, 40, 30, 110, 1.8, -14.5, 30, 250, 1, 100, 100],
+  'reggae': [5, 30, 25, 110, 1.8, -14, 30, 250, 1, 100, 100],
+  'reggaeton': [35, 25, 15, 105, 2, -15, 30, 120, 2, 60, 100],
+  'rock': [20, 25, 15, 110, 2, -14, 10, 150, 2, 60, 90],
+  'metal': [30, 25, 20, 105, 2, -14, 10, 120, 2.5, 50, 100],
+  'country': [10, 30, 20, 110, 1.8, -14.5, 20, 200, 1.5, 70, 80],
+  'schlager': [15, 30, 20, 100, 2, -15.5, 20, 150, 2, 60, 90],
+  'indie': [0, 20, 15, 115, 1.3, -14.5, 30, 250, 0.5, 120, 80],
+  'akustisk': [0, 20, 10, 110, 1.2, -15.5, 40, 300, 0, 150, 0],
+  'ballad': [-10, 40, 25, 105, 1.5, -15, 30, 250, 0.5, 120, 80],
+  'jazz': [0, 10, 5, 105, 1.1, -15, 40, 300, 0, 200, 0],
+  'film': [0, 10, 10, 120, 1.2, -15.5, 50, 400, 0, 200, 0],
+  'lofi': [-20, 15, 50, 85, 2, -17.5, 40, 400, 1.5, 150, 120],
+  'natt': [-20, 30, 30, 90, 3, -17, 10, 200, 2, 80, 120],
+  'horlurar': [-10, 40, 50, 90, 1.5, -16.5, 30, 200, 0.5, 100, 0],
+  'bil': [10, 35, 30, 95, 2, -15.5, 20, 150, 2, 60, 100],
+  'telefon': [20, 40, 30, 80, 2.5, -15.5, 10, 120, 2.5, 50, 150],
+  'gym': [40, 25, 15, 115, 3, -13, 10, 100, 4, 40, 120],
+  'demo-check': [0, 0, 0, 100, 1, -16, 30, 200, 0, 80, 0],
+  test: [100, 80, 80, 180, 5, -24, 10, 100, 6, 40, 200],
 };
 /** Fil-delarna (Färg, Limiter, Kick) för en preset. */
 export function fileCharacter(presetId) {
-  const [kickPunch, deEss, glitter, width, ratio, threshold, attack, release, clip, limRelease] = FILE_CHARACTER[presetId] || DEFAULT_CHARACTER;
-  return { kickPunch, deEss, glitter, width, glue: { threshold, ratio, attack, release, makeup: 0 }, clip, limRelease };
+  const [kickPunch, deEss, glitter, width, ratio, threshold, attack, release, clip, limRelease, monoBass] = FILE_CHARACTER[presetId] || DEFAULT_CHARACTER;
+  return { kickPunch, deEss, glitter, width, monoBass, glue: { threshold, ratio, attack, release, makeup: 0 }, clip, limRelease };
 }
 
 export function liveToFile(liveParams, extra = {}, presetId = null) {
@@ -185,3 +190,28 @@ export function targetLufs(p) {
 }
 
 export { EQ_CUTOFFS, MBC_CUTOFFS };
+
+/**
+ * Det en mastringstekniker kontrollerar innan leverans (riktvärden från branschen, inte lagar):
+ * nivå mot plattformarna, PLR (dynamik), limiterns och kompressorns arbete och true peak för höga masters.
+ */
+export function masterChecks(m, gr = {}) {
+  const out = [], L = m.integrated, tp = m.truePeak;
+  if (!Number.isFinite(L)) return out;
+  const f1 = (x) => x.toFixed(1).replace('.', ',').replace('-', '−');
+  // Vad plattformarna gör med nivån (de sänker höga låtar; Spotify/YouTube −14, Apple Music −16)
+  const down = (ref) => Math.max(0, L - ref);
+  if (L > -14.5) out.push(['ok', `Nivå ${f1(L)} LUFS: Spotify och YouTube sänker ca ${f1(down(-14))} dB, Apple Music ca ${f1(down(-16))} dB. Det gör inget – men högre än så här ger bara mindre dynamik, inte högre ljud.`]);
+  else if (L >= -16.5) out.push(['ok', `Nivå ${f1(L)} LUFS – nära plattformarnas nivå (−14 till −16 LUFS).`]);
+  else out.push(['warn', `Nivå ${f1(L)} LUFS är tystare än plattformarna (−14 LUFS). Spotify höjer bara upp så långt topparna tillåter – låten kan låta svagare än andra. Välj målet Streaming.`]);
+  // PLR = true peak − loudness: hur mycket dynamik (transienter) som finns kvar
+  const plr = tp - L;
+  if (plr < 6) out.push(['warn', `PLR ${f1(plr)} dB: mycket hårt pressad. Under ca 6 dB låter det lätt platt och tröttande. Sänk målnivån eller Soft clip.`]);
+  else if (plr < 8) out.push(['ok', `PLR ${f1(plr)} dB: tätt och högt, som modern pop/EDM.`]);
+  else out.push(['ok', `PLR ${f1(plr)} dB: bra dynamik kvar (8–12 dB är vanligt för musik som ska andas).`]);
+  if (L > -14 && tp > -2) out.push(['warn', `Mastern är högre än −14 LUFS: Spotify rekommenderar då true peak under −2 dBTP (nu ${f1(tp)}) för att undvika distorsion när filen kodas om. Sänk taket till −2 under Limiter.`]);
+  if ((gr.limiter ?? 0) > 3) out.push(['warn', `Limitern trycker ned upp till ${f1(gr.limiter)} dB. Över ca 3 dB börjar det höras (pumpande, tappade anslag). Sänk målnivån eller ta lite av det med Soft clip.`]);
+  const mbcMax = Math.max(0, ...(gr.mbc || []));
+  if (mbcMax > 10) out.push(['warn', `Kompressorn trycker ned upp till ${f1(mbcMax)} dB i ett band – mer än vad en mastring brukar (oftast 1–4 dB). Höj tröskeln eller sänk In.`]);
+  return out;
+}

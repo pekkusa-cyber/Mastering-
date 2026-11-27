@@ -116,7 +116,7 @@ export async function initLive() {
 
 export const PRESET_ICONS = { 'mjuk-kick': '🥁', 'radio-ljus': '📻', 'silkeslen-rost': '🎤', 'varm-lim': '🧡', transparent: '◻️', 'suno-fix': '🛠️',
   'bas-varm': '🔊', 'tat-pop': '✨', 'hiphop-punch': '👊', 'edm-hogt': '⚡', akustisk: '🎸', ballad: '🎙️', rock: '🤘', lofi: '📼', natt: '🌙', horlurar: '🎧', test: '🧪',
-  flat: '⚪', 'rnb-silke': '🌙', 'trap-808': '🔈', schlager: '💃', indie: '🌿', metal: '🔥', jazz: '🎷', film: '🎬', reggaeton: '🌴', bil: '🚗', telefon: '📱', gym: '🏋️', 'demo-check': '🔍' };
+  flat: '⚪', 'rnb-silke': '🌙', 'trap-808': '🔈', schlager: '💃', indie: '🍃', metal: '🔥', jazz: '🎷', film: '🎬', reggaeton: '🌴', reggae: '🌿', country: '🤠', bil: '🚗', telefon: '📱', gym: '🏋️', 'demo-check': '🔍' };
 
 /** Korrigeringen som skickas till motorn: nivåkompenserad (samma volym) om det är valt. */
 export function correctionToSend(hp, corr = ui.corr) {

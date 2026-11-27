@@ -173,7 +173,8 @@ test('vymenyn: rullgardin vid kugghjulet, ingen rad längst ner', async ({ page 
   await page.goto('/?sim=1');
   await expect(page.locator('#vmenu')).toBeHidden();
   await page.getByRole('button', { name: 'Meny' }).click();
-  await expect(page.locator('#vmenu button')).toHaveText(['◉Live', '▤Analys', '♫Fil', '⋯Mer']);
+  await expect(page.locator('#vmenu [data-view]')).toHaveText(['◉Live', '▤Analys', '♫Fil', '⋯Mer']);
+  await expect(page.locator('#vmenu [data-help="guide"]')).toHaveText('📘Mastringsguide');
   await page.mouse.click(10, 400); // tryck utanför stänger
   await expect(page.locator('#vmenu')).toBeHidden();
   await page.getByRole('button', { name: 'Meny' }).click();
@@ -242,4 +243,17 @@ test('båda huvudbrytarna av: motorn stängs (ingen notis), på igen startar den
   await expect(page.getByTestId('motor')).toHaveText('Av – inget ljud ändras, ingen notis');
   await page.locator('#masterlab').check({ force: true });
   await expect(page.getByTestId('motor')).toContainText('Bearbetar');
+});
+
+test('Mastringsguiden finns i ☰-menyn i alla vyer och menyn stängs', async ({ page }) => {
+  await page.goto('/?sim=1');
+  for (const view of ['live', 'fil']) {
+    if (view === 'fil') await page.goto('/?sim=1&view=fil');
+    await page.locator('#menu').click();
+    await page.getByRole('menuitem', { name: /Mastringsguide/ }).click();
+    await expect(page.locator('#vmenu')).toBeHidden();
+    await expect(page.locator('dialog.sheet h2')).toHaveText('Mastringsguide');
+    await expect(page.locator('dialog.sheet')).toContainText('1–3 dB nedtryckning');
+    await page.locator('dialog.sheet').getByRole('button', { name: 'Stäng' }).click();
+  }
 });

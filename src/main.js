@@ -28,7 +28,7 @@ function header() {
 
 /** Vymenyn: en rullgardin vid kugghjulet i stället för en rad längst ner (mer plats åt reglagen). */
 function nav() {
-  return `<nav class="vmenu" id="vmenu" aria-label="Vyer" role="menu" hidden>${VIEWS.map((v) => `<button type="button" role="menuitem" data-view="${v.id}" class="${ui.view === v.id ? 'sel' : ''}" aria-current="${ui.view === v.id ? 'page' : 'false'}"><span class="ic">${v.icon}</span>${v.label}</button>`).join('')}</nav>`;
+  return `<nav class="vmenu" id="vmenu" aria-label="Vyer" role="menu" hidden>${VIEWS.map((v) => `<button type="button" role="menuitem" data-view="${v.id}" class="${ui.view === v.id ? 'sel' : ''}" aria-current="${ui.view === v.id ? 'page' : 'false'}"><span class="ic">${v.icon}</span>${v.label}</button>`).join('')}<button type="button" role="menuitem" data-help="guide" class="vguide"><span class="ic">📘</span>Mastringsguide</button></nav>`;
 }
 
 function apkBanner() {
@@ -134,7 +134,7 @@ document.addEventListener('click', (e) => {
   const i = e.target.closest('[data-info]');
   if (i) { e.preventDefault(); e.stopPropagation(); showInfo(i.dataset.info); return; }
   const h = e.target.closest('[data-help]');
-  if (h) { const t = HELP[h.dataset.help] || HELP.live; sheet(`<div class="help-body"><h2>${esc(t.title)}</h2>${t.html}</div>`, { cls: 'helpsheet' }); }
+  if (h) { const vm = document.getElementById('vmenu'); if (vm) vm.hidden = true; const t = HELP[h.dataset.help] || HELP.live; sheet(`<div class="help-body"><h2>${esc(t.title)}</h2>${t.html}</div>`, { cls: 'helpsheet' }); }
 }, true);
 
 async function checkForUpdate() {

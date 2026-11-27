@@ -6,7 +6,7 @@ import { isNative, LiveDsp } from '../livedsp.js';
 import { ui, app } from '../state.js';
 import { save, load } from '../store.js';
 import { BUILTIN_PRESETS, EQ_CUTOFFS, MBC_CUTOFFS, MBC_NAMES, RANGES, PEQ_BANDS, MODULES, bandLabel, areaRange, moduleActive, presetEffects } from '../chain.js';
-import { FILE_RANGES, FILE_STAGES, MATCH_FREQS, TARGETS, applyFileEnables, fileCharacter, fileNeutral, liveToFile, sanitizeFile } from '../master.js';
+import { FILE_RANGES, FILE_STAGES, MATCH_FREQS, TARGETS, applyFileEnables, fileCharacter, masterChecks, fileNeutral, liveToFile, sanitizeFile } from '../master.js';
 import { compareProfiles, matchEqCurve, profileFromChannels, toFileMatchEq } from '../analysis.js';
 import { currentRef, selectRef } from '../refs.js';
 import { ask, bindPicker, bindSliders, esc, fmtDb, getPath, infoBtn, picker, saveFile, setPath, sheet, slider, soloBtn, split, toggle, vfader } from '../ui.js';
@@ -41,7 +41,11 @@ const fileDeps = () => ({ isNative, Filesystem, Directory, Encoding, Share });
 const en = (k) => F.enabled[k] !== false;
 /** Inställningen som exporteras: avslagna delar neutrala. */
 /** Till direktlyssningen: alltid med låtens nivå in (nivåanpassningen), även för versioner och förslag. */
-const playParams = (p, drive) => player.setParams({ ...p, inLufs: F.inLufs ?? null }, drive);
+const playParams = (p, drive) => {
+  const q = { ...p, inLufs: F.inLufs ?? null };
+  if (typeof window !== 'undefined') window.__filParams = q; // det som spelas just nu (testerna läser det)
+  player.setParams(q, drive);
+};
 const effective = () => ({ ...applyFileEnables(F.params, F.enabled), inLufs: F.inLufs ?? null });
 
 /** Solo på en hel del: bara den delen är på (ingen annan bearbetning), resten av kedjan neutral. Bara i spelaren. */
@@ -256,7 +260,7 @@ function areaBtns(area, label) {
 /** Panelens rubrik: på/av, namn, solo och delpreset – som i Live. */
 /** Delpresets i Fil: EQ och kompressor som i Live, plus Färg och Limiter (de delar som bara finns i Fil). */
 const FMODS = { eq: { name: 'EQ', keys: ['preEq', 'postEq', 'peq'] }, comp: { name: 'Kompressor', keys: ['mbc'] },
-  farg: { name: 'Färg', keys: ['deEss', 'glitter', 'width', 'glue'] }, lim: { name: 'Limiter', keys: ['clip', 'limRelease'] } };
+  farg: { name: 'Färg', keys: ['deEss', 'glitter', 'width', 'monoBass', 'glue'] }, lim: { name: 'Limiter', keys: ['clip', 'limRelease'] } };
 function fhead({ title, sub = '', enableKey = null, soloKey = null, mod = null, right = '' }) {
   const on = enableKey ? (enableKey === 'grp_comp' ? [0, 1, 2, 3].some((i) => en(`mbc${i}`)) : en(enableKey)) : false;
   return `<div class="phead">${enableKey ? toggle(enableKey, on, title) : ''}<b>${esc(title)}</b>${soloKey ? fsolo(soloKey, title) : ''}${sub ? `<small>${esc(sub)}</small>` : ''}
@@ -332,7 +336,7 @@ function panelFarg() {
     deEss: `${srows([fpath('deEss', 'Mängd', FILE_RANGES.deEss, 'fileDeEss', 'deEss')])}
       <div class="bandrow"><button class="btn small${F.delta ? ' on-solo' : ''}" id="f-delta" aria-pressed="${F.delta}">Δ Hör bara det som tas bort</button>${infoBtn('delta')}</div>`,
     glitter: srows([fpath('glitter', 'Mängd', FILE_RANGES.glitter, 'fileGlitter', 'glitter')]),
-    width: srows([fpath('width', 'Stereobredd', FILE_RANGES.width, 'width', 'width')]),
+    width: srows([fpath('width', 'Stereobredd', FILE_RANGES.width, 'width', 'width'), fpath('monoBass', 'Bas i mono under (0 = av)', FILE_RANGES.monoBass, 'monoBass')]),
     glue: srows([fpath('glue.threshold', 'Startar vid (tröskel)', FILE_RANGES.glueThreshold, 'glue.threshold', 'glue'), fpath('glue.ratio', 'Styrka (ratio)', FILE_RANGES.glueRatio, 'glueRatio'),
       fpath('glue.attack', 'Reaktion (attack)', FILE_RANGES.glueAttack, 'glue.attack'), fpath('glue.release', 'Släpper (release)', FILE_RANGES.glueRelease, 'glue.release'),
       fpath('glue.makeup', 'Lyft efter', FILE_RANGES.glueMakeup, 'glue.makeup')]),
@@ -393,10 +397,13 @@ function meterPart() {
     : r ? [['LUFS', r.metrics.integrated, r.metrics.integrated, 'lvl'], ['Topp', r.metrics.truePeak, r.metrics.truePeak, 'lvl'], ['Kompr.', Math.max(...r.gr.mbc), null, 'gr'],
       ['S-ljud', r.gr.deEss, null, 'gr'], ['Mjuk topp', r.gr.glitter || 0, null, 'gr'], ['Lim', r.gr.glue, null, 'gr'], ['Limiter', r.gr.limiter, null, 'gr']] : [];
   if (!bars.length) return '<p class="hint" style="padding:30px 10px">Mätarna visas när låten spelas eller är renderad.</p>';
+  // Röd = mer nedtryckning än en mastring brukar ha (riktvärden: kompressor/de-esser ≈ 6 dB, lim och limiter ≈ 3 dB)
+  const LIMIT = { 'Kompr.': 6, 'S-ljud': 6, 'Mjuk topp': 6, Lim: 3, Limiter: 3 };
   return `<div class="fmeters" data-testid="livemeters">${bars.map(([n, v, , kind]) => {
     const h = kind === 'lvl' ? Math.max(2, Math.min(100, ((v + 40) / 40) * 100)) : Math.max(0, Math.min(100, (v || 0) * 10));
-    return `<div class="fmb ${kind}"><b>${kind === 'gr' ? (v > 0.05 ? `−${v.toFixed(1)}` : '0.0') : Number.isFinite(v) ? v.toFixed(1) : '–'}</b><div class="fmt"><em style="height:${h.toFixed(0)}%"></em></div><span>${n}</span></div>`;
-  }).join('')}</div><small class="fmnote">${live ? 'just nu' : 'från senaste renderingen'}</small>`;
+    const hot = kind === 'gr' && v > (LIMIT[n] ?? 99);
+    return `<div class="fmb ${kind}${hot ? ' hot' : ''}" title="${hot ? `Mer än ca ${LIMIT[n]} dB – mer än en mastring brukar` : ''}"><b>${kind === 'gr' ? (v > 0.05 ? `−${v.toFixed(1)}` : '0.0') : Number.isFinite(v) ? v.toFixed(1) : '–'}</b><div class="fmt"><em style="height:${h.toFixed(0)}%"></em></div><span>${n}</span></div>`;
+  }).join('')}</div><small class="fmnote">${live ? 'just nu' : 'från senaste renderingen'} · röd = mer än proffsens riktvärde</small>`;
 }
 function filTop() {
   if (!F.input) {
@@ -700,8 +707,10 @@ function exportChecks() {
   if (F._clip == null && F.input) { let c = 0; for (const ch of F.input.channels) for (let i = 0; i < ch.length; i++) if (Math.abs(ch[i]) >= 0.999) c++; F._clip = c; }
   if (F._clip > 20) out.push(['warn', `Originalet är redan klippt på ${F._clip} ställen – distorsionen går inte att ta bort i mastringen. Exportera om låten från Suno med lägre nivå om det går.`]);
   if (r.stereo?.warnings?.length) r.stereo.warnings.forEach((w) => out.push(['warn', w])); else if (r.stereo) out.push(['ok', 'Låten håller i mono.']);
+  out.push(...masterChecks(r.metrics, r.gr));
   return out;
 }
+
 function exportSheet() {
   const checks = exportChecks();
   const d = sheet(`<h2>Exportera</h2>

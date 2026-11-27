@@ -20,7 +20,7 @@ export const HELP = {
       Knapparna finns också i notisen.</p>
       <h3>Raden under rubriken</h3>
       <ul>
-        <li><b>Preset ▾</b> – välj bland 30 (Orörd, Mjuk kick, Suno-fix, Radio ljus …). "ändrad" = du har ändrat något.</li>
+        <li><b>Preset ▾</b> – välj bland 31 (Orörd, Suno-fix, Transparent, genrer som Reggae/dub, Country, Trap 808 …). "ändrad" = du har ändrat något.</li>
         <li><b>Före / Efter</b> – jämför originalet med det mastrade ljudet (nivåmatchat).</li>
         <li><b>↶</b> Ångra (upp till 20 steg). <b>⋯</b> visar vad presetten påverkar och låter dig spara, döpa om, ta bort, exportera och importera.
           I presetlistan har dina egna presets en <b>🗑</b> – tryck för att ta bort (du får bekräfta).</li>
@@ -100,6 +100,65 @@ export const HELP = {
         <li>Live-analysen är grövre än filanalys (Android ger bara 8-bitars ljud till mätningen, och upplösningen
         under 100 Hz är grov). Referenser från filer är exaktare.</li>
         <li>Analysen fortsätter i bakgrunden medan du lyssnar i en annan app.</li>
+      </ul>`,
+  },
+  guide: {
+    title: 'Mastringsguide',
+    html: `
+      <p>Så arbetar mastringstekniker – och hur du gör samma sak i Masterlab. Siffrorna är riktvärden från branschen
+      (mastringsböcker, tillverkare och tekniker), inte lagar: lyssna alltid och jämför i samma nivå.</p>
+      <h3>1. Lyssna först, ändra sen</h3>
+      <ul>
+        <li>Lyssna igenom hela låten och skriv ner vad som stör: grumligt, vasst, tunt, platt, för smalt, s-ljud.</li>
+        <li>Välj en <b>referenslåt</b> i samma genre (Analys → spara referens) och jämför i <b>samma nivå</b> (Lika nivå i 👂).
+        Högre låter alltid "bättre" – därför matchas nivån.</li>
+        <li>Mastring kan inte laga en dålig mix. Är rösten för låg eller basen och kicken ihopklumpade: gör om låten i Suno först.</li>
+      </ul>
+      <h3>2. Nivå in (gain staging)</h3>
+      <p>Appen lägger låten på −14 LUFS innan kedjan, så att presets och trösklar fungerar lika för alla låtar. <b>In</b> styr sedan hur
+      hårt kompressorn drivs: +2–4 dB för de flesta låtar, mer för tät musik.</p>
+      <h3>3. EQ – breda, små drag</h3>
+      <ul>
+        <li>Mastrings-EQ är <b>bred och försiktig</b>: oftast 0,5–2 dB, sällan över 3 dB. Bred Q (under 1) eller hyllor.</li>
+        <li><b>Sänk</b> hellre det som stör än höj det som saknas. Vanligt i Suno-låtar: grumligt 200–400 Hz, hårt 3–6 kHz,
+        fräsigt skimmer över 10 kHz.</li>
+        <li><b>EQ 1</b> (före kompressorn): ta bort det kompressorn inte ska reagera på – muller under 40 Hz, grumlighet.
+        <b>EQ 2</b> (efter): klangen du vill ha – luft, värme, närvaro.</li>
+        <li>Lyssna på ett band med <b>S</b> (solo) för att hitta problemet, och med <b>M</b> för att höra vad det gör.</li>
+      </ul>
+      <h3>4. Kompressor – limma, inte klämma</h3>
+      <ul>
+        <li>Sikta på <b>1–3 dB nedtryckning</b> (se Mätare). Låg ratio: 1,2–2:1 för lim, 2–4:1 för kontroll av ett band.</li>
+        <li><b>Attack 10–30 ms</b> släpper igenom slagen (punch). Snabb attack (1–5 ms) tar topparna men gör det platt.</li>
+        <li><b>Release</b> ungefär ett taktslag (100–300 ms) så att den andas i takt. För kort = pumpande och förvrängning i basen.</li>
+        <li>Multiband: kontrollera basen (kick/808) och närvaron (vass röst) var för sig. Låt mitten vara så orörd som möjligt.</li>
+      </ul>
+      <h3>5. Färg</h3>
+      <ul>
+        <li><b>S-ljud</b> (de-esser): bara så mycket att s-ljuden slutar sticka ut – kontrollera med <b>Δ</b> att bara s-ljud försvinner.</li>
+        <li><b>Mjuk topp</b>: tar Suno-skimret över 11 kHz. <b>Lim</b>: 1–2 dB, långsam attack.</li>
+        <li><b>Bredd</b>: 100–120 % räcker. <b>Bas i mono</b> under 80–120 Hz är standard – stabil bas överallt.</li>
+      </ul>
+      <h3>6. Limiter och nivå</h3>
+      <ul>
+        <li>Limitern ska bara ta de sista topparna: <b>högst 2–3 dB</b> nedtryckning. Behövs mer: lite <b>Soft clip</b> före, eller lägre mål.</li>
+        <li><b>Tak −1 dBTP</b> (true peak). Är mastern högre än −14 LUFS rekommenderar Spotify −2 dBTP.</li>
+        <li>Plattformarna sänker höga låtar: Spotify, YouTube och Tidal till ca −14 LUFS, Apple Music ca −16. En master på −8 LUFS
+        låter alltså <b>inte</b> högre där – bara plattare. Topplistelåtar ligger ofta runt −8 LUFS ändå, för täthetens skull.</li>
+        <li><b>PLR</b> (true peak minus loudness) visar dynamiken: under 6 dB = hårt pressat, 8–12 dB = luftigt och levande.</li>
+      </ul>
+      <h3>7. Kontrollera innan du släpper</h3>
+      <ul>
+        <li>Lyssna i <b>mono</b>, som <b>mobil</b> och <b>bil</b> (👂). Lyssna på början, refrängen och slutet med en loop.</li>
+        <li>Jämför med referensen i samma nivå och gör ett <b>blindtest</b> (Jämför). Vila öronen: efter en timme hör du sämre.</li>
+        <li>Exportera <b>WAV 24 bit, 44,1 kHz</b> till distributören. Exportkontrollen visar nivå, PLR, true peak och mono.</li>
+      </ul>
+      <h3>Vilken preset?</h3>
+      <ul>
+        <li><b>Suno-fix</b>: rättar typiska AI-problem (grumligt, vasst, skimmer). Bra första val för de flesta Suno-låtar.</li>
+        <li><b>Transparent / Jazz / Film / Akustisk</b>: varsamt, behåller dynamiken. <b>Tät pop / EDM / Gym</b>: tätt och högt.</li>
+        <li>Genrepresets (Reggae, Country, Rock, Metal, Trap 808, R&amp;B …) är startpunkter – justera sedan med örat.</li>
+        <li><b>Nattlyssning, Hörlurar, Bil, Telefon</b> är för lyssning i Live, inte för släpp.</li>
       </ul>`,
   },
   fil: {

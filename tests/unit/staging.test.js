@@ -42,3 +42,17 @@ test('presettens In följer med till Fil', () => {
   const id = 'edm-hogt', p = BUILTIN_PRESETS.find((x) => x.id === id);
   assert.equal(liveToFile(p.params, {}, id).trim, p.params.inputGain);
 });
+
+test('bas i mono: sidosignalen under gränsen tas bort, ovanför lämnas den', async () => {
+  const { PreChain } = await import('../../src/dsp/chain.js');
+  const { sanitizeFile, fileNeutral } = await import('../../src/master.js');
+  const n = FS * 2, L = new Float32Array(n), R = new Float32Array(n);
+  for (let i = 0; i < n; i++) { const lo = Math.sin(2 * Math.PI * 40 * i / FS) * 0.3, hi = Math.sin(2 * Math.PI * 2000 * i / FS) * 0.3; L[i] = lo + hi; R[i] = -lo - hi; } // helt i sidan
+  const c = new PreChain(FS, sanitizeFile({ ...fileNeutral(), monoBass: 120 }));
+  for (let s = 0; s < n; s += 1024) { const e = Math.min(n, s + 1024); c.run(L.subarray(s, e), R.subarray(s, e), e - s); }
+  // Sidan (L−R)/2 efter: 40 Hz ska vara borta (>20 dB), 2 kHz kvar
+  const side = Float64Array.from({ length: n }, (_, i) => (L[i] - R[i]) / 2);
+  const tone = (f) => { let re = 0, im = 0; for (let i = FS; i < n; i++) { re += side[i] * Math.cos(2 * Math.PI * f * i / FS); im += side[i] * Math.sin(2 * Math.PI * f * i / FS); } return 2 * Math.hypot(re, im) / (n - FS); };
+  assert.ok(20 * Math.log10(tone(40) / 0.3) < -20, `40 Hz i sidan: ${(20 * Math.log10(tone(40) / 0.3)).toFixed(1)} dB`);
+  assert.ok(Math.abs(20 * Math.log10(tone(2000) / 0.3)) < 0.5, '2 kHz orört');
+});

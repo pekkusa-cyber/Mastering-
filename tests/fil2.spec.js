@@ -274,7 +274,7 @@ test('presetsen skiljer sig i Färg och Limiter, och Färg/Limiter har egna delp
   const choose = async (sel, name) => { await page.locator(sel).click(); await page.locator('dialog.sheet').getByRole('option', { name: new RegExp(name) }).first().click(); };
   await choose('#f-preset', 'Silkeslen röst');
   await block(page, 'farg');
-  await expect(page.locator('#f-deEss')).toHaveValue('45');
+  await expect(page.locator('#f-deEss')).toHaveValue('50');
   await block(page, 'lim');
   await expect(page.locator('#f-clip')).toHaveValue('0.5');
   await choose('#f-preset', 'Gym');
@@ -288,4 +288,31 @@ test('presetsen skiljer sig i Färg och Limiter, och Färg/Limiter har egna delp
   await expect(page.locator('#f-clip')).toHaveValue('4');
   await choose('#fmod-lim', 'Akustisk');
   await expect(page.locator('#f-clip')).toHaveValue('0');
+});
+
+test('varje reglage i Fil gör sitt jobb: ändrar det som spelas (alla block och flikar)', async ({ page }) => {
+  test.setTimeout(240000);
+  await page.goto('/?sim=1&view=fil');
+  await loadSong(page);
+  const fp = () => page.evaluate(() => JSON.stringify(window.__filParams));
+  const views = [['quick'], ['in'], ['eq1', '[data-feq1="graphic"]'], ['eq1', '[data-feq1="match"]'], ['comp', '[data-fcomp="all"]'],
+    ...[0, 1, 2, 3].map((i) => ['comp', `[data-fcomp="${i}"]`]), ['eq2', '[data-feq2="graphic"]'], ...[0, 1, 2, 3, 4].map((i) => ['eq2', `[data-feq2="${i}"]`]),
+    ...['deEss', 'glitter', 'width', 'glue'].map((k) => ['farg', `[data-ffarg="${k}"]`]), ['lim'], ['out']];
+  const dead = [];
+  let n = 0;
+  for (const [b, sel] of views) {
+    await block(page, b);
+    if (sel) await page.locator(sel).click();
+    const ids = await page.locator('#spanel input[type=range][data-kind]:not([data-kind="amount"])').evaluateAll((els) => els.map((e) => e.id));
+    for (const id of ids) {
+      const el = page.locator(`#${id}`);
+      const before = await fp();
+      const [min, max, val] = await el.evaluate((e) => [Number(e.min), Number(e.max), Number(e.value)]);
+      await setRange(el, val - min > max - val ? min + (max - min) * 0.1 : max - (max - min) * 0.1);
+      try { await expect.poll(fp, { timeout: 2000 }).not.toBe(before); } catch { dead.push(`${b}${sel || ''} ${id}`); }
+      n++;
+    }
+  }
+  expect(n).toBeGreaterThan(60);
+  expect(dead, 'reglage som inte ändrar något').toEqual([]);
 });

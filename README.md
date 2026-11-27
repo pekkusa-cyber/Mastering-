@@ -42,12 +42,18 @@ Tre enklare layouter utan scroll (spektrum alltid synligt): `l1-flikar` (fasta f
 
 ## Filmastringens kedja (fas 3)
 
-Trim → Pre-EQ → Match-EQ → Multiband (Linkwitz-Riley 4 band, transient shaper på kickbandet) → Post-EQ → Parametrisk EQ →
-De-esser → Mjuk topp → Stereobredd → Lim (buss-kompressor) → Drive (automatiskt mot mål-LUFS) → Soft clipper → True-peak-limiter
+Nivåanpassning in (låten mäts och läggs på −14 LUFS, som Live får från en strömningstjänst) → In (presettens lyft) →
+Pre-EQ → Match-EQ → Multiband (Linkwitz-Riley 4 band, transient shaper på kickbandet) → Post-EQ → Parametrisk EQ →
+De-esser → Mjuk topp → Stereobredd → Bas i mono (sidosignalen högpassas under vald frekvens) → Lim (buss-kompressor) → Drive (automatiskt mot mål-LUFS) → Soft clipper → True-peak-limiter
 (lookahead, 4x översampling) → Utgång. Egen DSP i ren JavaScript (`src/dsp/`) som körs i en Web Worker – snabbare än
 realtid och samma kod som testerna kör. Avkodning och omsampling görs med `OfflineAudioContext`.
 
 Live (Androids DSP) och fil (egen DSP) låter inte exakt lika – det står även i appens hjälptext.
+
+Exportkontrollen bygger på mastringspraxis: nivå mot plattformarna (Spotify/YouTube −14, Apple −16 LUFS), PLR (true peak
+minus loudness, under 6 dB = hårt pressat), Spotifys −2 dBTP för masters högre än −14 LUFS, limiterns och kompressorns
+nedtryckning, mono och klippt original. Mätarna blir röda över riktvärdena. **Mastringsguiden** (☰ → 📘) sammanfattar
+arbetsgången: lyssna och referera, nivå in, breda EQ-drag, 1–3 dB kompression, högst 2–3 dB limiter, bas i mono, kontroll.
 
 ## Installera
 
@@ -123,7 +129,7 @@ Ingång → pre-EQ (8 band) → multiband-kompressor (4 band: 0–120 Hz kick, 1
 
 - **PÅ/AV** (stora knappen och i notisen) växlar mellan mastrat och original.
 - **Utgångsnivå** för att nivåmatcha själv, eller **Auto-nivåmatcha** (mäter med Visualizer, kräver mikrofonbehörighet).
-- **Presets (30):** Orörd (ingen bearbetning), Mjuk kick, Suno-fix, Radio ljus, Silkeslen röst, Varm lim, genrer och lyssningsmiljöer (bil, telefon, hörlurar) m.fl. Spara, döp om, ta bort,
+- **Presets (31):** Orörd, Suno-fix, Transparent, karaktärer (Mjuk kick, Radio ljus, Silkeslen röst, Varm lim, Bas varm, Tät pop) och genrer (Hiphop, Trap 808, EDM, R&B, Reggae/dub, Reggaeton, Rock, Metal, Country, Schlager, Indie, Akustisk, Ballad, Jazz, Film, Lo-fi) plus lyssningsmiljöer (natt, hörlurar, bil, telefon, gym). Varje preset är skriven som avsikt (EQ-drag, önskad nedtryckning per kompressorband, limiter, Färg) och trösklarna är **kalibrerade mot riktiga Suno-låtar** nivåanpassade till −14 LUFS, så att t.ex. Jazz trycker ned 0,3 dB och Nattlyssning 6 dB. Ett test kräver att presetsen skiljer sig i varje flik. Spara, döp om, ta bort (🗑 i listan),
   exportera/importera som JSON.
 - **Block:** Snabb (sex enkla reglage), EQ (fem band med frekvens, höj/sänk och bredd, plus 8 band), Kompr. (fyra band),
   Limiter och Ut – alla med lodräta fadrar, M (mute) och S (solo).

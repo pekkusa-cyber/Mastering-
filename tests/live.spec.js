@@ -19,7 +19,7 @@ test('stora knappen växlar mellan mastrat och original och startar motorn', asy
 test('vald preset skickas till motorn med alla band, och det finns minst 16 presets', async ({ page }) => {
   await page.goto('/?sim=1');
   await expect.poll(async () => (await sent(page))?.mbc?.length).toBe(4);
-  expect((await sent(page)).mbc[0]).toMatchObject({ cutoff: 120, threshold: -24, ratio: 4 });
+  expect((await sent(page)).mbc[0]).toMatchObject({ cutoff: 120, threshold: -19.5, ratio: 4 }); // kalibrerad tröskel
   await page.getByRole('button', { name: 'Preset', exact: true }).click();
   expect(await page.locator('dialog.sheet [role=option]').count()).toBeGreaterThanOrEqual(30);
   await expect(page.locator('dialog.sheet [role=option][aria-selected=true]')).toContainText('Mjuk kick');
@@ -105,7 +105,7 @@ test('alla block i flödet: fadrar med ⓘ och nollställning, rätt graf övers
   await block(page, 'in');
   await setRange(page.locator('#p-inputGain'), -6);
   await page.getByRole('button', { name: 'Återställ alla' }).click();
-  await expect.poll(async () => (await sent(page)).inputGain).toBe(5);
+  await expect.poll(async () => (await sent(page)).inputGain).toBe(4); // Radio ljus: In +4
 });
 
 test('spara, döp om, ta bort, exportera och importera presets via Hantera', async ({ page }) => {
