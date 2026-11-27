@@ -114,13 +114,9 @@ function restore() {
     if (!song?.bytes || F.input) { restoring = 'klar'; return; }
     F.restoringName = song.name; app.render();
     try {
-      await openSong(new File([song.bytes], song.name), { fromStore: true });
+      // De sparade inställningarna läggs på före renderingen, så att mätare och export stämmer direkt
       const st = await loadFileState();
-      if (st && st.name === song.name) {
-        F.params = sanitizeFile(st.params); F.enabled = st.enabled || {}; F.presetId = st.presetId ?? F.presetId; F.matchAmount = st.matchAmount ?? 70;
-        if (realtime) player.setParams(heard(), F.result?.drive ?? 0);
-        F.stale = !!F.result;
-      }
+      await openSong(new File([song.bytes], song.name), { fromStore: true, state: st && st.name === song.name ? st : null });
     } catch { /* trasig sparning – börja om */ }
     F.restoringName = ''; restoring = 'klar';
     app.render();
@@ -197,7 +193,7 @@ async function doRender() {
 }
 
 /** Läser in en låt (vald fil eller från autosparningen) och renderar den första gången. */
-async function openSong(file, { fromStore = false } = {}) {
+async function openSong(file, { fromStore = false, state = null } = {}) {
   stopFilePlayback();
   F.msg = ''; F.result = null; F.exportMsg = ''; F.stale = false; F.loop = null; F.listen = null; F.solo = null; F.delta = false;
   F.name = file.name;
@@ -219,6 +215,10 @@ async function openSong(file, { fromStore = false } = {}) {
     if (realtime) player.setBuffer(a.channels, a.fs);
     else { player.bufs = {}; player.setBuffer('orig', a.channels, a.fs); }
     F.saved = fromStore || await saveSong(file.name, bytes);
+    if (state) {
+      F.params = sanitizeFile(state.params); F.enabled = state.enabled || {}; F.presetId = state.presetId ?? ''; F.matchAmount = state.matchAmount ?? 70;
+      if (realtime) player.setParams(heard(), 0);
+    }
     persist();
     F.rendering = false;
     await doRender();
