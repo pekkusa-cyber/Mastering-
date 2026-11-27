@@ -316,3 +316,26 @@ test('varje reglage i Fil gör sitt jobb: ändrar det som spelas (alla block och
   expect(n).toBeGreaterThan(60);
   expect(dead, 'reglage som inte ändrar något').toEqual([]);
 });
+
+test('✨ Auto: från startsidan (välj låt → klart) och med knappen bredvid huvudpresetten', async ({ page }) => {
+  test.setTimeout(180000);
+  await page.goto('/?sim=1&view=fil');
+  await page.locator('#f-file-auto').setInputFiles({ name: 'auto.wav', mimeType: 'audio/wav', buffer: wav(4, { wide: true }) });
+  const res = page.locator('dialog[open]').filter({ hasText: 'Automastring klar' });
+  await expect(res).toBeVisible({ timeout: 90000 });
+  await expect(res.getByTestId('autoactions')).toContainText('Grund: Suno-fix');
+  await expect(res).toContainText('LUFS');
+  await res.getByRole('button', { name: 'Lyssna' }).click();
+  await expect(page.locator('#f-preset')).toContainText('Suno-fix');
+  // Igen med stil Reggae och Kraftig
+  await page.locator('#f-auto').click();
+  const s = page.locator('dialog[open]').filter({ hasText: '✨ Automastra' });
+  await s.locator('[data-astyle="reggae"]').click();
+  await s.locator('[data-av="kraftig"]').click();
+  await s.locator('#f-auto-go').click();
+  await expect(page.locator('dialog[open]').filter({ hasText: 'Automastring klar' })).toBeVisible({ timeout: 90000 });
+  await expect(page.locator('#f-preset')).toContainText('Reggae');
+  // Ångra tar tillbaka Suno-fix
+  await page.locator('#f-auto-undo').click();
+  await expect(page.locator('#f-preset')).toContainText('Suno-fix');
+});

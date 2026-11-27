@@ -90,6 +90,7 @@ for (const [w, h] of [[320, 640], [360, 740], [412, 915]]) test(`djupgranskning 
   // Fil med en låt
   await page.goto('/?sim=1&mic=1&view=fil');
   await page.addStyleTag({ content: "#app, #app *, dialog, dialog * { font-family: 'DejaVu Sans', sans-serif !important; }" });
+  (await page.evaluate(AUDIT)).forEach((m) => all.push(`${w} fil/start (ingen låt): ${m}`));
   await loadSong(page, 'Same Old Thread (klar version med lång titel).wav', wav(3, { wide: true }));
   for (const g of ['wave', 'spec', 'meter']) {
     const gb = page.locator(`[data-fgraph="${g}"]`);
@@ -103,6 +104,7 @@ for (const [w, h] of [[320, 640], [360, 740], [412, 915]]) test(`djupgranskning 
   await auditSheet(page, () => page.locator('#f-song').click(), `${w} fil/låtmeny`, all);
   await auditSheet(page, () => page.locator('#f-exportbtn').click(), `${w} fil/export`, all);
   await auditSheet(page, () => page.locator('#f-listen').click(), `${w} fil/lyssna`, all);
+  await auditSheet(page, () => page.locator('#f-auto').click(), `${w} fil/auto`, all);
   await page.locator('[data-block="farg"]').click();
   await auditSheet(page, () => page.locator('#fmod-farg').click(), `${w} fil/färg-preset`, all);
   // Lägena

@@ -156,6 +156,7 @@ export const HELP = {
       </ul>
       <h3>Vilken preset?</h3>
       <ul>
+        <li><b>✨ Auto</b> i Fil väljer och anpassar åt dig – bästa starten om du är osäker.</li>
         <li><b>Suno-fix</b>: rättar typiska AI-problem (grumligt, vasst, skimmer). Bra första val för de flesta Suno-låtar.</li>
         <li><b>Transparent / Jazz / Film / Akustisk</b>: varsamt, behåller dynamiken. <b>Tät pop / EDM / Gym</b>: tätt och högt.</li>
         <li>Genrepresets (Reggae, Country, Rock, Metal, Trap 808, R&amp;B …) är startpunkter – justera sedan med örat.</li>
@@ -201,6 +202,10 @@ export const HELP = {
       <p>Allt hörs <b>direkt</b>. Mätare, spektrum och export räknas om när du trycker <b>Rendera</b>. Export kräver färsk rendering.</p>
       <h3>Arbetsflöden</h3>
       <ul>
+        <li><b>✨ Auto</b> (startsidan eller bredvid Huvudpreset): appen analyserar låten och mastrar med ett tryck – preset efter stil
+        (Auto = Suno-fix), sänker det som sticker ut i klangen (aldrig höjningar), mer de-esser vid hårt 2,5–5 kHz, Mjuk topp vid
+        skimmer, bas i mono om basen är bred, mindre tryck om låten redan är pressad, fade om den börjar/slutar tvärt. Med en
+        referens vald matchas klangen mot den. Du ser vad som gjordes, kan ångra, köra igen eller exportera.</li>
         <li><b>🪄 Assistent:</b> Låt → Mål → Förslag (Före, A Varsam, B Balanserad, C Kraftig – växla medan låten spelar) → Finjustera → Export.</li>
         <li><b>⚖ Jämför:</b> Original och dina versioner i samma nivå, med loop och <b>blindtest</b>. Behåll den bästa.</li>
         <li><b>💿 Album:</b> flera låtar med samma inställning och nivå.</li>

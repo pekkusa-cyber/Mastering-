@@ -795,3 +795,10 @@ button.mbtn.on, .mbtn:has(input:not(:checked)) { background: var(--mute-bg); bor
   .subbar .pp { padding: 0 7px; gap: 4px; }
   .subbar .pp .ico { display: none; }
 }
+/* Automastring */
+.autoacts { margin: 6px 0 8px; padding-left: 18px; font-size: 14px; line-height: 1.45; }
+.autoacts li { margin: 4px 0; }
+.chips.autostyles { flex-wrap: wrap; overflow: visible; }
+.subbar.fpreset #f-auto { flex: 0 0 auto; height: 34px; }
+.btnrow.startrow { display: flex; gap: 8px; margin-top: 8px; }
+.btnrow.startrow > * { flex: 1; min-width: 0; text-align: center; }

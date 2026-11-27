@@ -16,6 +16,7 @@ import { AbPlayer, RealtimePlayer, renderInWorker } from '../filemaster.js';
 import { encodeWav } from '../dsp/wav.js';
 import { truePeak } from '../dsp/truepeak.js';
 import { measure } from '../dsp/loudness.js';
+import { AUTO_STRENGTHS, AUTO_STYLES, autoMaster, edgeLevels } from '../automaster.js';
 import { PRESET_ICONS, allPresets, presetGroups, removeUserPreset } from './live.js';
 import { refGroups } from './analys.js';
 import { saveSong, loadSong, forgetSong, saveFileState, loadFileState } from '../filestore.js';
@@ -219,6 +220,7 @@ async function openSong(file, { fromStore = false, state = null } = {}) {
     F.input = { channels: a.channels, fs: a.fs };
     F.profile = profileFromChannels(a.channels, a.fs);
     F.inLufs = measure(a.channels, a.fs, { withTruePeak: false }).integrated;
+    F.edges = edgeLevels(a.channels, a.fs);
     if (!Number.isFinite(F.inLufs)) F.inLufs = null;
     F._clip = null;
     if (realtime) player.setBuffer(a.channels, a.fs);
@@ -231,6 +233,7 @@ async function openSong(file, { fromStore = false, state = null } = {}) {
     persist();
     F.rendering = false;
     await doRender();
+    if (F.autoPending) { F.autoPending = false; await runAuto(); }
   } catch (err) {
     F.rendering = false; F.input = null; F.msg = err.message;
     busy(null);
@@ -289,7 +292,7 @@ function panelQuick() {
       <small class="dim trunc">${esc(p ? `Preset: ${p.name}` : 'Ingen preset')}</small></div>${srows(rows)}`;
 }
 function panelIn() {
-  return `${fhead({ title: 'In', sub: 'först i kedjan', enableKey: 'trim', soloKey: 'trim' })}${srows([fpath('trim', 'Trim', FILE_RANGES.trim, 'trim')])}`;
+  return `${fhead({ title: 'In', sub: 'först i kedjan', enableKey: 'trim', soloKey: 'trim' })}${srows([fpath('trim', 'In (lyft före kedjan)', FILE_RANGES.trim, 'trim')])}`;
 }
 function panelEq1() {
   const v = F.eqView1;
@@ -412,9 +415,9 @@ function filTop() {
     if (F.restoringName) return `<div class="lbl"><b>Fil</b></div><div class="ovw"><p class="hint" data-testid="restoring">Öppnar senaste låten: ${esc(F.restoringName)}…</p></div>`;
     if (F.mode !== 'blocks') return '<div class="lbl"><b>Fil</b> · mastring för släpp</div><div class="ovw"><p class="hint">Välj låten nedan.</p></div>';
     return `<div class="lbl"><b>Fil</b> · mastring för släpp</div><div class="ovw">
-      <label class="btn wide file primary">Välj låt (MP3/WAV)<input type="file" id="f-file" accept="audio/*,.mp3,.wav,.m4a,.flac,.ogg" hidden></label>
-      <p class="hint small">Låten stannar på telefonen – inget laddas upp. Den sparas automatiskt och finns kvar nästa gång.</p>
-      <button class="btn wide" id="f-assist0">🪄 Assistent: mastra i 5 steg</button></div>`;
+      <label class="btn wide file primary">✨ Automastra en låt<input type="file" id="f-file-auto" accept="audio/*,.mp3,.wav,.m4a,.flac,.ogg" hidden></label>
+      <div class="btnrow startrow"><label class="btn file">Mastra själv<input type="file" id="f-file" accept="audio/*,.mp3,.wav,.m4a,.flac,.ogg" hidden></label><button class="btn" id="f-assist0">🪄 Assistent</button></div>
+      <p class="hint small">Låten stannar på telefonen – inget laddas upp och den finns kvar nästa gång.</p></div>`;
   }
   const pos = player.position(), dur = player.duration || 1, r = F.result;
   const g = F.graph;
@@ -457,6 +460,7 @@ function subbar() {
   </div>
   <div class="subbar fpreset">
     <button class="pp fpre" id="f-preset" aria-label="Huvudpreset" aria-haspopup="listbox" title="Huvudpreset – hela kedjan"><span class="ico">${PRESET_ICONS[F.presetId] || (presetOf(F.presetId) ? '⭐' : '🎛️')}</span><small class="dim">Huvudpreset</small><b class="pv trunc">${esc(presetOf(F.presetId)?.name || 'Ingen preset')}</b>▾</button>
+    <button class="btn small primary" id="f-auto" ${F.input && F.result ? '' : 'disabled'} aria-label="Automastra">✨ Auto</button>
   </div>`;
 }
 
@@ -683,6 +687,60 @@ async function runAlbum() {
 
 
 // ---- Ark: Låt, Export, Lyssna ----
+// ---- Automastring (ett tryck) ----
+load('autoPrefs', null).then((v) => { if (v) F.auto = { ...F.auto, ...v }; });
+F.auto = { style: 'auto', strength: 'balans' };
+const refProfile = () => currentRef()?.profile || null;
+
+/** Väljaren: stil, styrka, mål och (om du har en) referens. */
+function autoSheet() {
+  const seg = (name, cur, opts) => `<div class="seg" data-aseg="${name}">${opts.map(([v, l]) => `<button data-av="${esc(v)}" class="${cur === v ? 'sel' : ''}">${esc(l)}</button>`).join('')}</div>`;
+  const refs = ui.refs || [];
+  const d = sheet(`<h2>✨ Automastra</h2>
+    <p class="hint small">Appen analyserar låten och ställer in hela kedjan: preset efter stil, tämjer det som sticker ut i klangen,
+    rättar hårda s-ljud, skimmer och bred bas, sätter nivå och fade. Du kan ändra allt efteråt – och ↶ ångrar.</p>
+    <div class="phead"><b>Stil</b></div><div class="chips autostyles">${AUTO_STYLES.map(([v, l]) => `<button class="chip${F.auto.style === v ? ' sel' : ''}" data-astyle="${esc(v)}">${esc(l)}</button>`).join('')}</div>
+    <div class="phead" style="margin-top:10px"><b>Hur mycket</b></div>${seg('strength', F.auto.strength, AUTO_STRENGTHS)}
+    <div class="phead" style="margin-top:10px"><b>Var ska den spelas</b></div>${seg('target', F.params.target === 'hog' ? 'hog' : 'streaming', [['streaming', 'Streaming −14'], ['hog', 'Hög −10']])}
+    ${refs.length ? `<div class="phead" style="margin-top:10px"><b>Låter som (valfritt)</b></div><div class="chips">${[['', 'Ingen'], ...refs.map((r) => [r.id, r.name])].map(([v, l]) => `<button class="chip${(ui.refId || '') === v ? ' sel' : ''}" data-aref="${esc(v)}">${esc(l)}</button>`).join('')}</div>` : ''}
+    <button class="btn primary wide" id="f-auto-go" style="margin-top:14px">✨ Mastra</button>`, { cls: 'autosheet', closeText: 'Avbryt' });
+  let target = F.params.target === 'hog' ? 'hog' : 'streaming';
+  d.querySelectorAll('[data-astyle]').forEach((b) => { b.onclick = () => { F.auto.style = b.dataset.astyle; d.querySelectorAll('[data-astyle]').forEach((x) => x.classList.toggle('sel', x === b)); }; });
+  d.querySelectorAll('[data-aseg]').forEach((g) => g.querySelectorAll('[data-av]').forEach((b) => {
+    b.onclick = () => { g.querySelectorAll('[data-av]').forEach((x) => x.classList.toggle('sel', x === b)); if (g.dataset.aseg === 'strength') F.auto.strength = b.dataset.av; else target = b.dataset.av; };
+  }));
+  d.querySelectorAll('[data-aref]').forEach((b) => { b.onclick = () => { selectRef(b.dataset.aref); d.querySelectorAll('[data-aref]').forEach((x) => x.classList.toggle('sel', x === b)); }; });
+  d.querySelector('#f-auto-go').onclick = async () => { save('autoPrefs', F.auto); d.close(); await runAuto({ target }); };
+}
+
+/** Ställer in kedjan efter analysen, renderar och visar vad som gjordes. */
+async function runAuto({ target = F.params.target === 'hog' ? 'hog' : 'streaming' } = {}) {
+  if (!F.input || !F.profile) return;
+  pushUndo(); lastSnap = 0;
+  const r = autoMaster({ profile: F.profile, stereo: F.result?.originalStereo || null, ref: refProfile(), style: F.auto.style, strength: F.auto.strength, target, edges: F.edges });
+  F.params = r.params; F.presetId = r.presetId; F.enabled = {}; F.versionId = ''; F.autoActions = r.actions;
+  if (realtime) playParams(heard(), F.result?.drive ?? 0);
+  persist();
+  app.render();
+  await doRender();
+  autoResult();
+}
+
+function autoResult() {
+  const r = F.result; if (!r || !F.autoActions) return;
+  const m = r.metrics, plr = m.truePeak - m.integrated;
+  const warn = masterChecks(m, r.gr).filter(([k]) => k !== 'ok');
+  const d = sheet(`<h2>✨ Automastring klar</h2>
+    <ul class="autoacts" data-testid="autoactions">${F.autoActions.map((a) => `<li>${esc(a)}</li>`).join('')}</ul>
+    <p class="hint small">Resultat: ${m.integrated.toFixed(1).replace('.', ',')} LUFS · true peak ${m.truePeak.toFixed(1).replace('.', ',')} dBTP · PLR ${plr.toFixed(1).replace('.', ',')} dB</p>
+    ${warn.length ? `<ul class="checks">${warn.map(([, t]) => `<li class="warn">! ${esc(t)}</li>`).join('')}</ul>` : '<p class="hint small ok">✓ Klarar exportkontrollen.</p>'}
+    <p class="hint small">Lyssna med <b>A | B</b> (lika nivå). Vill du ändra något: justera blocken, eller kör igen med en annan stil eller styrka.</p>
+    <div class="btnrow"><button class="btn" id="f-auto-undo">↶ Ångra</button><button class="btn" id="f-auto-again">Igen…</button><button class="btn primary" id="f-auto-export">⤓ Exportera</button></div>`, { cls: 'autosheet', closeText: 'Lyssna' });
+  d.querySelector('#f-auto-undo').onclick = () => { d.close(); undo(); doRender(); };
+  d.querySelector('#f-auto-again').onclick = () => { d.close(); autoSheet(); };
+  d.querySelector('#f-auto-export').onclick = () => { d.close(); exportSheet(); };
+}
+
 function songSheet() {
   const d = sheet(`<h2>${esc(F.input ? F.name : 'Ingen låt')}</h2>
     ${F.input ? `<p class="hint small" data-testid="fname">${esc(F.name)} · ${mmss(F.input.channels[0].length / F.input.fs)} · ${F.saved ? 'sparad på telefonen ✓' : 'inte sparad'}</p>` : ''}
@@ -789,6 +847,8 @@ function moduleGroups(mod) {
 export function bindFil(root) {
   bindRender(root);
   (root.querySelector('#f-file') || {}).onchange = (e) => { const f = e.target.files?.[0]; if (f) openSong(f); };
+  (root.querySelector('#f-file-auto') || {}).onchange = (e) => { const f = e.target.files?.[0]; if (f) { F.autoPending = true; openSong(f); } };
+  (root.querySelector('#f-auto') || {}).onclick = () => autoSheet();
   const a0 = root.querySelector('#f-assist0');
   if (a0) a0.onclick = () => { F.mode = 'assist'; F.assistStep = 1; app.render(); };
   root.querySelectorAll('[data-target]').forEach((b) => {
