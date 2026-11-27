@@ -341,11 +341,15 @@ function panelComp() {
   const chips = `<div class="bandrow"><button class="chip${all ? ' sel' : ''}" data-fcomp="all">Hela låten</button>
     ${COMP_NAMES.map((n, k) => `<button class="chip${!all && k === i ? ' sel' : ''}${en(`mbc${k}`) ? '' : ' off'}" data-fcomp="${k}">${n}</button>`).join('')}</div>`;
   const R = [['ratio', 'Styrka (ratio)'], ['threshold', 'Startar vid (tröskel)'], ['attack', 'Reaktion (attack)'], ['release', 'Släpper (release)'], ['knee', 'Mjukhet (knä)'], ['postGain', 'Lyft efter']];
+  const mean = (k, src = F.params) => src.mbc.reduce((s, b) => s + b[k], 0) / 4;
+  const differ = R.some(([k]) => Math.max(...F.params.mbc.map((b) => b[k])) - Math.min(...F.params.mbc.map((b) => b[k])) > 1e-6);
   const rows = R.map(([k, l]) => (all
-    ? slider({ id: `f-mbcall-${k}`, label: l, value: F.params.mbc[0][k], range: RANGES[k], info: `mbc.0.${k}`, resetTo: presetFileParams().mbc[0][k], kind: 'fmbcall', key: k })
+    ? slider({ id: `f-mbcall-${k}`, label: l, value: +mean(k).toFixed(4), range: RANGES[k], info: `mbc.0.${k}`, resetTo: +mean(k, presetFileParams()).toFixed(4), kind: 'fmbcall', key: k })
     : fpath(`mbc.${i}.${k}`, l, RANGES[k], `mbc.${i}.${k}`)));
   if (!all && i === 0) rows.push(fpath('kickPunch', 'Kick-anslag', FILE_RANGES.kickPunch, 'kickPunch', 'kick'));
-  const head = all ? `<div class="bandrow"><small class="dim grow">Alla fyra band får samma inställning – hela låten trycks ihop jämnt.</small>${infoBtn('compAll')}</div>`
+  const head = all ? (differ
+    ? `<div class="bandrow"><small class="dim grow">Banden har olika värden. Reglagen visar medelvärdet och flyttar alla fyra band lika mycket – skillnaderna mellan dem behålls.</small>${infoBtn('compAll')}</div><div class="bandrow"><button class="btn small" id="f-mbc-equal">Gör alla band lika</button></div>`
+    : `<div class="bandrow"><small class="dim grow">Alla fyra band har samma inställning – hela låten trycks ihop jämnt.</small>${infoBtn('compAll')}</div>`)
     : `<div class="bandrow"><small class="dim grow">${COMP_NAMES[i]}: ${bandLabel(MBC_CUTOFFS, i)}</small><span class="bms">${toggle(`mbc${i}`, en(`mbc${i}`), COMP_NAMES[i])}${areaBtns(`mbc:${i}`, COMP_NAMES[i])}${infoBtn('areaSolo')}</span></div>`;
   return `${fhead({ title: 'Kompressor', enableKey: 'grp_comp', soloKey: 'mbc', mod: 'comp' })}${chips}${head}${srows(rows)}`;
 }
@@ -949,6 +953,8 @@ export function bindFil(root) {
     app.render();
     paramsChanged();
   });
+  const feq = root.querySelector('#f-mbc-equal');
+  if (feq) feq.onclick = () => { pushUndo(); for (const k of ['ratio', 'threshold', 'attack', 'release', 'knee', 'postGain']) { const m = F.params.mbc.reduce((s, b) => s + b[k], 0) / 4; F.params.mbc.forEach((b) => { b[k] = +m.toFixed(4); }); } app.render(); paramsChanged(); };
   for (const mod of Object.keys(FMODS)) {
     bindPicker(root, `fmod-${mod}`, () => ({ title: `${FMODS[mod].name}-preset – bara ${FMODS[mod].name.toLowerCase()} byts`, value: '', groups: moduleGroups(mod) }), (id) => {
       const p = presetOf(id); if (!p) return;
@@ -960,7 +966,13 @@ export function bindFil(root) {
   }
   bindSliders(root, (kind, key, v) => {
     if (kind === 'fpath') { pushUndo(); setPath(F.params, key, v); F.versionId = ''; paramsChanged(); }
-    if (kind === 'fmbcall') { pushUndo(); F.params.mbc.forEach((b) => { b[key] = v; }); paramsChanged(); }
+    if (kind === 'fmbcall') {
+      // Hela låten: flytta alla band lika mycket från där de är (skillnaderna behålls)
+      pushUndo();
+      const d = v - F.params.mbc.reduce((s, b) => s + b[key], 0) / 4, rng = RANGES[key];
+      F.params.mbc.forEach((b) => { b[key] = Math.max(rng[0], Math.min(rng[1], +(b[key] + d).toFixed(4))); });
+      paramsChanged();
+    }
     if (kind === 'amount') F.matchAmount = v;
   }, (key, on) => {
     pushUndo();

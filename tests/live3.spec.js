@@ -134,6 +134,7 @@ test('kompressorn Hela låten: samma inställning på alla fyra band', async ({ 
   await page.goto('/?sim=1');
   await block(page, 'comp');
   await page.locator('[data-compband="all"]').click();
+  await page.getByRole('button', { name: 'Gör alla band lika' }).click(); // presetens band är olika – gör dem lika först
   await setRange(page.locator('#p-mbcall-ratio'), 3);
   await setRange(page.locator('#p-mbcall-threshold'), -20);
   await expect.poll(async () => (await params(page)).mbc.map((b) => b.ratio)).toEqual([3, 3, 3, 3]);
@@ -271,4 +272,23 @@ test('sparad inställning från en äldre presetversion: en tydlig rad om att v�
   await expect(page.locator('#onoff')).toBeVisible();
   await page.waitForTimeout(500);
   await expect(page.getByText('Presetsen är uppdaterade')).toHaveCount(0);
+});
+
+test('Hela låten flyttar alla band lika mycket och behåller skillnaderna; ett enskilt band ändrar bara sig självt', async ({ page }) => {
+  await page.goto('/?sim=1');
+  await block(page, 'comp');
+  const before = (await params(page)).mbc.map((b) => b.ratio); // Mjuk kick: 4, 1,5, 1, 1
+  await page.locator('[data-compband="0"]').click();
+  await setRange(page.locator('#p-mbc-0-ratio'), 6);
+  await expect.poll(async () => (await params(page)).mbc[0].ratio).toBe(6);
+  const kick = (await params(page)).mbc.map((b) => b.ratio);
+  expect(kick[0]).toBe(6); expect(kick.slice(1)).toEqual(before.slice(1)); // bara kicken
+  await page.locator('[data-compband="all"]').click();
+  await expect(page.locator('#p-mbc-equal')).toBeVisible();
+  const mean = kick.reduce((s, x) => s + x, 0) / 4;
+  await setRange(page.locator('#p-mbcall-ratio'), mean + 1);
+  await expect.poll(async () => (await params(page)).mbc[0].ratio).toBeCloseTo(kick[0] + 1, 1);
+  const all = (await params(page)).mbc.map((b) => b.ratio);
+  all.forEach((x, i) => expect(x).toBeCloseTo(kick[i] + 1, 1)); // alla +1, skillnaderna kvar
+  expect(all[0]).toBeGreaterThan(all[1]);
 });

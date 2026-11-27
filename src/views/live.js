@@ -439,10 +439,14 @@ function panelComp() {
   const i = all ? 0 : compSel();
   const chips = `<div class="bandrow"><button class="chip${all ? ' sel' : ''}" data-compband="all">Hela låten</button>
     ${COMP_NAMES.map((n, k) => `<button class="chip${!all && k === i ? ' sel' : ''}${en(`mbc${k}`) ? '' : ' off'}" data-compband="${k}">${n}</button>`).join('')}</div>`;
+  const mean = (p, src = shown()) => src.mbc.reduce((s, b) => s + b[p], 0) / 4;
+  const differ = COMP_ROWS.some(([p]) => Math.max(...shown().mbc.map((b) => b[p])) - Math.min(...shown().mbc.map((b) => b[p])) > 1e-6);
   const rows = COMP_ROWS.map(([p, label, r]) => (all
-    ? slider({ id: `p-mbcall-${p}`, label, value: shown().mbc[0][p], range: RANGES[r], info: `mbc.0.${p}`, resetTo: shownPreset().mbc[0][p], kind: 'mbcall', key: p })
+    ? slider({ id: `p-mbcall-${p}`, label, value: +mean(p).toFixed(4), range: RANGES[r], info: `mbc.0.${p}`, resetTo: +mean(p, shownPreset()).toFixed(4), kind: 'mbcall', key: p })
     : hpath(`mbc.${i}.${p}`, label, RANGES[r], `mbc.${i}.${p}`)));
-  const head = all ? '<div class="bandrow"><small class="dim grow">Alla fyra band får samma inställning – hela låten trycks ihop jämnt.</small>' + infoBtn('compAll') + '</div>'
+  const head = all ? (differ
+    ? '<div class="bandrow"><small class="dim grow">Banden har olika värden. Reglagen visar medelvärdet och flyttar alla fyra band lika mycket – skillnaderna mellan dem behålls.</small>' + infoBtn('compAll') + '</div><div class="bandrow"><button class="btn small" id="p-mbc-equal">Gör alla band lika</button></div>'
+    : '<div class="bandrow"><small class="dim grow">Alla fyra band har samma inställning – hela låten trycks ihop jämnt.</small>' + infoBtn('compAll') + '</div>')
     : `<div class="bandrow"><small class="dim grow">${COMP_NAMES[i]}: ${bandLabel(MBC_CUTOFFS, i)}</small><span class="bms">${areaBtns(`mbc:${i}`, COMP_NAMES[i])}${infoBtn('areaSolo')}</span></div>`;
   return `${phead({ title: 'Kompressor', enableKey: 'grp_comp', soloKey: 'mbc', mod: 'comp' })}${chips}${head}${srows(rows)}`;
 }
@@ -772,7 +776,12 @@ export function bindLive(root) {
   bindTop(root);
   bindSliders(root, (kind, key, v) => {
     if (kind === 'path') setShown(key, v);
-    if (kind === 'mbcall') [0, 1, 2, 3].forEach((i) => setShown(`mbc.${i}.${key}`, v));
+    if (kind === 'mbcall') {
+      // Hela låten: flytta alla band lika mycket från där de är (skillnaderna behålls)
+      const rng = RANGES[(COMP_ROWS.find(([p]) => p === key) || [])[2]];
+      const cur = shown().mbc.map((b) => b[key]), d = v - cur.reduce((s, x) => s + x, 0) / 4;
+      cur.forEach((x, i) => setShown(`mbc.${i}.${key}`, Math.max(rng[0], Math.min(rng[1], +(x + d).toFixed(4)))));
+    }
     // Når inte reglaget dit (Snabb håller det vid en gräns): visa det verkliga värdet i stället för att låtsas
     if (kind === 'path' && Math.abs(getPath(shown(), key) - v) > 1e-3) { changed(); app.render(); return; }
     if (kind === 'macro') ui.macros[key] = v;
@@ -801,6 +810,8 @@ export function bindLive(root) {
     app.render();
   }; });
   root.querySelectorAll('[data-eqstage]').forEach((b) => { b.onclick = () => { ui.eqStage = b.dataset.eqstage; app.render(); }; });
+  const eq = root.querySelector('#p-mbc-equal');
+  if (eq) eq.onclick = () => { COMP_ROWS.forEach(([p]) => { const m = shown().mbc.reduce((s, b) => s + b[p], 0) / 4; [0, 1, 2, 3].forEach((i) => setShown(`mbc.${i}.${p}`, +m.toFixed(4))); }); changed(); app.render(); };
   root.querySelectorAll('[data-compband]').forEach((b) => { b.onclick = () => { ui.compSel = b.dataset.compband === 'all' ? 'all' : Number(b.dataset.compband); app.render(); }; });
   // M/S per frekvensområde (lyssningsfilter). Bara ett åt gången, och inte samtidigt som solo på en hel del.
   const listen = (area, mode) => {
