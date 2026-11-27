@@ -132,7 +132,7 @@ test('Påverkar: Mjuk kick ändrar kompression och limiter, inte EQ', async () =
   assert.ok(fx.some((t) => t.startsWith('Limiter 12:1')));
   assert.ok(!fx.some((t) => /EQ/.test(t)), 'ingen EQ');
   const radio = presetEffects(BUILTIN_PRESETS.find((p) => p.id === 'radio-ljus').params);
-  assert.ok(radio.some((t) => t === 'Post-EQ 250–500 -0.5, 1 k–3 k +0.5, 3 k–8 k +1, 8 k+ +3'), radio.join(' | ')); // glans i toppen, lite mindre lådigt
+  assert.ok(radio.some((t) => t === 'Post-EQ 120–250 -0.5, 250–500 -1, 1 k–3 k +1, 3 k–8 k +2, 8 k+ +4'), radio.join(' | ')); // glans i toppen, lite mindre lådigt
   assert.deepEqual(presetEffects(neutral()), ['Ingen bearbetning (bara skyddslimiter)']);
   assert.ok(MACROS.every((m) => m.affects && m.group));
 });

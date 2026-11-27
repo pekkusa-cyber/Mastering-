@@ -71,6 +71,10 @@ async function auditSheet(page, open, tag, all) {
 for (const [w, h] of [[320, 640], [360, 740], [412, 915]]) test(`djupgranskning ${w} px`, async ({ page }) => {
   test.setTimeout(480000);
   await page.setViewportSize({ width: w, height: h });
+  // JavaScript-fel under hela genomgången räknas också som fel
+  const jsErrors = [];
+  page.on('pageerror', (e) => jsErrors.push(`JS-FEL: ${e.message}`));
+  page.on('console', (m) => { if (m.type() === 'error' && !/favicon|Failed to load resource/.test(m.text())) jsErrors.push(`KONSOL: ${m.text().slice(0, 160)}`); });
   await page.goto('/?sim=1&mic=1');
   await page.addStyleTag({ content: "#app, #app *, dialog, dialog * { font-family: 'DejaVu Sans', sans-serif !important; }" });
   const all = [];
@@ -119,4 +123,5 @@ for (const [w, h] of [[320, 640], [360, 740], [412, 915]]) test(`djupgranskning 
     for (const b of blocks) { await page.locator(`[data-block="${b}"]`).click(); await page.waitForTimeout(100); (await page.evaluate(AUDIT)).forEach((m) => all.push(`${w} ${view}/${b}: ${m}`)); }
   }
   expect([...new Set(all)].filter((m) => !m.includes('vthumb')), 'layoutfel').toEqual([]);
+  expect([...new Set(jsErrors)], 'JavaScript-fel').toEqual([]);
 });
