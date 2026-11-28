@@ -845,7 +845,7 @@ body { background: radial-gradient(120% 55% at 15% -5%, #1c3a35 0%, rgba(28,58,5
 .phead small { font-size: 12px; }
 
 /* Blocken: flytande rad längst ned med ikoner */
-.blocks { order: 3; gap: 2px; padding: 6px; margin: 0 0 calc(var(--sab) + 4px); border-radius: 24px; background: rgba(22,26,30,.82); border: 1px solid var(--glass-line); box-shadow: 0 10px 30px rgba(0,0,0,.45); backdrop-filter: blur(16px); }
+.blocks { order: 3; gap: 2px; padding: 6px; margin: 0 0 6px; border-radius: 24px; background: rgba(22,26,30,.82); border: 1px solid var(--glass-line); box-shadow: 0 10px 30px rgba(0,0,0,.45); backdrop-filter: blur(16px); }
 .blocks .blk { flex: 1; min-width: 0; padding: 4px 0 3px !important; border: 0 !important; border-radius: 16px; background: transparent !important; color: #98a3ad; display: flex; flex-direction: column; align-items: center; gap: 1px; box-shadow: none; margin: 0 !important; }
 .blocks .blk .bic { position: relative; display: grid; place-items: center; width: 34px; height: 26px; border-radius: 13px; font-size: 15px; line-height: 1; color: #b7c1ca; }
 .blocks .blk b { font-size: 10.5px !important; font-weight: 600; letter-spacing: -.1px !important; color: inherit; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -951,3 +951,6 @@ nav.vmenu button.sel { background: var(--accent-soft); color: #e6fff8; }
   .phead b { font-size: 16px; }
   .phead small { font-size: 11px; white-space: normal; line-height: 1.15; overflow: visible; text-overflow: clip; }
 }
+
+/* Glas: bottenmarginalen kommer från #app (--sab) – dockan lägger inte på den en gång till */
+#app { padding-bottom: calc(var(--sab) + 2px); }
