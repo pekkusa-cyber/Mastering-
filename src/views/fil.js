@@ -817,8 +817,8 @@ function songSheet() {
       <button class="btn wide" data-fmode="compare" ${F.input ? '' : 'disabled'}>⚖ Jämför versioner (loop, blindtest)</button>
       <button class="btn wide" data-fmode="album">💿 Album – flera låtar</button>
       <button class="btn wide" id="f-fresh2" ${F.input ? '' : 'disabled'}>↺ Börja om med orörd låt</button>
-      <div class="btnrow"><label class="btn file ${F.input ? '' : 'disabled'}" id="f-import-lbl">⤒ Importera inställning<input type="file" id="f-import" accept=".json,application/json" hidden ${F.input ? '' : 'disabled'}></label>
-      <button class="btn" id="f-export-set" ${F.input ? '' : 'disabled'}>⤓ Spara inställning</button></div>
+      <label class="btn wide file ${F.input ? '' : 'disabled'}" id="f-import-lbl">⤒ Importera inställning<input type="file" id="f-import" accept=".json,application/json" hidden ${F.input ? '' : 'disabled'}></label>
+      <button class="btn wide" id="f-export-set" ${F.input ? '' : 'disabled'}>⤓ Spara inställning</button>
       ${F.input ? '<button class="btn wide ghost" id="f-forget">Glöm låten</button>' : ''}
     </div><p class="hint small" data-testid="impmsg"></p>`, { cls: 'songsheet' });
   d.querySelector('#f-file2').onchange = (e) => { const f = e.target.files?.[0]; d.close(); if (f) openSong(f); };
