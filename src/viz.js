@@ -6,7 +6,7 @@ import { gainComputer } from './dsp/dynamics.js';
 import { THIRD_OCTAVE } from './headphones.js';
 import { esc } from './ui.js';
 
-const C = { main: '#3987e5', corr: '#199e70', grid: '#2c3038', zero: '#454b56' };
+const C = { main: '#4fc9ad', corr: '#7ff0d4', grid: '#2c3038', zero: '#454b56' };
 const FMIN = 20, FMAX = 20000;
 
 /** Graf-EQ som mjuk kurva: bandens värde i bandets mitt, interpolerat i log-frekvens. */
@@ -114,7 +114,7 @@ export function spectrumEqSvg({ bands = null, edges = [], p, handles = [], H = 1
     bars = bands.map((d, i) => {
       const h = Math.max(1, Math.min(1, (d - top + 42) / 42) * (H - 14) * 0.8);
       const x0 = x(edges[i]) + 1, x1 = x(edges[i + 1]) - 1;
-      return `<rect x="${x0.toFixed(1)}" y="${(H - 12 - h).toFixed(1)}" width="${Math.max(1, x1 - x0).toFixed(1)}" height="${h.toFixed(1)}" rx="1.5" fill="${C.main}" fill-opacity=".35"/>`;
+      return `<rect x="${x0.toFixed(1)}" y="${(H - 12 - h).toFixed(1)}" width="${Math.max(1, x1 - x0).toFixed(1)}" height="${h.toFixed(1)}" rx="1.5" fill="#a9c4c6" fill-opacity=".22"/>`;
     }).join('');
   }
   const preF = smoothCurve(EQ_CUTOFFS, p.preEq.map((b) => b.gain)), postF = smoothCurve(EQ_CUTOFFS, p.postEq.map((b) => b.gain));
@@ -126,5 +126,5 @@ export function spectrumEqSvg({ bands = null, edges = [], p, handles = [], H = 1
       <circle cx="${x(h.f).toFixed(1)}" cy="${y(h.gain).toFixed(1)}" r="${h.sel ? 11 : 8}"/>
       <text x="${x(h.f).toFixed(1)}" y="${(y(h.gain) + 3.5).toFixed(1)}" text-anchor="middle">${i + 1}</text></g>`).join('');
   return `<svg class="screen-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="Spektrum och EQ">${bars}${grid}${ticks}
-    <polyline fill="none" stroke="#3fd3b0" stroke-width="2.5" points="${pts}" vector-effect="non-scaling-stroke"/>${hs}</svg>`;
+    <polyline fill="none" stroke="#7ff0d4" stroke-width="2.5" points="${pts}" vector-effect="non-scaling-stroke"/>${hs}</svg>`;
 }

@@ -4,7 +4,7 @@
 import { BAND_CENTERS, BAND_EDGES } from './analysis.js';
 import { esc } from './ui.js';
 
-export const SERIES_COLORS = { main: '#3987e5', ref: '#d95926', orig: '#199e70' };
+export const SERIES_COLORS = { main: '#4fc9ad', ref: '#e08a4a', orig: '#aab3bd' };
 const W = 340, H = 180, PAD_L = 30, PAD_R = 8, PAD_T = 8, PAD_B = 22;
 const Y_MAX = 12, Y_MIN = -30;
 

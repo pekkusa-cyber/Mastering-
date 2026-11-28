@@ -8,7 +8,7 @@ export const HELP = {
       medan du lyssnar.</p>
       <h3>Samma upplägg i hela appen</h3>
       <p>Skärmen är delad i två fasta halvor och scrollar aldrig: <b>grafen överst</b> visar alltid det du arbetar med,
-      <b>blocken</b> i mitten är flödet i ljudets ordning, och <b>panelen</b> under visar reglagen för valt block.
+      <b>panelen</b> i mitten visar reglagen för valt block, och <b>blocken</b> längst ner (som en flytande rad med ikoner) är flödet i ljudets ordning från vänster till höger.
       Tryck på ett block för att byta. Att dra i ett reglage byter aldrig flik.</p>
       <h3>Rubriken</h3>
       <ul>
@@ -77,7 +77,7 @@ export const HELP = {
     title: 'Analys – referenslyssning',
     html: `
       <p>Här ser du vad som spelas och jämför din låt med låtar du vill låta som – utan att behöva ladda upp testversioner.
-      Samma upplägg som i Live: grafen överst, blocken <b>Analysera → Resultat → Referenser</b> och panelen under.</p>
+      Samma upplägg som i Live: grafen överst, panelen i mitten och blocken <b>Analysera → Resultat → Referenser</b> längst ner.</p>
       <h3>Spektrum</h3>
       <p>Staplarna visar energin per frekvensområde just nu. Linjen är vald referens. Kurvorna jämförs på formen,
       inte på volymen. Tryck på ett band för att se värdena.</p>
@@ -167,7 +167,7 @@ export const HELP = {
     title: 'Fil – mastring för släpp',
     html: `
       <p>Mastrar en färdig låt (MP3/WAV) och exporterar en WAV för distribution. Allt sker på telefonen. Samma upplägg som
-      Live: grafen överst, blocken i ljudets ordning och panelen under.</p>
+      Live: grafen överst, panelen i mitten och blocken i ljudets ordning längst ner.</p>
       <p>En ny låt öppnas <b>helt orörd</b>: ingen preset vald, ingen bearbetning och inget att ångra – välj själv var du börjar
       (Huvudpreset ▾, Assistent eller egna reglage). Bara målnivån (plattform) behålls. Sparade versioner hör till sin låt.
       Egna presets tas bort med <b>🗑</b> i presetlistan.</p>
@@ -236,8 +236,8 @@ export const HELP = {
   mer: {
     title: 'Mer',
     html: `
-      <p>Behörigheter, felsökning och uppdateringar. Överst en överblick (grön = klart, röd = saknas), blocken
-      <b>Behörigheter → Felsökning → Appen</b> och panelen under.</p>
+      <p>Behörigheter, felsökning och uppdateringar. Överst en överblick (grön = klart, röd = saknas), panelen i mitten och blocken
+      <b>Behörigheter → Felsökning → Appen</b> längst ner.</p>
       <ul>
         <li><b>Global session</b> – lägger effekten på allt ljud. Fungerar på din telefon.</li>
         <li><b>Ljudanalys ("mikrofon")</b> – låter appen läsa det som spelas internt för spektrum, analys, jämn volym och

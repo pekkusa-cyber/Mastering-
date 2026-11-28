@@ -94,7 +94,7 @@ test('EQ: dra en EQ-punkt i spektrumet ändrar frekvens och gain', async ({ page
   await expect(page.locator('#spanel .chip.sel')).toContainText('Mitt');
   // ett tryck flyttar inget
   const before = await page.locator('#p-peq-2-gain').inputValue();
-  await page.mouse.click(box.x + box.width * 0.5, box.y + 20);
+  await page.mouse.click(x + box.width * 0.1, y - box.height * 0.2); // på punkten som nyss drogs (grafens rubrikrad har knappar överst)
   await expect(page.locator('#p-peq-2-gain')).toHaveValue(before);
   await page.getByRole('button', { name: 'Platta ut' }).click();
   await expect.poll(async () => (await params(page)).post31.every((g) => g === 0)).toBe(true);

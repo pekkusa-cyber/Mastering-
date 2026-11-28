@@ -14,13 +14,22 @@ const AUDIT = () => {
     // utanför skärmen
     if (r.right > innerWidth + 1 || r.left < -1) out.push(`UTANFÖR: ${e.tagName}.${e.className} "${txt(e)}"`);
   });
+  const clipRect = (e) => {
+    const r = e.getBoundingClientRect(); let x0 = r.left, y0 = r.top, x1 = r.right, y1 = r.bottom;
+    for (let p = e.parentElement; p && p !== document.body; p = p.parentElement) {
+      const cs = getComputedStyle(p);
+      if (/(auto|scroll|hidden)/.test(cs.overflow + cs.overflowX + cs.overflowY)) { const q = p.getBoundingClientRect(); x0 = Math.max(x0, q.left); y0 = Math.max(y0, q.top); x1 = Math.min(x1, q.right); y1 = Math.min(y1, q.bottom); }
+    }
+    return { x0, y0, x1, y1 };
+  };
   // överlapp mellan knappar/etiketter på samma rad
   const items = [...document.querySelectorAll('#app button, #app .blk b, #app .blk small, #app output, #app .vname, #app .phead > *')].filter(vis);
   for (let i = 0; i < items.length; i++) for (let j = i + 1; j < items.length; j++) {
     const a = items[i], b = items[j];
     if (a.contains(b) || b.contains(a)) continue;
-    const ra = a.getBoundingClientRect(), rb = b.getBoundingClientRect();
-    const ox = Math.min(ra.right, rb.right) - Math.max(ra.left, rb.left), oy = Math.min(ra.bottom, rb.bottom) - Math.max(ra.top, rb.top);
+    // bara den synliga delen räknas: en rad som scrollats ut under panelens kant (under blockdockan) syns inte
+    const ra = clipRect(a), rb = clipRect(b);
+    const ox = Math.min(ra.x1, rb.x1) - Math.max(ra.x0, rb.x0), oy = Math.min(ra.y1, rb.y1) - Math.max(ra.y0, rb.y0);
     if (ox > 2 && oy > 2) out.push(`ÖVERLAPP: "${txt(a)}" × "${txt(b)}"`);
   }
   return out;

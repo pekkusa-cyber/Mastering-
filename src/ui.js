@@ -281,11 +281,18 @@ export function bindPicker(root, id, opts, onChange) {
  * panel för valt block. Inget scrollar – bara panelen kan, i nödfall, scrolla inuti sig själv.
  * blocks: [{ id, label, sub, dot }] – dot: true = på (grön), false = av (grå), undefined = ingen prick.
  */
+/** Ikon per block i dockan längst ned (samma ordning som ljudet går). */
+const BLOCK_ICON = { quick: '✦', in: '↘', eq1: '≋', eq2: '≋', comp: '◐', farg: '◈', lim: '▤', limiter: '▤', out: '↗',
+  analysera: '●', resultat: '▦', referenser: '◎', perm: '✓', debug: '⚙', app: 'ⓘ' };
+/**
+ * Layout (Glas): grafen överst, panelen i mitten och blocken som en flytande rad längst ned – i ljudets ordning.
+ * Varje block: ikon, namn, och en lampa (på/av) – undertexten finns kvar för skärmläsare och hjälp men visas inte.
+ */
 export function split({ view, top, blocks, active, panel, topCls = '' }) {
   return `<div class="split" data-split="${esc(view)}">
     <div class="stop ${topCls}" id="stop">${top}</div>
-    <div class="blocks" role="tablist">${blocks.map((b, i) => `<button type="button" role="tab" data-block="${esc(b.id)}" class="blk${b.id === active ? ' on' : ''}" aria-selected="${b.id === active}">
-      <b>${esc(b.label)}</b>${b.sub || b.dot !== undefined ? `<small>${b.dot === undefined ? '' : `<i class="dot${b.dot ? '' : ' no'}"></i>`}${esc(b.sub || '')}</small>` : ''}</button>`).join('')}</div>
     <div class="spanel" id="spanel">${panel}</div>
+    <div class="blocks" role="tablist">${blocks.map((b) => `<button type="button" role="tab" data-block="${esc(b.id)}" class="blk${b.id === active ? ' on' : ''}" aria-selected="${b.id === active}">
+      <span class="bic" aria-hidden="true">${BLOCK_ICON[b.id] || '•'}${b.dot === undefined ? '' : `<i class="dot${b.dot ? '' : ' no'}"></i>`}</span><b>${esc(b.label)}</b>${b.sub ? `<small>${esc(b.sub)}</small>` : ''}</button>`).join('')}</div>
   </div>`;
 }

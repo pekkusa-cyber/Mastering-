@@ -807,3 +807,147 @@ button.mbtn.on, .mbtn:has(input:not(:checked)) { background: var(--mute-bg); bor
 .diag > b { display: block; font-size: 14px; margin-bottom: 4px; }
 .diag.klar { border-color: var(--accent-line, #2c6e64); }
 .diag .checks { margin: 0; }
+
+/* ================================================================================================
+   GLAS – lättare och luftigare: en svag färgton i bakgrunden, frostade kort med stora rundningar,
+   runda "piller" för knappar, segmenterade flikar och blocken som en flytande rad längst ned.
+   Bara utseende – samma knappar, id:n och funktioner som förut.
+   ================================================================================================ */
+:root {
+  --glass: rgba(255,255,255,.05); --glass-2: rgba(255,255,255,.085); --glass-line: rgba(255,255,255,.09);
+  --glass-shadow: 0 10px 30px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.06);
+  --accent: #5ee0c0; --accent-ink: #06241e; --accent-soft: rgba(94,224,192,.14); --accent-line: rgba(94,224,192,.4);
+}
+html, body { background: #0f1215; }
+body { background: radial-gradient(120% 55% at 15% -5%, #1c3a35 0%, rgba(28,58,53,0) 60%), radial-gradient(90% 40% at 110% 105%, #182a3a 0%, rgba(24,42,58,0) 60%), #0f1215; background-attachment: fixed; min-height: 100vh; }
+
+/* Rubriken */
+.top { padding: calc(var(--sat) + 8px) 16px 6px; }
+.top h1 { font-size: 22px; font-weight: 700; letter-spacing: -.3px; }
+.top h1::after { width: 8px; height: 8px; }
+.rb, .top .info { width: 38px; height: 38px; border-radius: 19px; border: 1px solid var(--glass-line); background: var(--glass); color: #c3ccd4; box-shadow: none; backdrop-filter: blur(10px); }
+.rb.on { border-color: var(--accent-line); background: var(--accent-soft); color: #d6fff3; box-shadow: 0 0 14px rgba(94,224,192,.25); }
+.rb.sm { width: 36px; height: 36px; border-radius: 18px; }
+
+/* Raden under rubriken: preset/låt, A|B, ångra, export */
+.subbar { gap: 8px; margin-bottom: 10px; }
+.pp, .subbar .pp { height: 40px; border-radius: 20px; background: var(--glass); border: 1px solid var(--glass-line); padding: 0 14px; backdrop-filter: blur(10px); }
+.abmini { border-radius: 20px !important; background: var(--glass) !important; border: 1px solid var(--glass-line) !important; }
+.subbar .btn, .subbar .btn.small { border-radius: 20px; height: 40px; padding: 0 14px; }
+
+/* Kort: grafen och panelen */
+.split { gap: 10px; }
+.stop { border-radius: 24px; background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.025)); border: 1px solid var(--glass-line); box-shadow: var(--glass-shadow); }
+.stop .lbl { left: 16px; right: 16px; top: 10px; font-size: 11px; letter-spacing: .3px; text-transform: none; }
+.stop .lbl b { font-size: 13px; }
+.spanel { border-radius: 24px; background: var(--glass); border: 1px solid var(--glass-line); box-shadow: var(--glass-shadow); padding: 14px 16px; backdrop-filter: blur(14px); }
+.phead b { font-size: 17px; font-weight: 700; letter-spacing: -.2px; }
+.phead small { font-size: 12px; }
+
+/* Blocken: flytande rad längst ned med ikoner */
+.blocks { order: 3; gap: 2px; padding: 6px; margin: 0 0 calc(var(--sab) + 4px); border-radius: 24px; background: rgba(22,26,30,.82); border: 1px solid var(--glass-line); box-shadow: 0 10px 30px rgba(0,0,0,.45); backdrop-filter: blur(16px); }
+.blocks .blk { flex: 1; min-width: 0; padding: 4px 0 3px !important; border: 0 !important; border-radius: 16px; background: transparent !important; color: #98a3ad; display: flex; flex-direction: column; align-items: center; gap: 1px; box-shadow: none; margin: 0 !important; }
+.blocks .blk .bic { position: relative; display: grid; place-items: center; width: 34px; height: 26px; border-radius: 13px; font-size: 15px; line-height: 1; color: #b7c1ca; }
+.blocks .blk b { font-size: 10.5px !important; font-weight: 600; letter-spacing: -.1px !important; color: inherit; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.blocks .blk small { display: none; }
+.blocks .blk.on { color: var(--accent); }
+.blocks .blk.on .bic { background: var(--accent-soft); color: var(--accent); }
+.blocks .blk .dot { position: absolute; top: 1px; right: 3px; left: auto; margin: 0; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 6px rgba(94,224,192,.6); }
+.blocks .blk .dot.no { background: #5a626b; box-shadow: none; }
+.blocks .blk:nth-child(2) { margin-left: 0 !important; }
+
+/* Segmenterade flikar (band, Hela låten, EQ-vyer, Färg …) */
+.spanel .bandrow:has(.chip) { gap: 0; padding: 3px; border-radius: 14px; background: rgba(0,0,0,.22); }
+.spanel .bandrow .chip { border: 0; border-radius: 11px; background: transparent; color: #9aa3ad; padding: 7px 2px; }
+.spanel .bandrow .chip.sel { background: rgba(255,255,255,.1); color: #fff; font-weight: 600; box-shadow: 0 1px 3px rgba(0,0,0,.3); }
+.spanel .bandrow .chip.off { text-decoration: line-through; opacity: .5; }
+
+/* Reglagen som rader med tunna avdelare */
+.spanel .srows { gap: 0; }
+.spanel .srows .sl { padding: 8px 0 6px; margin: 0; border-top: 1px solid rgba(255,255,255,.06); }
+.spanel .srows .sl:first-child { border-top: 0; }
+.spanel .srows .slhead .name { font-size: 14.5px; }
+.spanel .srows .slhead output { font-size: 15px; font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; }
+input[type=range]::-webkit-slider-runnable-track { height: 6px; border-radius: 3px; background: linear-gradient(90deg, #3fc6a6 0, var(--accent) var(--p, 50%), rgba(255,255,255,.09) var(--p, 50%)); }
+input[type=range]::-webkit-slider-thumb { width: 20px; height: 20px; margin-top: -7px; background: #fff; box-shadow: 0 2px 10px rgba(0,0,0,.55); }
+.slrow.dragging input[type=range]::-webkit-slider-thumb { box-shadow: 0 0 0 8px rgba(94,224,192,.25), 0 2px 10px rgba(0,0,0,.55); }
+.sl.off input[type=range]::-webkit-slider-runnable-track { background: rgba(255,255,255,.09); }
+.step, .spanel .srows .step { border-color: var(--glass-line); background: var(--glass); color: #d9e2e8; }
+.rst { border-color: var(--glass-line); border-radius: 10px; background: transparent; }
+.solo, .mbtn { border-color: var(--glass-line); border-radius: 9px; }
+
+/* Lodräta fadrar (EQ) */
+.vtrack { width: 6px; border-radius: 3px; background: rgba(255,255,255,.09); }
+.vfill { border-radius: 3px; background: linear-gradient(0deg, #3fc6a6, var(--accent)); }
+.vthumb { border-radius: 8px; background: #fff; box-shadow: 0 2px 10px rgba(0,0,0,.55); }
+.vs { border-color: var(--glass-line) !important; background: var(--glass) !important; border-radius: 9px !important; }
+
+/* Knappar, väljare och piller */
+.btn { border-radius: 14px; background: var(--glass); border: 1px solid var(--glass-line); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.btn.ghost { background: transparent; }
+.pick2, .picker { border-radius: 14px; background: var(--glass); border-color: var(--glass-line); }
+.seg { border-radius: 14px; background: rgba(0,0,0,.22); border: 1px solid var(--glass-line); }
+.seg button.sel, .tabs button.sel { background: rgba(255,255,255,.1); color: #fff; }
+.tog i { box-shadow: none; }
+
+/* Spelaren i Fil */
+.fplayer .transport .btn, .transport .btn { border-radius: 50%; }
+.fplayer .transport #f-play { background: #f1f3f6; color: #0f1215; border-color: #f1f3f6; }
+.fplayer .transport #f-render-top { border-radius: 20px; }
+.fplayer .transport #f-render-top.primary { background: var(--accent); color: var(--accent-ink); }
+
+/* Ark, dialoger och menyn */
+dialog.sheet { background: linear-gradient(180deg, rgba(30,40,42,.97), rgba(16,20,23,.98)); border: 1px solid var(--glass-line); border-radius: 26px 26px 0 0; box-shadow: 0 -10px 40px rgba(0,0,0,.5); }
+dialog.ask { background: rgba(24,30,33,.98); border: 1px solid var(--glass-line); border-radius: 22px; }
+dialog.sheet::backdrop, dialog.ask::backdrop { background: rgba(0,0,0,.55); backdrop-filter: blur(4px); }
+.popt { border-radius: 16px; background: var(--glass); border-color: var(--glass-line); }
+.popt.sel { background: var(--accent-soft); border-color: var(--accent-line); }
+.pdel { border-radius: 16px; background: var(--glass); border-color: var(--glass-line); }
+nav.vmenu { border-radius: 20px; background: rgba(22,28,31,.96); border: 1px solid var(--glass-line); backdrop-filter: blur(16px); }
+nav.vmenu button.sel { background: var(--accent-soft); color: #e6fff8; }
+.toast { border-radius: 14px; backdrop-filter: blur(10px); }
+
+/* Smala skärmar: dockan och raderna lite tätare */
+@media (max-width: 380px) {
+  .blocks { padding: 5px 4px; }
+  .blocks .blk .bic { width: 28px; height: 24px; font-size: 14px; }
+  .blocks .blk b { font-size: 9.5px !important; }
+  .pp, .subbar .pp { padding: 0 10px; }
+}
+@media (max-width: 340px) {
+  .blocks .blk b { font-size: 8.5px !important; letter-spacing: -.3px !important; }
+  [data-split="fil"] .blocks .blk b { font-size: 8px !important; }
+  .blocks .blk .bic { width: 24px; }
+}
+
+/* Glas – graferna i samma palett: accent för det som spelas, grått för "före" */
+.wave { background: rgba(8,12,14,.55); }
+.wave svg { fill: rgba(94,224,192,.78); }
+.lvb .lvt { background: rgba(255,255,255,.05); }
+.lvb .lvt em { background: linear-gradient(0deg, #5d6873, #b3bcc5); }
+.lvb.after .lvt em { background: linear-gradient(0deg, #3fc6a6, var(--accent)); }
+
+/* Glas på smala skärmar: rubriken (titel + fem runda knappar) och kompressorns bandflikar ska rymmas */
+.top h1 { min-width: 0; }
+@media (max-width: 400px) {
+  .top { padding-left: 10px; padding-right: 10px; gap: 6px; }
+  .top h1 { font-size: 19px; }
+  .hbtns { gap: 5px; }
+  .rb, .top .info { width: 34px; height: 34px; border-radius: 17px; font-size: 14px; }
+  .rb.sm { width: 32px; height: 32px; }
+  .spanel .bandrow .chip { font-size: 11px; letter-spacing: -.3px; padding: 7px 1px; }
+}
+@media (max-width: 340px) {
+  .top h1 { font-size: 17px; }
+  .hbtns { gap: 4px; }
+  .rb, .top .info { width: 31px; height: 31px; border-radius: 16px; font-size: 13px; }
+  .rb.sm { width: 30px; height: 30px; }
+  .spanel .bandrow .chip { font-size: 9.5px; letter-spacing: -.4px; }
+}
+.spanel .bandrow .chip { flex: 1 1 auto; }
+@media (max-width: 400px) {
+  .stop .lbl { left: 10px; right: 10px; gap: 6px; font-size: 10.5px; letter-spacing: 0; }
+  .phead b { font-size: 16px; }
+  .phead small { font-size: 11px; white-space: normal; line-height: 1.15; overflow: visible; text-overflow: clip; }
+}
