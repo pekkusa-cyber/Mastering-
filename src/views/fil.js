@@ -670,7 +670,7 @@ let livePaused = false;
 async function pauseLive() {
   if (!LiveDsp || livePaused || !ui.status?.running || ui.status?.bypass) return;
   livePaused = true;
-  ui.status = await LiveDsp.setBypass({ on: true, temporary: true }); // tillfällig paus – motorn och notisen ska stå kvar
+  ui.status = await LiveDsp.setBypass({ on: true });
 }
 async function resumeLive() {
   if (!LiveDsp || !livePaused) return;

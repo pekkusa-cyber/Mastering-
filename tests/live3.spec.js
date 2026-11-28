@@ -237,13 +237,37 @@ test('tak-skydd i Live: positiv Ut sänker limiterns tröskel i det som skickas 
   expect(p.limiter.threshold + p.limiter.postGain + p.outputGain).toBeLessThanOrEqual(-0.99); // taket hålls
 });
 
-test('båda huvudbrytarna av: motorn stängs (ingen notis), på igen startar den', async ({ page }) => {
+test('båda huvudbrytarna av: appen frågar om den ska stängas helt – aldrig av sig själv', async ({ page }) => {
   await page.goto('/?sim=1');
-  await page.locator('#masterlab').uncheck({ force: true });
-  await expect(page.getByTestId('mode')).toHaveText('HELT ORIGINAL');
-  await expect(page.getByTestId('motor')).toHaveText('Av – inget ljud ändras, ingen notis');
-  await page.locator('#masterlab').check({ force: true });
+  await page.locator('#onoff').click(); // motorn igång
   await expect(page.getByTestId('motor')).toContainText('Bearbetar');
+  // Avbryt = låt ligga kvar
+  await page.locator('label.rb:has(#masterlab)').click({ force: true });
+  const dlg = page.locator('dialog.ask');
+  await expect(dlg).toContainText('Stänga av appen helt?');
+  await dlg.getByRole('button', { name: 'Låt ligga kvar' }).click();
+  await expect(page.getByTestId('mode')).toHaveText('HELT ORIGINAL');
+  expect(await page.evaluate(async () => (await window.__sim.getStatus()).running)).toBe(true);
+  // På igen och av igen → Stäng av helt
+  await page.locator('label.rb:has(#masterlab)').click({ force: true });
+  await expect(page.getByTestId('mode')).not.toHaveText('HELT ORIGINAL');
+  await page.locator('label.rb:has(#masterlab)').click({ force: true });
+  await page.locator('dialog.ask').getByRole('button', { name: 'Stäng av helt' }).click();
+  await expect.poll(() => page.evaluate(async () => (await window.__sim.getStatus()).running)).toBe(false);
+  await expect(page.getByTestId('motor')).toHaveText('Motorn står still');
+});
+
+test('hörlurar på + Masterlab av frågar inte (hörlurskorrigeringen är på); hörlurar av sedan frågar', async ({ page }) => {
+  await page.goto('/?sim=1');
+  await page.locator('#onoff').click();
+  await page.locator('#corr').check({ force: true });
+  await page.locator('label.rb:has(#masterlab)').click({ force: true }); // Masterlab av, 🎧 på
+  await page.waitForTimeout(500);
+  await expect(page.locator('dialog.ask')).toHaveCount(0);
+  await page.locator('label.rb:has(#corr)').click({ force: true }); // 🎧 av → nu är allt av
+  await expect(page.locator('dialog.ask')).toContainText('Stänga av appen helt?');
+  await page.locator('dialog.ask').getByRole('button', { name: 'Låt ligga kvar' }).click();
+  expect(await page.evaluate(async () => (await window.__sim.getStatus()).running)).toBe(true);
 });
 
 test('Mastringsguiden finns i ☰-menyn i alla vyer och menyn stängs', async ({ page }) => {

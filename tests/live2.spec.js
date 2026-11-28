@@ -35,6 +35,7 @@ test('huvudbrytare: Hörlurar och Masterlab var för sig', async ({ page }) => {
   await expect(page.getByTestId('mode')).toHaveText('MASTRAT');
   // Masterlab av: Före/Efter går inte att använda, inget bearbetas; knappen blir grå
   await page.getByLabel('Masterlab (bearbetning)').uncheck();
+  await page.locator('dialog.ask').getByRole('button', { name: 'Låt ligga kvar' }).click(); // frågan: stänga av appen helt?
   await expect(page.getByTestId('mode')).toHaveText('HELT ORIGINAL');
   await expect(page.locator('#onoff')).toBeDisabled();
   await expect(page.locator('label.rb:has(#masterlab)')).toHaveClass(/off/);
@@ -137,7 +138,7 @@ test('profil per enhet: sparas och används när enheten ansluts', async ({ page
   await expect(page.locator('#profmsg')).toContainText('Soundcore Liberty 4 Pro');
 });
 
-test('layout B: runda brytare i rubriken, smal rad, fast graf och block utan scroll; svep byter block', async ({ page }) => {
+test('layout B: runda brytare i rubriken, smal rad, fast graf och block utan scroll; svep byter inte block', async ({ page }) => {
   await page.goto('/?sim=1');
   await expect(picked(page, 'Preset')).toHaveText('Mjuk kick');
   await expect(page.locator('.top label.rb')).toHaveCount(2); // 🎧 och 🎚️ i rubriken
@@ -152,11 +153,13 @@ test('layout B: runda brytare i rubriken, smal rad, fast graf och block utan scr
     await expect(page.locator('#stop')).toBeInViewport();
     await expect(page.locator('#spanel')).toBeInViewport({ ratio: 1 }); // panelen når ända ner – ingen rad längst ner
   }
-  // svep i sidled i panelen = nästa block (EQ 1 → Kompressor)
+  // Ett vågrätt svep i panelen byter INTE block (det ska bara ändra reglaget man drar i)
   await block(page, 'eq1');
   const box = await page.locator('#spanel .phead').boundingBox();
   await page.mouse.move(box.x + box.width * 0.9, box.y + 10); await page.mouse.down();
   await page.mouse.move(box.x + box.width * 0.1, box.y + 12, { steps: 8 }); await page.mouse.up();
+  await expect(page.locator('[data-block="eq1"]')).toHaveClass(/\bon\b/);
+  await block(page, 'comp');
   await expect(page.locator('[data-block="comp"]')).toHaveClass(/\bon\b/);
   // M på kompressorn stänger av alla band
   await page.getByLabel('Kompressor på/av').uncheck();

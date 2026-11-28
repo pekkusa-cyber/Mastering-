@@ -226,7 +226,7 @@ function statusLine() {
   const s = ui.status || {};
   const hpOn = !!s.correction?.on, appOn = !s.bypass;
   const mode = !s.running && ((appOn && s.on) || hpOn) ? 'STARTAR…' : !appOn ? (hpOn ? 'BARA HÖRLURSKORRIGERING' : 'HELT ORIGINAL') : s.on ? 'MASTRAT' : s.agc?.on ? 'ORIGINAL · NIVÅMATCHAT' : 'ORIGINAL';
-  const motor = s.running ? (s.globalActive ? 'Bearbetar allt ljud' : `Bearbetar ${(s.sessions || []).filter((x) => x.attached).length} spelande appar`) : (!appOn && !hpOn ? 'Av – inget ljud ändras, ingen notis' : 'Motorn står still');
+  const motor = s.running ? (s.globalActive ? 'Bearbetar allt ljud' : `Bearbetar ${(s.sessions || []).filter((x) => x.attached).length} spelande appar`) : 'Motorn står still';
   return `<span id="lstat"><b data-testid="mode">${mode}</b> · <span data-testid="motor">${motor}</span></span>${infoBtn('mains', 'Om huvudbrytarna')}`;
 }
 
@@ -824,22 +824,7 @@ export function bindLive(root) {
   root.querySelectorAll('[data-amute]').forEach((b) => { b.onclick = () => listen(b.dataset.amute, 'mute'); });
   const pf = root.querySelector('#peq-flat');
   if (pf) pf.onclick = () => { ui.base.peq.forEach((b) => { b.gain = 0; }); changed({ now: true }); app.render(); };
-  // svep i sidled i panelen = nästa/föregående block
-  const panel = root.querySelector('#spanel');
-  if (panel) {
-    let sw = null;
-    panel.addEventListener('pointerdown', (e) => { sw = { x: e.clientX, y: e.clientY }; });
-    panel.addEventListener('pointerup', (e) => {
-      if (!sw) return;
-      const dx = e.clientX - sw.x, dy = e.clientY - sw.y; sw = null;
-      if (Math.abs(dx) < 70 || Math.abs(dx) < 2 * Math.abs(dy)) return;
-      const i = BLOCKS.findIndex((x) => x.id === block()) + (dx < 0 ? 1 : -1);
-      if (i < 0 || i >= BLOCKS.length) return;
-      ui.liveBlock = BLOCKS[i].id;
-      app.render();
-      setSpectrum(wantsSpectrum());
-    });
-  }
+  // (Inget svep byter block: ett drag i en panel ska bara ändra reglaget, aldrig flytta dig till en annan flik.)
   root.querySelectorAll('#reset-all').forEach((el) => { el.onclick = () => {
     ui.base = presetBase(); ui.macros = noMacros(); ui.amounts = noAmounts();
     ui.enabled = allEnabled();
@@ -889,9 +874,24 @@ export function bindStatus(root) {
     if (ui.filePlaying) { app.render(); return; } // Fil spelar: Live-mastringen får inte slås på (dubbel mastring)
     ui.status = await LiveDsp.setBypass({ on: !m.checked });
     app.render();
+    await askStopIfAllOff();
   };
   const c = root.querySelector('#corr');
-  if (c) c.onchange = async () => { await sendCorrection(c.checked); app.render(); };
+  if (c) c.onchange = async () => { await sendCorrection(c.checked); app.render(); await askStopIfAllOff(); };
+}
+
+/**
+ * Både 🎚️ Masterlab och 🎧 Hörlurar är av: appen gör inget, men motorn och notisen ligger kvar. Fråga om man vill stänga
+ * av den helt – det sker aldrig av sig självt (man ska inte kunna råka stänga appen). Avbryt = låt den ligga kvar.
+ */
+export async function askStopIfAllOff() {
+  const s = ui.status;
+  if (!LiveDsp || ui.filePlaying || !s?.running || !s.bypass || s.correction?.on) return;
+  const yes = await ask({ title: 'Stänga av appen helt?', text: 'Masterlab och hörlurar är båda av. Appen ändrar inget ljud nu, men motorn och notisen ligger kvar så att du snabbt kan slå på igen. Stäng av helt tar bort notisen.', okText: 'Stäng av helt', cancelText: 'Låt ligga kvar' });
+  if (!yes) return;
+  ui.status = await LiveDsp.stop();
+  say('Appen är avstängd. Slå på Masterlab eller hörlurar för att starta igen.');
+  app.render();
 }
 
 /** Kopplar inställningsarket. */

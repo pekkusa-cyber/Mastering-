@@ -52,7 +52,7 @@ class LiveDspPlugin : Plugin() {
         try { Shizuku.addRequestPermissionResultListener(shizukuResult) } catch (_: Throwable) {}
         // Något är påslaget (Mastrad, hörlurar eller jämn volym) men motorn går inte: starta den,
         // så att det brytarna visar också är det som hörs
-        if (!LiveDspEngine.running && !LiveDspEngine.idle() && (LiveDspEngine.wasRunning() || LiveDspEngine.on || LiveDspEngine.correctionOn || AgcController.on)) {
+        if (!LiveDspEngine.running && (LiveDspEngine.wasRunning() || LiveDspEngine.on || LiveDspEngine.correctionOn || AgcController.on)) {
             LiveDspService.start(context)
         }
     }
@@ -101,18 +101,12 @@ class LiveDspPlugin : Plugin() {
         call.resolve(JSObject.fromJSONObject(r))
     }
 
-    /** Av = av: när appen inte ändrar något stängs motorn och notisen försvinner (inställningarna ligger kvar). */
-    private fun stopIfIdle() {
-        if (LiveDspEngine.idle() && LiveDspEngine.running) { LiveDspService.stop(context); LiveDspEngine.setRunning(false) }
-    }
-
     /** Bypass: helt originalljud (appen gör ingenting). */
     @PluginMethod
     fun setBypass(call: PluginCall) {
         val value = call.getBoolean("on", false) == true
-        LiveDspEngine.setBypass(value, call.getBoolean("temporary", false) == true)
+        LiveDspEngine.setBypass(value)
         if (!value && !LiveDspEngine.running) LiveDspService.start(context)
-        stopIfIdle()
         call.resolve(statusObj())
     }
 
@@ -128,9 +122,7 @@ class LiveDspPlugin : Plugin() {
         val c = call.getObject("correction")?.let { LiveDspEngine.parseCorrection(it) }
         val on = call.getBoolean("on", false) == true
         if (on && !LiveDspEngine.running) LiveDspService.start(context)
-        val r = LiveDspEngine.setCorrection(on, c)
-        stopIfIdle()
-        call.resolve(JSObject.fromJSONObject(r))
+        call.resolve(JSObject.fromJSONObject(LiveDspEngine.setCorrection(on, c)))
     }
 
     @PluginMethod

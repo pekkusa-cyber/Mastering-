@@ -141,8 +141,6 @@ class LiveDspService : Service() {
             ACTION_MASTERLAB -> LiveDspEngine.setBypass(!LiveDspEngine.bypass)
             ACTION_STOP -> { LiveDspEngine.stopAll(); stopSelf(); return START_NOT_STICKY }
         }
-        // Inget att göra (Masterlab av, inga hörlurar): stäng motorn så att notisen bara syns när ljud bearbetas
-        if (LiveDspEngine.idle()) { stopSelf(); return START_NOT_STICKY }
         updateNotification()
         return START_STICKY
     }
@@ -253,7 +251,8 @@ class LiveDspService : Service() {
                 on -> "Mastrad" + if (LiveDspEngine.correctionOn) " · 🎧" else ""
                 else -> "Original" + if (LiveDspEngine.correctionOn) " · 🎧" else ""
             })
-            .setContentText("Bearbetar $how")
+            // Allt av men appen står kvar (man stänger av den helt med Stoppa): säg det i stället för "Bearbetar"
+            .setContentText(if (LiveDspEngine.bypass && !LiveDspEngine.correctionOn) "Appen är på men ändrar inget ljud – Stoppa stänger den" else "Bearbetar $how")
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .setContentIntent(open)

@@ -174,13 +174,13 @@ export function sheet(html, { cls = '', closeText = 'Stäng' } = {}) {
 }
 
 /** Dialog för namn (value ≠ null) eller bekräftelse. Svarar texten / true, eller null vid Avbryt. */
-export function ask({ title, value = null, okText = 'OK' }) {
+export function ask({ title, value = null, okText = 'OK', text = '', cancelText = 'Avbryt' }) {
   return new Promise((resolve) => {
     const d = document.createElement('dialog');
     d.className = 'ask';
-    d.innerHTML = `<form method="dialog"><h2>${esc(title)}</h2>
+    d.innerHTML = `<form method="dialog"><h2>${esc(title)}</h2>${text ? `<p class="hint">${esc(text)}</p>` : ''}
       ${value !== null ? `<input name="v" value="${esc(value)}" maxlength="60" autocomplete="off">` : ''}
-      <div class="btns"><button class="btn" value="cancel" formnovalidate>Avbryt</button><button class="btn primary" value="ok">${esc(okText)}</button></div></form>`;
+      <div class="btns"><button class="btn" value="cancel" formnovalidate>${esc(cancelText)}</button><button class="btn primary" value="ok">${esc(okText)}</button></div></form>`;
     document.body.append(d);
     d.addEventListener('close', () => {
       const ok = d.returnValue === 'ok';

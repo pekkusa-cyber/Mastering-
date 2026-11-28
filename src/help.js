@@ -9,14 +9,14 @@ export const HELP = {
       <h3>Samma upplägg i hela appen</h3>
       <p>Skärmen är delad i två fasta halvor och scrollar aldrig: <b>grafen överst</b> visar alltid det du arbetar med,
       <b>blocken</b> i mitten är flödet i ljudets ordning, och <b>panelen</b> under visar reglagen för valt block.
-      Tryck på ett block (eller svep i sidled i panelen) för att byta.</p>
+      Tryck på ett block för att byta. Att dra i ett reglage byter aldrig flik.</p>
       <h3>Rubriken</h3>
       <ul>
         <li><b>🎧</b> – hörlurskorrigeringen (neutrala lurar). Grön = på, grå = av. Fungerar helt för sig.</li>
         <li><b>🎚️</b> – Masterlab: allt annat (mastring, jämn volym, konstant nivå). Grön = på, grå = av.</li>
         <li><b>☰</b> menyn: byt mellan Live, Analys, Fil och Mer. <b>⚙</b> inställningar, <b>ⓘ</b> den här hjälpen.</li>
       </ul>
-      <p>🎧 på + 🎚️ av = vanlig musik, bara neutral. Båda av = helt originalljud: motorn stängs och notisen försvinner. <b>Notis = appen bearbetar ljud, ingen notis = appen gör ingenting.</b>
+      <p>🎧 på + 🎚️ av = vanlig musik, bara neutral. Båda av = helt originalljud: du får frågan <b>Stänga av appen helt?</b> (Stäng av helt tar bort motorn och notisen, Låt ligga kvar behåller dem). Appen stängs aldrig av sig själv.
       Knapparna finns också i notisen.</p>
       <h3>Raden under rubriken</h3>
       <ul>
